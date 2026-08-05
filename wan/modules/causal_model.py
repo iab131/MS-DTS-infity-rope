@@ -83,6 +83,13 @@ def assemble_noncontiguous_context(retrieved_kv, local_key, local_value, frame_t
     )
 
 
+def materialize_retrieved_kv(retrieved_kv, device):
+    """Move one selected historical layer to the executing block's device."""
+    if retrieved_kv is None or retrieved_kv["k"].device == device:
+        return retrieved_kv
+    return {name: value.to(device, non_blocking=value.device.type == "cpu") for name, value in retrieved_kv.items()}
+
+
 def block_relativistic_rope(x, grid_sizes, freqs, start_frame=0, scene_cut=False, prefix_frames=0):
     n, c = x.size(2), x.size(3) // 2
 
@@ -945,7 +952,8 @@ class CausalWanModel(ModelMixin, ConfigMixin):
                         "current_start": current_start,
                         "cache_start": cache_start,
                         "freqs": self.freqs,
-                        "retrieved_kv": None if retrieved_kv is None else retrieved_kv[block_index],
+                        "retrieved_kv": None if retrieved_kv is None else materialize_retrieved_kv(
+                            retrieved_kv[block_index], x.device),
                         "capture_kv": capture_kv,
                     }
                 )
@@ -962,7 +970,8 @@ class CausalWanModel(ModelMixin, ConfigMixin):
                         "current_start": current_start,
                         "cache_start": cache_start,
                         "freqs": self.freqs,
-                        "retrieved_kv": None if retrieved_kv is None else retrieved_kv[block_index],
+                        "retrieved_kv": None if retrieved_kv is None else materialize_retrieved_kv(
+                            retrieved_kv[block_index], x.device),
                         "capture_kv": capture_kv,
                     }
                 )

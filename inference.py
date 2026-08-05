@@ -153,10 +153,14 @@ parser.add_argument("--noncontiguous-source-blocks", type=str, default=None,
                     help="Comma-separated one-based clean-pass source block numbers.")
 parser.add_argument("--noncontiguous-target-block", type=int, default=None,
                     help="One-based block number that receives the historical KV prefix.")
-parser.add_argument("--noncontiguous-kv-mode", choices=["baseline", "coherent_history", "random_history"],
+parser.add_argument("--noncontiguous-kv-mode", choices=[
+                    "baseline", "coherent_history", "random_history",
+                    "same_entity_history", "wrong_entity_history"],
                     default="baseline", help="Matched-context Phase 1 mode.")
 parser.add_argument("--noncontiguous-retrieval-count", type=int, choices=[1, 2], default=1,
                     help="Historical latent frames replacing recent non-sink context frames.")
+parser.add_argument("--noncontiguous-history-frame-id", type=int, default=None,
+                    help="Manually selected global latent frame for an oracle history mode.")
 args = parser.parse_args()
 
 if args.noncontiguous_kv:
@@ -168,6 +172,9 @@ if args.noncontiguous_kv:
         parser.error("--noncontiguous-source-blocks must be comma-separated integers")
     if not noncontiguous_source_blocks or args.noncontiguous_target_block is None:
         parser.error("--noncontiguous-kv requires --noncontiguous-source-blocks and --noncontiguous-target-block")
+    if args.noncontiguous_kv_mode in {"same_entity_history", "wrong_entity_history"} and \
+            args.noncontiguous_history_frame_id is None:
+        parser.error("oracle history modes require --noncontiguous-history-frame-id")
 else:
     noncontiguous_source_blocks = None
 
@@ -369,6 +376,7 @@ for i, batch_data in tqdm(enumerate(dataloader), disable=(local_rank != 0)):
         noncontiguous_mode=args.noncontiguous_kv_mode,
         noncontiguous_retrieval_count=args.noncontiguous_retrieval_count,
         noncontiguous_random_seed=args.seed,
+        noncontiguous_manual_frame_id=args.noncontiguous_history_frame_id,
     )
     current_video = rearrange(video, 'b t c h w -> b t h w c').cpu()
     all_video.append(current_video)

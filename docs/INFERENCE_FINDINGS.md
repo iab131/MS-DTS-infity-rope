@@ -74,3 +74,71 @@ claim.
 - Commit `46880a1` moves `torchvision.io.write_video` behind a lazy import and
   falls back to the already-installed `imageio` MP4 writer. The prior
   `conda run -n wan python inference.py --help` import failure is resolved.
+
+## 2026-08-04: Matched Phase 1 GPU Evidence
+
+- The matched baseline/coherent/random matrix completed at 480x832 with the
+  same 7.5-second prompt, seed 101, EMA checkpoint, source blocks 2--4, and
+  target block 8. All three contexts were exactly six frames / 9,360 tokens.
+- Coherent history selected source-block-4 global frame 11. Seeded random
+  history selected source-block-3 global frame 6. Neither could select sink,
+  current, or retained-recent context frames because the candidate pool was
+  captured source-block frames only.
+- See `docs/NONCONTIGUOUS_PHASE1_GPU_20260804.md` for commands, telemetry,
+  output paths, target-block comparison, and checksums. This is execution
+  evidence only; no visual-quality conclusion has been made.
+
+## 2026-08-04: Decoded RGB comparison and A-B-A preparation
+
+### Observed decoded-frame comparison
+
+- RGB frames were decoded with the installed OpenCV and compared as uint8 RGB.
+  RGB MAE is the mean absolute component error; PSNR uses peak 255. Exact
+  matches have infinite PSNR and are omitted from finite-PSNR averages.
+- The causality control is decoded frames 0--80, before target block 8 (the
+  target starts at decoded frame 81). It is not exact: baseline/coherent and
+  baseline/random first diverge at frame 45, while coherent/random first
+  diverge at frame 49. Thus the original three-run output is confounded for a
+  strict target-only causal comparison.
+
+| Pair | First differing frame | Control max MAE / min PSNR | All-frame mean MAE / finite mean PSNR / min PSNR |
+| --- | ---: | --- | --- |
+| baseline vs coherent | 45 | 1.064231 / 43.955 dB | 2.510562 / 34.230 dB / 20.331 dB |
+| baseline vs random | 45 | 1.060765 / 43.943 dB | 3.516948 / 33.492 dB / 17.685 dB |
+| coherent vs random | 49 | 1.059219 / 43.956 dB | 3.564348 / 32.325 dB / 17.833 dB |
+
+- Frames 0--44 are exact for all pairs. The first differing decoded frame is
+  immediately after source block 4 in the prior layout, which is consistent
+  with an opt-in clean-KV capture scheduling/allocation effect, but the exact
+  lower-level CUDA mechanism has not been isolated without a new GPU run.
+
+### Corrective preparation, not a new experiment result
+
+- Opt-in baseline now follows the same source clean-KV capture and CPU-offload
+  schedule as the history variants. It still injects no history. The fully
+  disabled path remains unchanged.
+- Captured clean K/V is popped to CPU after every source clean pass. At the
+  target, only manually selected frame K/V is packed on CPU and materialized
+  on GPU one transformer layer at a time.
+- See `docs/NONCONTIGUOUS_PHASE1_ABA_PREPARATION_20260804.md` for the
+  unlaunched matched oracle A/B/A2 prompt, frame IDs, commands, and VRAM
+  estimate. No MemoryStore, descriptors, routing, compression, or matrix run
+  was added.
+
+## 2026-08-04: A-B-A causality gate
+
+- Normal inference, opt-in capture/offload baseline, and a repeated opt-in
+  baseline were exactly equal at every observed boundary: all ten clean latent
+  hashes, all ten complete persistent K/V hashes, cache indices, and the raw
+  decoded RGB tensor before MP4 encoding. Every direct max absolute difference
+  was `0.0`.
+- The gate used the A/B/A2 prompt but did not run either history-injection
+  mode. The prior three-video divergence therefore does not reproduce in the
+  current CPU-offloaded capture path with the A-B-A source blocks 3 and 6.
+- Full commands, per-block SHA-256 evidence, runtimes, and raw metrics are in
+  `docs/NONCONTIGUOUS_PHASE1_CAUSALITY_GATE_20260804.md` and
+  `outputs/noncontiguous_phase1_causality_gate/metrics.json`.
+- The standalone gate runner must explicitly disable gradients, as
+  `inference.py` does. Its first attempt omitted this and OOMed at block 2 from
+  retained autograd activations; no configuration changed for the recorded
+  three-run gate after that correction.

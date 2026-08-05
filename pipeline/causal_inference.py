@@ -8,7 +8,9 @@ from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
 from demo_utils.memory import gpu, get_cuda_free_memory_gb, DynamicSwapInstaller, move_model_to_device_with_memory_preservation
 
 
-def select_history_frame_refs(captured_source_kv, source_blocks, retrieval_count, mode, random_seed=0):
+def select_history_frame_refs(
+        captured_source_kv, source_blocks, retrieval_count, mode, random_seed=0,
+        manual_frame_id=None):
     """Select individual latent frames without perturbing the generation RNG."""
     candidates = [
         {"source_block": block, "frame_index": index, "global_frame_id": frame_id}
@@ -17,6 +19,13 @@ def select_history_frame_refs(captured_source_kv, source_blocks, retrieval_count
     ]
     if retrieval_count > len(candidates):
         raise ValueError("not enough captured source frames for retrieval")
+    if mode in {"same_entity_history", "wrong_entity_history"}:
+        if retrieval_count != 1 or manual_frame_id is None:
+            raise ValueError("oracle history requires one manually selected frame")
+        for candidate in candidates:
+            if candidate["global_frame_id"] == manual_frame_id:
+                return [candidate]
+        raise ValueError(f"manual history frame {manual_frame_id} was not captured")
     if mode == "coherent_history":
         selected = []
         for offset in range(max(len(captured_source_kv[block]["frame_ids"]) for block in source_blocks)):
@@ -33,6 +42,36 @@ def select_history_frame_refs(captured_source_kv, source_blocks, retrieval_count
     if mode == "random_history":
         return sorted(Random(random_seed).sample(candidates, retrieval_count), key=lambda frame: frame["global_frame_id"])
     raise ValueError(f"unsupported non-contiguous mode: {mode}")
+
+
+def capture_clean_kv_to_cpu(kv_caches):
+    """Pop source clean-pass KV and retain it off-GPU without changing the cache."""
+    return [
+        {
+            "k": cache.pop("noncontiguous_raw_k").to(device="cpu", copy=True),
+            "v": cache.pop("noncontiguous_raw_v").to(device="cpu", copy=True),
+        }
+        for cache in kv_caches
+    ]
+
+
+def select_history_kv(captured_source_kv, history_refs, num_layers, frame_tokens):
+    """Pack only selected CPU-resident historical frames for per-layer transfer."""
+    return [
+        {
+            "k": torch.cat([
+                captured_source_kv[frame["source_block"]]["layers"][layer]["k"][:,
+                frame["frame_index"] * frame_tokens:(frame["frame_index"] + 1) * frame_tokens]
+                for frame in history_refs
+            ], dim=1),
+            "v": torch.cat([
+                captured_source_kv[frame["source_block"]]["layers"][layer]["v"][:,
+                frame["frame_index"] * frame_tokens:(frame["frame_index"] + 1) * frame_tokens]
+                for frame in history_refs
+            ], dim=1),
+        }
+        for layer in range(num_layers)
+    ]
 
 
 class CausalInferencePipeline(torch.nn.Module):
@@ -92,6 +131,8 @@ class CausalInferencePipeline(torch.nn.Module):
         noncontiguous_mode: str = "baseline",
         noncontiguous_retrieval_count: int = 1,
         noncontiguous_random_seed: int = 0,
+        noncontiguous_manual_frame_id: Optional[int] = None,
+        clean_pass_callback=None,
     ) -> torch.Tensor:
         """
         Perform inference on the given noise and text prompts.
@@ -132,7 +173,9 @@ class CausalInferencePipeline(torch.nn.Module):
                 raise ValueError("non-contiguous target block exceeds generated blocks")
             if source_blocks[-1] > num_blocks:
                 raise ValueError("non-contiguous source block exceeds generated blocks")
-            if noncontiguous_mode not in {"baseline", "coherent_history", "random_history"}:
+            if noncontiguous_mode not in {
+                    "baseline", "coherent_history", "random_history",
+                    "same_entity_history", "wrong_entity_history"}:
                 raise ValueError("unsupported non-contiguous mode")
             if noncontiguous_retrieval_count not in {1, 2}:
                 raise ValueError("non-contiguous retrieval count must be one or two")
@@ -306,22 +349,11 @@ class CausalInferencePipeline(torch.nn.Module):
                         raise RuntimeError(f"missing clean KV for source blocks {missing_sources}")
                     history_refs = select_history_frame_refs(
                         captured_source_kv, source_blocks, noncontiguous_retrieval_count,
-                        noncontiguous_mode, noncontiguous_random_seed)
-                    retrieved_kv = [
-                        {
-                            "k": torch.cat([
-                                captured_source_kv[frame["source_block"]]["layers"][layer]["k"][:,
-                                frame["frame_index"] * self.frame_seq_length:(frame["frame_index"] + 1) * self.frame_seq_length]
-                                for frame in history_refs
-                            ], dim=1),
-                            "v": torch.cat([
-                                captured_source_kv[frame["source_block"]]["layers"][layer]["v"][:,
-                                frame["frame_index"] * self.frame_seq_length:(frame["frame_index"] + 1) * self.frame_seq_length]
-                                for frame in history_refs
-                            ], dim=1),
-                        }
-                        for layer in range(self.num_transformer_blocks)
-                    ]
+                        noncontiguous_mode, noncontiguous_random_seed,
+                        noncontiguous_manual_frame_id)
+                    retrieved_kv = select_history_kv(
+                        captured_source_kv, history_refs, self.num_transformer_blocks,
+                        self.frame_seq_length)
             noisy_input = noise[
                 :, current_start_frame - num_input_frames:current_start_frame + current_num_frames - num_input_frames]
 
@@ -376,21 +408,15 @@ class CausalInferencePipeline(torch.nn.Module):
                 crossattn_cache=self.crossattn_cache,
                 current_start=current_start_frame * self.frame_seq_length,
                 retrieved_kv=retrieved_kv,
-                capture_kv=(noncontiguous_enabled and noncontiguous_mode != "baseline" and
-                            current_block_number in source_blocks),
+                capture_kv=(noncontiguous_enabled and current_block_number in source_blocks),
             )
+            if clean_pass_callback is not None:
+                clean_pass_callback(current_block_number, denoised_pred, self.kv_cache1)
 
-            if (noncontiguous_enabled and noncontiguous_mode != "baseline" and
-                    current_block_number in source_blocks):
+            if noncontiguous_enabled and current_block_number in source_blocks:
                 captured_source_kv[current_block_number] = {
                     "frame_ids": list(range(current_start_frame, current_start_frame + current_num_frames)),
-                    "layers": [
-                        {
-                            "k": cache.pop("noncontiguous_raw_k"),
-                            "v": cache.pop("noncontiguous_raw_v"),
-                        }
-                        for cache in self.kv_cache1
-                    ],
+                    "layers": capture_clean_kv_to_cpu(self.kv_cache1),
                 }
             if noncontiguous_enabled and current_block_number == noncontiguous_target_block:
                 history_ids = [frame["global_frame_id"] for frame in history_refs]

@@ -11,9 +11,14 @@ from wan.modules.causal_model import (
     assemble_noncontiguous_context,
     block_relative_positions,
     block_relativistic_rope,
+    materialize_retrieved_kv,
 )
 from wan.modules.model import rope_apply, rope_params
-from pipeline.causal_inference import select_history_frame_refs
+from pipeline.causal_inference import (
+    capture_clean_kv_to_cpu,
+    select_history_frame_refs,
+    select_history_kv,
+)
 
 
 def rope_at_source_positions(x, positions, freqs):
@@ -174,6 +179,53 @@ class NonContiguousContextAssemblyTest(unittest.TestCase):
 
         self.assertEqual(first, second)
         self.assertEqual(len({frame["global_frame_id"] for frame in first}), 2)
+
+    def test_oracle_selection_uses_the_requested_global_frame(self):
+        captured = {
+            3: {"frame_ids": [6, 7, 8]},
+            6: {"frame_ids": [15, 16, 17]},
+        }
+
+        self.assertEqual(
+            select_history_frame_refs(
+                captured, [3, 6], retrieval_count=1, mode="same_entity_history",
+                manual_frame_id=8),
+            [{"source_block": 3, "frame_index": 2, "global_frame_id": 8}],
+        )
+        self.assertEqual(
+            select_history_frame_refs(
+                captured, [3, 6], retrieval_count=1, mode="wrong_entity_history",
+                manual_frame_id=17),
+            [{"source_block": 6, "frame_index": 2, "global_frame_id": 17}],
+        )
+
+    def test_captured_kv_is_cpu_resident_and_only_selected_frame_is_packed(self):
+        raw_k = torch.arange(12, dtype=torch.float32).view(1, 3, 2, 2)
+        raw_v = raw_k + 100
+        caches = [{"noncontiguous_raw_k": raw_k, "noncontiguous_raw_v": raw_v}]
+
+        layers = capture_clean_kv_to_cpu(caches)
+        self.assertEqual(caches, [{}])
+        self.assertEqual(layers[0]["k"].device.type, "cpu")
+        self.assertEqual(layers[0]["v"].device.type, "cpu")
+        self.assertNotEqual(layers[0]["k"].data_ptr(), raw_k.data_ptr())
+        self.assertNotEqual(layers[0]["v"].data_ptr(), raw_v.data_ptr())
+        captured = {3: {"frame_ids": [6, 7, 8], "layers": layers}}
+        packed = select_history_kv(
+            captured, [{"source_block": 3, "frame_index": 1, "global_frame_id": 7}],
+            num_layers=1, frame_tokens=1)
+
+        self.assertEqual(packed[0]["k"].shape, (1, 1, 2, 2))
+        torch.testing.assert_close(packed[0]["k"], raw_k[:, 1:2])
+        self.assertIs(materialize_retrieved_kv(packed[0], torch.device("cpu")), packed[0])
+
+    def test_history_selection_does_not_advance_torch_rng(self):
+        captured = {2: {"frame_ids": [3, 4, 5]}, 4: {"frame_ids": [9, 10, 11]}}
+        torch.manual_seed(123)
+        expected = torch.rand(3)
+        torch.manual_seed(123)
+        select_history_frame_refs(captured, [2, 4], retrieval_count=1, mode="random_history", random_seed=7)
+        torch.testing.assert_close(torch.rand(3), expected)
 
 
 if __name__ == "__main__":
