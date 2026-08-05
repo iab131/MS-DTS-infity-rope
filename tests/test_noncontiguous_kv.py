@@ -7,7 +7,11 @@ import unittest
 import torch
 
 from wan.modules.attention import FLASH_ATTN_2_AVAILABLE, attention
-from wan.modules.causal_model import block_relativistic_rope
+from wan.modules.causal_model import (
+    assemble_noncontiguous_context,
+    block_relative_positions,
+    block_relativistic_rope,
+)
 from wan.modules.model import rope_apply, rope_params
 
 
@@ -79,6 +83,54 @@ class NonContiguousKVTest(unittest.TestCase):
         causal_max_error = (causal_output.float() - causal_reference).abs().max().item()
         self.assertLessEqual(causal_max_error, 1e-2)
         print(f"FlashAttention max errors: noncausal={max_error:.7f}, causal={causal_max_error:.7f}")
+
+
+class NonContiguousContextAssemblyTest(unittest.TestCase):
+    """CPU checks for the opt-in historical-KV prefix."""
+
+    def test_retrieved_kv_is_prepended_with_expected_shapes(self):
+        retrieved_k = torch.full((1, 4, 2, 8), 1.0)
+        retrieved_v = torch.full((1, 4, 2, 8), 2.0)
+        local_k = torch.full((1, 6, 2, 8), 3.0)
+        local_v = torch.full((1, 6, 2, 8), 4.0)
+
+        key, value = assemble_noncontiguous_context(
+            {"k": retrieved_k, "v": retrieved_v}, local_k, local_v)
+
+        self.assertEqual(key.shape, (1, 10, 2, 8))
+        self.assertEqual(value.shape, (1, 10, 2, 8))
+        torch.testing.assert_close(key[:, :4], retrieved_k)
+        torch.testing.assert_close(value[:, :4], retrieved_v)
+        torch.testing.assert_close(key[:, 4:], local_k)
+        torch.testing.assert_close(value[:, 4:], local_v)
+
+    def test_retrieved_local_and_current_positions_are_contiguous(self):
+        retrieved = block_relative_positions(0, 2)
+        local = block_relative_positions(0, 3, prefix_frames=2)
+        current = block_relative_positions(3, 1, prefix_frames=2)
+
+        self.assertEqual(retrieved.tolist(), [0, 1])
+        self.assertEqual(local.tolist(), [2, 3, 4])
+        self.assertEqual(current.tolist(), [5])
+
+    def test_rope_prefix_uses_the_local_position_after_retrieval(self):
+        x = torch.randn(1, 2, 1, 12)
+        grid = torch.tensor([[2, 1, 1]])
+        freqs = torch.cat([rope_params(16, 4), rope_params(16, 4), rope_params(16, 4)], dim=1)
+
+        prefixed = block_relativistic_rope(x, grid, freqs, prefix_frames=2)
+        offset_reference = block_relativistic_rope(x, grid, freqs, start_frame=2)
+
+        torch.testing.assert_close(prefixed, offset_reference)
+
+    def test_disabled_prefix_returns_the_original_context_tensors(self):
+        local_k = torch.randn(1, 6, 2, 8)
+        local_v = torch.randn(1, 6, 2, 8)
+
+        key, value = assemble_noncontiguous_context(None, local_k, local_v)
+
+        self.assertIs(key, local_k)
+        self.assertIs(value, local_v)
 
 
 if __name__ == "__main__":

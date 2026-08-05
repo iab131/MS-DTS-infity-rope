@@ -59,6 +59,8 @@ class CausalInferencePipeline(torch.nn.Module):
         return_latents: bool = False,
         profile: bool = False,
         low_memory: bool = False,
+        noncontiguous_source_blocks: Optional[List[int]] = None,
+        noncontiguous_target_block: Optional[int] = None,
     ) -> torch.Tensor:
         """
         Perform inference on the given noise and text prompts.
@@ -88,6 +90,17 @@ class CausalInferencePipeline(torch.nn.Module):
             num_blocks = (num_frames - 1) // self.num_frame_per_block
         num_input_frames = initial_latent.shape[1] if initial_latent is not None else 0
         num_output_frames = num_frames + num_input_frames  # add the initial latent frames
+        source_blocks = sorted(set(noncontiguous_source_blocks or []))
+        noncontiguous_enabled = bool(source_blocks or noncontiguous_target_block is not None)
+        if noncontiguous_enabled:
+            if not source_blocks or noncontiguous_target_block is None:
+                raise ValueError("non-contiguous KV requires source blocks and a target block")
+            if source_blocks[0] < 1 or source_blocks[-1] >= noncontiguous_target_block:
+                raise ValueError("source blocks must be positive and precede the target block")
+            if noncontiguous_target_block > num_blocks:
+                raise ValueError("non-contiguous target block exceeds generated blocks")
+            if source_blocks[-1] > num_blocks:
+                raise ValueError("non-contiguous source block exceeds generated blocks")
         
         # ================================
         # Interactive Video Generation
@@ -221,6 +234,7 @@ class CausalInferencePipeline(torch.nn.Module):
                 self.kv_cache1[i]['local_end_index'] = torch.tensor([4680], dtype=torch.long, device=device)
                 self.kv_cache1[i]['scene_cut'] = scene_cut_needed
         # ------------------------------------------------------------ #
+        captured_source_kv = {}
         for current_block_index, current_num_frames in enumerate(all_num_frames):
             if profile:
                 block_start.record()
@@ -243,6 +257,19 @@ class CausalInferencePipeline(torch.nn.Module):
                 for i in range(n_layers):
                     self.kv_cache1[i]['scene_cut'] = False
             # ---------------------------------------------------------------- #
+            current_block_number = current_block_index + 1
+            retrieved_kv = None
+            if noncontiguous_enabled and current_block_number == noncontiguous_target_block:
+                missing_sources = [block for block in source_blocks if block not in captured_source_kv]
+                if missing_sources:
+                    raise RuntimeError(f"missing clean KV for source blocks {missing_sources}")
+                retrieved_kv = [
+                    {
+                        "k": torch.cat([captured_source_kv[source][layer]["k"] for source in source_blocks], dim=1),
+                        "v": torch.cat([captured_source_kv[source][layer]["v"] for source in source_blocks], dim=1),
+                    }
+                    for layer in range(self.num_transformer_blocks)
+                ]
             noisy_input = noise[
                 :, current_start_frame - num_input_frames:current_start_frame + current_num_frames - num_input_frames]
 
@@ -262,7 +289,8 @@ class CausalInferencePipeline(torch.nn.Module):
                         timestep=timestep,
                         kv_cache=self.kv_cache1,
                         crossattn_cache=self.crossattn_cache,
-                        current_start=current_start_frame * self.frame_seq_length
+                        current_start=current_start_frame * self.frame_seq_length,
+                        retrieved_kv=retrieved_kv,
                     )
                     next_timestep = self.denoising_step_list[index + 1]
                     noisy_input = self.scheduler.add_noise(
@@ -279,7 +307,8 @@ class CausalInferencePipeline(torch.nn.Module):
                         timestep=timestep,
                         kv_cache=self.kv_cache1,
                         crossattn_cache=self.crossattn_cache,
-                        current_start=current_start_frame * self.frame_seq_length
+                        current_start=current_start_frame * self.frame_seq_length,
+                        retrieved_kv=retrieved_kv,
                     )
 
             # Step 3.2: record the model's output
@@ -294,7 +323,27 @@ class CausalInferencePipeline(torch.nn.Module):
                 kv_cache=self.kv_cache1,
                 crossattn_cache=self.crossattn_cache,
                 current_start=current_start_frame * self.frame_seq_length,
+                retrieved_kv=retrieved_kv,
+                capture_kv=noncontiguous_enabled and current_block_number in source_blocks,
             )
+
+            if noncontiguous_enabled and current_block_number in source_blocks:
+                captured_source_kv[current_block_number] = [
+                    {
+                        "k": cache.pop("noncontiguous_raw_k"),
+                        "v": cache.pop("noncontiguous_raw_v"),
+                    }
+                    for cache in self.kv_cache1
+                ]
+            if retrieved_kv is not None:
+                counts = self.kv_cache1[0]["noncontiguous_context_counts"]
+                print(
+                    "Non-contiguous KV context "
+                    f"(block {current_block_number}): retrieved={counts['retrieved_frames']} frames/"
+                    f"{counts['retrieved_tokens']} tokens, local={counts['local_frames']} frames/"
+                    f"{counts['local_tokens']} tokens, current={counts['current_frames']} frames/"
+                    f"{counts['current_tokens']} tokens"
+                )
 
             if profile:
                 block_end.record()

@@ -135,7 +135,25 @@ parser.add_argument("--output_index", type=int, default=None,
                     help="Override the index in output filename (default: uses seed_idx from num_samples loop)")
 parser.add_argument("--save_with_index", action="store_true",
                     help="Whether to save the video using the index or prompt as the filename")
+parser.add_argument("--noncontiguous-kv", action="store_true",
+                    help="Enable Phase 1 historical clean-KV injection.")
+parser.add_argument("--noncontiguous-source-blocks", type=str, default=None,
+                    help="Comma-separated one-based clean-pass source block numbers.")
+parser.add_argument("--noncontiguous-target-block", type=int, default=None,
+                    help="One-based block number that receives the historical KV prefix.")
 args = parser.parse_args()
+
+if args.noncontiguous_kv:
+    try:
+        noncontiguous_source_blocks = sorted({
+            int(block.strip()) for block in (args.noncontiguous_source_blocks or "").split(",") if block.strip()
+        })
+    except ValueError:
+        parser.error("--noncontiguous-source-blocks must be comma-separated integers")
+    if not noncontiguous_source_blocks or args.noncontiguous_target_block is None:
+        parser.error("--noncontiguous-kv requires --noncontiguous-source-blocks and --noncontiguous-target-block")
+else:
+    noncontiguous_source_blocks = None
 
 # Initialize distributed inference
 if "LOCAL_RANK" in os.environ:
@@ -330,6 +348,8 @@ for i, batch_data in tqdm(enumerate(dataloader), disable=(local_rank != 0)):
         return_latents=True,
         initial_latent=initial_latent,
         low_memory=low_memory,
+        noncontiguous_source_blocks=noncontiguous_source_blocks,
+        noncontiguous_target_block=args.noncontiguous_target_block if args.noncontiguous_kv else None,
     )
     current_video = rearrange(video, 'b t c h w -> b t h w c').cpu()
     all_video.append(current_video)
