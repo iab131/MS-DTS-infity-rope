@@ -13,6 +13,7 @@ from wan.modules.causal_model import (
     block_relativistic_rope,
 )
 from wan.modules.model import rope_apply, rope_params
+from pipeline.causal_inference import select_history_frame_refs
 
 
 def rope_at_source_positions(x, positions, freqs):
@@ -88,21 +89,37 @@ class NonContiguousKVTest(unittest.TestCase):
 class NonContiguousContextAssemblyTest(unittest.TestCase):
     """CPU checks for the opt-in historical-KV prefix."""
 
-    def test_retrieved_kv_is_prepended_with_expected_shapes(self):
-        retrieved_k = torch.full((1, 4, 2, 8), 1.0)
-        retrieved_v = torch.full((1, 4, 2, 8), 2.0)
-        local_k = torch.full((1, 6, 2, 8), 3.0)
-        local_v = torch.full((1, 6, 2, 8), 4.0)
+    def test_history_replaces_non_sink_frames_with_matched_shape(self):
+        frame_tokens = 2
+        retrieved_k = torch.full((1, 2, 1, 1), 99.0)
+        retrieved_v = torch.full((1, 2, 1, 1), 199.0)
+        local_k = torch.cat([torch.full((1, frame_tokens, 1, 1), float(value)) for value in range(10, 16)], dim=1)
+        local_v = torch.cat([torch.full((1, frame_tokens, 1, 1), float(value)) for value in range(20, 26)], dim=1)
 
         key, value = assemble_noncontiguous_context(
-            {"k": retrieved_k, "v": retrieved_v}, local_k, local_v)
+            {"k": retrieved_k, "v": retrieved_v}, local_k, local_v, frame_tokens, current_frames=3)
 
-        self.assertEqual(key.shape, (1, 10, 2, 8))
-        self.assertEqual(value.shape, (1, 10, 2, 8))
-        torch.testing.assert_close(key[:, :4], retrieved_k)
-        torch.testing.assert_close(value[:, :4], retrieved_v)
-        torch.testing.assert_close(key[:, 4:], local_k)
-        torch.testing.assert_close(value[:, 4:], local_v)
+        self.assertEqual(key.shape, local_k.shape)
+        self.assertEqual(value.shape, local_v.shape)
+        torch.testing.assert_close(key[:, :frame_tokens], local_k[:, :frame_tokens])
+        torch.testing.assert_close(value[:, :frame_tokens], local_v[:, :frame_tokens])
+        torch.testing.assert_close(key[:, frame_tokens:2 * frame_tokens], retrieved_k)
+        torch.testing.assert_close(value[:, frame_tokens:2 * frame_tokens], retrieved_v)
+        torch.testing.assert_close(key[:, 2 * frame_tokens:], local_k[:, 2 * frame_tokens:])
+        torch.testing.assert_close(value[:, 2 * frame_tokens:], local_v[:, 2 * frame_tokens:])
+
+    def test_two_history_frames_replace_both_recent_non_sink_frames(self):
+        frame_tokens = 1
+        retrieved_k = torch.tensor([[[[90.]], [[91.]]]])
+        retrieved_v = torch.tensor([[[[190.]], [[191.]]]])
+        local_k = torch.tensor([[[[10.]], [[20.]], [[30.]], [[40.]], [[50.]], [[60.]]]])
+        local_v = local_k + 100
+
+        key, value = assemble_noncontiguous_context(
+            {"k": retrieved_k, "v": retrieved_v}, local_k, local_v, frame_tokens, current_frames=3)
+
+        self.assertEqual(key.flatten().tolist(), [10.0, 90.0, 91.0, 40.0, 50.0, 60.0])
+        self.assertEqual(value.flatten().tolist(), [110.0, 190.0, 191.0, 140.0, 150.0, 160.0])
 
     def test_retrieved_local_and_current_positions_are_contiguous(self):
         retrieved = block_relative_positions(0, 2)
@@ -127,10 +144,36 @@ class NonContiguousContextAssemblyTest(unittest.TestCase):
         local_k = torch.randn(1, 6, 2, 8)
         local_v = torch.randn(1, 6, 2, 8)
 
-        key, value = assemble_noncontiguous_context(None, local_k, local_v)
+        key, value = assemble_noncontiguous_context(None, local_k, local_v, frame_tokens=1, current_frames=3)
 
         self.assertIs(key, local_k)
         self.assertIs(value, local_v)
+
+    def test_coherent_selection_uses_final_frame_from_each_newest_source_block(self):
+        captured = {
+            2: {"frame_ids": [3, 4, 5]},
+            4: {"frame_ids": [9, 10, 11]},
+        }
+
+        frames = select_history_frame_refs(captured, [2, 4], retrieval_count=2, mode="coherent_history")
+
+        self.assertEqual(frames, [
+            {"source_block": 2, "frame_index": 2, "global_frame_id": 5},
+            {"source_block": 4, "frame_index": 2, "global_frame_id": 11},
+        ])
+        self.assertEqual(
+            select_history_frame_refs(captured, [2, 4], retrieval_count=1, mode="coherent_history"),
+            [{"source_block": 4, "frame_index": 2, "global_frame_id": 11}],
+        )
+
+    def test_random_selection_is_distinct_and_seeded(self):
+        captured = {2: {"frame_ids": [3, 4, 5]}, 4: {"frame_ids": [9, 10, 11]}}
+
+        first = select_history_frame_refs(captured, [2, 4], retrieval_count=2, mode="random_history", random_seed=7)
+        second = select_history_frame_refs(captured, [2, 4], retrieval_count=2, mode="random_history", random_seed=7)
+
+        self.assertEqual(first, second)
+        self.assertEqual(len({frame["global_frame_id"] for frame in first}), 2)
 
 
 if __name__ == "__main__":

@@ -141,6 +141,10 @@ parser.add_argument("--noncontiguous-source-blocks", type=str, default=None,
                     help="Comma-separated one-based clean-pass source block numbers.")
 parser.add_argument("--noncontiguous-target-block", type=int, default=None,
                     help="One-based block number that receives the historical KV prefix.")
+parser.add_argument("--noncontiguous-kv-mode", choices=["baseline", "coherent_history", "random_history"],
+                    default="baseline", help="Matched-context Phase 1 mode.")
+parser.add_argument("--noncontiguous-retrieval-count", type=int, choices=[1, 2], default=1,
+                    help="Historical latent frames replacing recent non-sink context frames.")
 args = parser.parse_args()
 
 if args.noncontiguous_kv:
@@ -350,6 +354,9 @@ for i, batch_data in tqdm(enumerate(dataloader), disable=(local_rank != 0)):
         low_memory=low_memory,
         noncontiguous_source_blocks=noncontiguous_source_blocks,
         noncontiguous_target_block=args.noncontiguous_target_block if args.noncontiguous_kv else None,
+        noncontiguous_mode=args.noncontiguous_kv_mode,
+        noncontiguous_retrieval_count=args.noncontiguous_retrieval_count,
+        noncontiguous_random_seed=args.seed,
     )
     current_video = rearrange(video, 'b t c h w -> b t h w c').cpu()
     all_video.append(current_video)

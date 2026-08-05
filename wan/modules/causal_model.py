@@ -49,16 +49,37 @@ def block_relative_positions(start_frame, num_frames, prefix_frames=0, device=No
     return torch.arange(start_frame + prefix_frames, start_frame + prefix_frames + num_frames, device=device)
 
 
-def assemble_noncontiguous_context(retrieved_kv, local_key, local_value):
-    """Prepend optional historical KV without changing the baseline tensors."""
+def assemble_noncontiguous_context(retrieved_kv, local_key, local_value, frame_tokens, current_frames):
+    """Replace recent non-sink frames with transient historical KV."""
     if retrieved_kv is None:
         return local_key, local_value
     retrieved_key, retrieved_value = retrieved_kv["k"], retrieved_kv["v"]
     if retrieved_key.shape != retrieved_value.shape or retrieved_key.shape[0] != local_key.shape[0]:
         raise ValueError("retrieved KV must match batch size and have matching key/value shapes")
+    if retrieved_key.shape[1] % frame_tokens:
+        raise ValueError("retrieved KV token count must be a whole number of frames")
+    retrieved_frames = retrieved_key.shape[1] // frame_tokens
+    if retrieved_frames not in (1, 2):
+        raise ValueError("retrieval count must be one or two frames")
+    expected_frames = 1 + 2 + current_frames
+    if local_key.shape[1] != expected_frames * frame_tokens:
+        raise ValueError("matched retrieval requires [sink, recent, recent, current] context")
+    sink_end = frame_tokens
+    current_start = 3 * frame_tokens
+    retained_recent_start = (1 + retrieved_frames) * frame_tokens
     return (
-        torch.cat([retrieved_key, local_key], dim=1),
-        torch.cat([retrieved_value, local_value], dim=1),
+        torch.cat([
+            local_key[:, :sink_end],
+            retrieved_key,
+            local_key[:, retained_recent_start:current_start],
+            local_key[:, current_start:],
+        ], dim=1),
+        torch.cat([
+            local_value[:, :sink_end],
+            retrieved_value,
+            local_value[:, retained_recent_start:current_start],
+            local_value[:, current_start:],
+        ], dim=1),
     )
 
 
@@ -287,12 +308,10 @@ class CausalWanSelfAttention(nn.Module):
                 scene_cut = kv_cache.get("scene_cut", False)
                 relative_start_frame = max_attention_frames-num_new_frames
                 roped_query = block_relativistic_rope(
-                    q, grid_sizes, freqs, start_frame=relative_start_frame, scene_cut=scene_cut,
-                    prefix_frames=retrieved_frames).type_as(v)
+                    q, grid_sizes, freqs, start_frame=relative_start_frame, scene_cut=scene_cut).type_as(v)
                 # ------------------------------------------------------------ #
                 roped_key = block_relativistic_rope(
-                    k_for_rope, grid_sizes_full, freqs, start_frame=0, scene_cut=scene_cut,
-                    prefix_frames=retrieved_frames).type_as(v)
+                    k_for_rope, grid_sizes_full, freqs, start_frame=0, scene_cut=scene_cut).type_as(v)
                 roped_key[:, :frame_seqlen] = k_for_rope[:, :frame_seqlen]
                 # ------------------------------------------------------------ #
             else: # first 21 frame happens here
@@ -309,12 +328,10 @@ class CausalWanSelfAttention(nn.Module):
                 scene_cut = kv_cache.get("scene_cut", False)
                 relative_start_frame = current_start_frame if current_start_frame < max_attention_frames else max_attention_frames - num_new_frames
                 roped_query = block_relativistic_rope(
-                    q, grid_sizes, freqs, start_frame=relative_start_frame, scene_cut=scene_cut,
-                    prefix_frames=retrieved_frames).type_as(v)
+                    q, grid_sizes, freqs, start_frame=relative_start_frame, scene_cut=scene_cut).type_as(v)
                 # ------------------------------------------------------------ #
                 roped_key = block_relativistic_rope(
-                        k_for_rope, grid_sizes_full, freqs, start_frame=0, scene_cut=scene_cut,
-                        prefix_frames=retrieved_frames).type_as(v)
+                        k_for_rope, grid_sizes_full, freqs, start_frame=0, scene_cut=scene_cut).type_as(v)
                 # ------------------------------------------------------------ #
                 if local_start_index == 0:
                     kv_cache["k"][:, :frame_seqlen] = roped_key[:, :frame_seqlen]
@@ -326,17 +343,10 @@ class CausalWanSelfAttention(nn.Module):
                 retrieved_grid_sizes = grid_sizes.clone()
                 retrieved_grid_sizes[0][0] = retrieved_frames
                 roped_retrieved = block_relativistic_rope(
-                    retrieved_kv["k"], retrieved_grid_sizes, freqs).type_as(v)
+                    retrieved_kv["k"], retrieved_grid_sizes, freqs, start_frame=1).type_as(v)
                 roped_key, value = assemble_noncontiguous_context(
-                    {"k": roped_retrieved, "v": retrieved_kv["v"]}, roped_key, local_value)
-                kv_cache["noncontiguous_context_counts"] = {
-                    "retrieved_frames": retrieved_frames,
-                    "retrieved_tokens": retrieved_kv["k"].shape[1],
-                    "local_frames": (local_value.shape[1] - num_new_tokens) // frame_seqlen,
-                    "local_tokens": local_value.shape[1] - num_new_tokens,
-                    "current_frames": num_new_frames,
-                    "current_tokens": num_new_tokens,
-                }
+                    {"k": roped_retrieved, "v": retrieved_kv["v"]}, roped_key, local_value,
+                    frame_seqlen, num_new_frames)
             else:
                 value = local_value
             x = attention(roped_query, roped_key, value)
