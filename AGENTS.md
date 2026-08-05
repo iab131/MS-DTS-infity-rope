@@ -23,6 +23,9 @@ Read `docs/MS_DTS_RESEARCH_HANDOFF.md` before planning related work.
   settings.
 - A dry run or partial result matrix is planning evidence, not visual-quality
   evidence.
+- Append every verified inference insight, mismatch, mistake, or environment
+  limitation to `docs/INFERENCE_FINDINGS.md`, including the supporting test or
+  command. Keep observations separate from proposals.
 
 ## Environment and machine safety
 
