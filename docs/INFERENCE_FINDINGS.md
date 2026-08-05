@@ -47,3 +47,30 @@ claim.
   installed torchvision `0.26.0+cu130` has no `torchvision.io.write_video`.
   `HEAD` already imported that symbol; this was left unchanged because it is
   outside the experiment and dependency changes were forbidden.
+
+## 2026-08-04: Matched Non-Contiguous Context Refinement
+
+### Observed implementation correction
+
+- The first Phase 1 implementation prepended full source blocks, increasing
+  attention length. That did not satisfy the research experiment's matched
+  context condition.
+- Commit `3f004b4` replaces only the two non-sink local slots. The target
+  context remains exactly six latent frames (9,360 tokens):
+  `[sink, recent, recent, current x3]`, `[sink, history, recent, current x3]`,
+  or `[sink, history, history, current x3]`.
+- The transformed sink key is read from its original cache slot and copied
+  directly into the temporary context. It is never re-RoPEd. Historical KV is
+  raw clean-pass data, sliced per latent frame, RoPEd only for transient slots
+  1--2, and never written to the persistent cache.
+- `coherent_history` selects final latent frames from the newest configured
+  source blocks; `random_history` uses a private seeded Python RNG, so it does
+  not change the Torch RNG stream used by denoising.
+
+### Verification and export fix
+
+- `conda run -n wan python -m unittest tests.test_noncontiguous_kv -v` passed
+  eight focused tests after the refinement. No full GPU generation was run.
+- Commit `46880a1` moves `torchvision.io.write_video` behind a lazy import and
+  falls back to the already-installed `imageio` MP4 writer. The prior
+  `conda run -n wan python inference.py --help` import failure is resolved.
