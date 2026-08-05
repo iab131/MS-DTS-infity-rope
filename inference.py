@@ -5,7 +5,6 @@ import re
 from omegaconf import OmegaConf
 from tqdm import tqdm
 from torchvision import transforms
-from torchvision.io import write_video
 from einops import rearrange
 import torch.distributed as dist
 from torch.utils.data import DataLoader, SequentialSampler
@@ -31,6 +30,19 @@ def sanitize_filename(text, max_length=100):
     sanitized = sanitized.strip('_.')
     # Truncate to max_length
     return sanitized[:max_length] if len(sanitized) > max_length else sanitized
+
+
+def write_video_file(path, frames, fps):
+    """Use torchvision when available, otherwise the repository's imageio path."""
+    try:
+        from torchvision.io import write_video
+    except ImportError:
+        import imageio
+        with imageio.get_writer(path, fps=fps, codec="libx264", quality=8) as writer:
+            for frame in frames.detach().cpu().clamp(0, 255).to(torch.uint8).numpy():
+                writer.append_data(frame)
+    else:
+        write_video(path, frames, fps=fps)
 
 def parse_durations_from_prompt(prompt_text):
     """
@@ -435,4 +447,4 @@ for i, batch_data in tqdm(enumerate(dataloader), disable=(local_rank != 0)):
                 output_path = os.path.join(args.output_folder, f'{safe_prompt}-{file_idx}.mp4')
             # Ensure the output directory exists
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            write_video(output_path, video[seed_idx], fps=16)
+            write_video_file(output_path, video[seed_idx], fps=16)
