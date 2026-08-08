@@ -4,8 +4,46 @@ import torch
 import re
 
 from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
+from pipeline.memory_store import MemoryStore
+from pipeline.content_routing import MemoryPolicyEventLogger, retrieval_allowed, route_memory
+from wan.modules.causal_model import memory_context_layout
 
 from demo_utils.memory import gpu, get_cuda_free_memory_gb, DynamicSwapInstaller, move_model_to_device_with_memory_preservation
+
+
+def apply_memory_transition(kv_caches, crossattn_caches, frame_tokens, retention,
+                            decay, decay_beta, scene_cut, device, cross_attention_reset=True):
+    """Apply an opt-in scene-boundary local policy without touching the sink."""
+    retained = {"sink_only": 0, "sink+1": 1, "sink+2": 2}.get(retention)
+    if retained is None:
+        raise ValueError(f"unsupported memory local retention: {retention}")
+    if not 0.0 <= decay_beta <= 1.0:
+        raise ValueError("memory decay beta must be in [0, 1]")
+    actual_retained = 0
+    for cache, cross_cache in zip(kv_caches, crossattn_caches):
+        local_end = cache["local_end_index"].item()
+        available = max(0, local_end // frame_tokens - 1)
+        keep = min(retained, available)
+        actual_retained = keep
+        sink_end, retained_end = frame_tokens, (1 + keep) * frame_tokens
+        if keep:
+            source_start = local_end - keep * frame_tokens
+            for name in ("k", "v"):
+                cache[name][:, sink_end:retained_end] = cache[name][:, source_start:local_end].clone()
+                if decay:
+                    cache[name][:, sink_end:retained_end].mul_(decay_beta)
+        cache["local_end_index"] = torch.tensor([retained_end], dtype=torch.long, device=device)
+        cache["scene_cut"] = scene_cut
+        if cross_attention_reset:
+            cross_cache["is_init"] = False
+    return {
+        "retention": retention,
+        "retained_non_sink_frames": actual_retained,
+        "decay": decay,
+        "decay_beta": decay_beta if decay else None,
+        "scene_cut": scene_cut,
+        "cross_attention_reset": cross_attention_reset,
+    }
 
 
 def select_history_frame_refs(
@@ -75,6 +113,24 @@ def select_history_kv(captured_source_kv, history_refs, num_layers, frame_tokens
     ]
 
 
+def local_query_descriptors(kv_caches, descriptor_layers, frame_tokens):
+    """Mean-pool the latest raw non-sink clean K from configured layers."""
+    descriptors = {}
+    for layer in descriptor_layers:
+        cache = kv_caches[layer]
+        local_end = cache["local_end_index"].item()
+        if local_end <= frame_tokens:
+            continue
+        descriptors[layer] = cache["k"][0, local_end - frame_tokens:local_end].detach().float().mean(dim=0).cpu()
+    return descriptors
+
+
+def capture_clean_memory_block(memory_store, scene_index, current_start_frame, current_num_frames, clean_layers):
+    """Store one clean block under the scene currently being generated."""
+    return memory_store.add_clean_block(
+        scene_index, list(range(current_start_frame, current_start_frame + current_num_frames)), clean_layers)
+
+
 class CausalInferencePipeline(torch.nn.Module):
     def __init__(
             self,
@@ -134,6 +190,7 @@ class CausalInferencePipeline(torch.nn.Module):
         noncontiguous_random_seed: int = 0,
         noncontiguous_manual_frame_id: Optional[int] = None,
         noncontiguous_manual_frame_ids: Optional[List[int]] = None,
+        memory_policy_config: Optional[dict] = None,
         clean_pass_callback=None,
     ) -> torch.Tensor:
         """
@@ -166,6 +223,12 @@ class CausalInferencePipeline(torch.nn.Module):
         num_output_frames = num_frames + num_input_frames  # add the initial latent frames
         source_blocks = sorted(set(noncontiguous_source_blocks or []))
         noncontiguous_enabled = bool(source_blocks or noncontiguous_target_block is not None)
+        memory_policy = memory_policy_config or {}
+        memory_enabled = bool(memory_policy.get("enabled", False))
+        if memory_enabled and noncontiguous_enabled:
+            raise ValueError("attention-memory policy and Phase 1 non-contiguous KV are separate experiments")
+        if memory_enabled and memory_policy["context_mode"] == "replace_recent" and memory_policy["k"] > 2:
+            print("Attention-memory replace_recent supports at most two retained local slots; unavailable blocks are logged and skipped")
         if noncontiguous_enabled:
             if not source_blocks or noncontiguous_target_block is None:
                 raise ValueError("non-contiguous KV requires source blocks and a target block")
@@ -317,6 +380,24 @@ class CausalInferencePipeline(torch.nn.Module):
                 self.kv_cache1[i]['scene_cut'] = scene_cut_needed
         # ------------------------------------------------------------ #
         captured_source_kv = {}
+        memory_store = None
+        memory_logger = MemoryPolicyEventLogger(None)
+        last_query_descriptors = {}
+        if memory_enabled:
+            memory_store = MemoryStore(
+                frame_tokens=self.frame_seq_length,
+                descriptor_layers=memory_policy["descriptor_layers"],
+                memory_budget=memory_policy["target_budget"],
+                injection_layers=memory_policy["injection_layers"],
+            )
+            memory_logger = MemoryPolicyEventLogger(memory_policy.get("log_path"))
+            memory_logger.write("config", {
+                key: value for key, value in memory_policy.items() if key != "manual_frame_ids"
+            } | {"manual_frame_ids": memory_policy.get("manual_frame_ids"),
+                 "frame_tokens": self.frame_seq_length,
+                 "num_transformer_layers": self.num_transformer_blocks,
+                 "local_attn_size": self.local_attn_size,
+                 "sink_size": 1})
         for current_block_index, current_num_frames in enumerate(all_num_frames):
             if profile:
                 block_start.record()
@@ -332,7 +413,30 @@ class CausalInferencePipeline(torch.nn.Module):
             # Flush when we transition to a new scene (except at the start)
             scene_cut_needed = current_block_index in scene_cut_boundaries
             if current_block_index in scene_block_boundaries:
-                kv_flush(scene_cut_needed, noise.device)
+                if memory_enabled:
+                    pre_transition_query = local_query_descriptors(
+                        self.kv_cache1, memory_policy["descriptor_layers"], self.frame_seq_length)
+                    previous_scene_id = scene_index - 1
+                    archive = memory_store.archive_scene(previous_scene_id, memory_policy["archive_top_m"]) \
+                        if memory_policy["archive"] else None
+                    trimmed_archives = memory_store.trim_archive(
+                        memory_policy["archive_recent_scenes"], memory_policy["archive_high_utility"]) \
+                        if memory_policy["archive"] else []
+                    transition = apply_memory_transition(
+                        self.kv_cache1, self.crossattn_cache, self.frame_seq_length,
+                        memory_policy["local_retention"], memory_policy["decay"],
+                        memory_policy["decay_beta"], scene_cut_needed, noise.device,
+                        memory_policy["cross_attention_reset"])
+                    last_query_descriptors = pre_transition_query or last_query_descriptors
+                    memory_logger.write("transition", {
+                        "from_scene_id": previous_scene_id, "to_scene_id": scene_index,
+                        "archive_frame_ids": None if archive is None else archive.frame_ids,
+                        "archive_utility": None if archive is None else archive.utility,
+                        "archive_size": len(memory_store.archive), "trimmed_archive_scene_ids": trimmed_archives,
+                        "memory_size": len(memory_store), **transition,
+                    })
+                else:
+                    kv_flush(scene_cut_needed, noise.device)
             else:
                 # Reset scene_cut flag (it should only be True for the first block of a scene with cut)
                 n_layers = len(self.crossattn_cache)
@@ -342,6 +446,59 @@ class CausalInferencePipeline(torch.nn.Module):
             current_block_number = current_block_index + 1
             retrieved_kv = None
             history_refs = []
+            memory_route = None
+            memory_query = local_query_descriptors(
+                self.kv_cache1, memory_policy.get("descriptor_layers", ()), self.frame_seq_length) \
+                if memory_enabled else {}
+            memory_query_source = "local_raw"
+            if memory_enabled and not memory_query:
+                memory_query = last_query_descriptors
+                memory_query_source = "pre_transition_raw" if memory_query else "unavailable"
+            local_non_sink_frames = max(0, self.kv_cache1[0]["local_end_index"].item() // self.frame_seq_length - 1)
+            context_non_sink_frames = max(
+                0, min(self.local_attn_size, local_non_sink_frames + 1 + current_num_frames) - current_num_frames - 1)
+            local_frame_ids = list(range(max(1, current_start_frame - local_non_sink_frames), current_start_frame))
+            context_local_frame_ids = local_frame_ids[-context_non_sink_frames:]
+            is_transition_block = current_block_index in scene_block_boundaries
+            retrieval_allowed_now, retrieval_reason = retrieval_allowed(
+                memory_policy.get("retrieval", False), is_transition_block,
+                memory_policy.get("transition_auto_retrieval", False),
+                memory_policy.get("manual_frame_ids"), memory_policy.get("manual_target_blocks"), current_block_number)
+            manual_retrieval = bool(memory_policy.get("manual_frame_ids"))
+            if memory_enabled and retrieval_allowed_now and (memory_query or manual_retrieval) and len(memory_store):
+                retrieval_available = memory_policy["context_mode"] != "replace_recent" or \
+                    memory_policy["k"] <= context_non_sink_frames
+                if retrieval_available:
+                    memory_route = route_memory(
+                        memory_store, memory_query, memory_policy["k"], exclude_frame_ids={0, *local_frame_ids},
+                        manual_frame_ids=memory_policy.get("manual_frame_ids"))
+                    if memory_route.entries:
+                        retrieved_kv = memory_store.pack_kv(memory_route.entries, self.num_transformer_blocks)
+                        history_refs = [{"source_block": None, "frame_index": None,
+                                         "global_frame_id": entry.frame_id, "scene_id": entry.scene_id}
+                                        for entry in memory_route.entries]
+                memory_logger.write("retrieval", {
+                    "block": current_block_number, "scene_id": scene_index,
+                    "query_layers": sorted(memory_query), "query_source": memory_query_source,
+                    "requested_k": memory_policy["k"],
+                    "retrieved_frame_ids": [entry.frame_id for entry in memory_route.entries] if memory_route else [],
+                    "retrieved_scene_ids": [entry.scene_id for entry in memory_route.entries] if memory_route else [],
+                    "scores": [] if memory_route is None else memory_route.scores,
+                    "excluded_frame_ids": [0, *local_frame_ids], "memory_size": len(memory_store),
+                    "context_mode": memory_policy["context_mode"], "routing_mode": retrieval_reason,
+                })
+            elif memory_enabled:
+                memory_logger.write("retrieval", {
+                    "block": current_block_number, "scene_id": scene_index,
+                    "query_layers": sorted(memory_query), "query_source": memory_query_source,
+                    "requested_k": memory_policy["k"],
+                    "retrieved_frame_ids": [], "retrieved_scene_ids": [], "scores": [],
+                    "excluded_frame_ids": [0, *local_frame_ids], "memory_size": len(memory_store),
+                    "context_mode": memory_policy["context_mode"],
+                    "routing_mode": retrieval_reason,
+                    "skipped": "no_query_or_memory" if not (memory_query or manual_retrieval) or not len(memory_store) else
+                    ("replace_recent_local_slots" if retrieval_allowed_now else retrieval_reason),
+                })
             if noncontiguous_enabled and current_block_number == noncontiguous_target_block:
                 if current_num_frames != 3:
                     raise ValueError("matched non-contiguous retrieval requires three current latent frames")
@@ -377,6 +534,7 @@ class CausalInferencePipeline(torch.nn.Module):
                         crossattn_cache=self.crossattn_cache,
                         current_start=current_start_frame * self.frame_seq_length,
                         retrieved_kv=retrieved_kv,
+                        memory_context_mode=memory_policy.get("context_mode", "replace_recent"),
                     )
                     next_timestep = self.denoising_step_list[index + 1]
                     noisy_input = self.scheduler.add_noise(
@@ -395,6 +553,7 @@ class CausalInferencePipeline(torch.nn.Module):
                         crossattn_cache=self.crossattn_cache,
                         current_start=current_start_frame * self.frame_seq_length,
                         retrieved_kv=retrieved_kv,
+                        memory_context_mode=memory_policy.get("context_mode", "replace_recent"),
                     )
 
             # Step 3.2: record the model's output
@@ -410,7 +569,8 @@ class CausalInferencePipeline(torch.nn.Module):
                 crossattn_cache=self.crossattn_cache,
                 current_start=current_start_frame * self.frame_seq_length,
                 retrieved_kv=retrieved_kv,
-                capture_kv=(noncontiguous_enabled and current_block_number in source_blocks),
+                memory_context_mode=memory_policy.get("context_mode", "replace_recent"),
+                capture_kv=(memory_enabled or (noncontiguous_enabled and current_block_number in source_blocks)),
             )
             if clean_pass_callback is not None:
                 clean_pass_callback(current_block_number, denoised_pred, self.kv_cache1)
@@ -420,6 +580,37 @@ class CausalInferencePipeline(torch.nn.Module):
                     "frame_ids": list(range(current_start_frame, current_start_frame + current_num_frames)),
                     "layers": capture_clean_kv_to_cpu(self.kv_cache1),
                 }
+            elif memory_enabled:
+                clean_layers = capture_clean_kv_to_cpu(self.kv_cache1)
+                capture_clean_memory_block(
+                    memory_store, scene_index, current_start_frame, current_num_frames, clean_layers)
+                last_query_descriptors = local_query_descriptors(
+                    self.kv_cache1, memory_policy["descriptor_layers"], self.frame_seq_length)
+                consolidation = {"performed": False, "before": len(memory_store), "after": len(memory_store), "removed": []}
+                if memory_policy["consolidation"] and len(memory_store) > memory_policy["consolidate_n_max"]:
+                    consolidation = memory_store.consolidate(
+                        memory_policy["target_budget"], memory_policy["diversity_threshold"])
+                memory_logger.write("write", {
+                    "block": current_block_number, "scene_id": scene_index,
+                    "frame_ids": list(range(current_start_frame, current_start_frame + current_num_frames)),
+                    "memory_size": len(memory_store), "archive_size": len(memory_store.archive),
+                    "consolidation": consolidation,
+                })
+            if memory_enabled and history_refs:
+                retrieved_count = len(history_refs)
+                layout = memory_context_layout(
+                    retrieved_count, context_non_sink_frames, current_num_frames, memory_policy["context_mode"])
+                context_order = ["sink:0"] + \
+                    [f"history:{frame['global_frame_id']}" for frame in history_refs] + \
+                    [f"local:{frame_id}" for frame_id in context_local_frame_ids[-layout["local_frames"]:]] + \
+                    [f"current:{frame_id}" for frame_id in range(current_start_frame, current_start_frame + current_num_frames)]
+                memory_logger.write("context", {
+                    "block": current_block_number, "scene_id": scene_index,
+                    "ordering": context_order, "positions": layout["positions"],
+                    "retrieved_frames": retrieved_count, "local_frames": layout["local_frames"],
+                    "current_frames": current_num_frames, "total_frames": len(context_order),
+                    "total_tokens": len(context_order) * self.frame_seq_length,
+                })
             if noncontiguous_enabled and current_block_number == noncontiguous_target_block:
                 history_ids = [frame["global_frame_id"] for frame in history_refs]
                 retained_recent = 2 - len(history_refs)

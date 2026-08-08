@@ -227,6 +227,7 @@ class WanDiffusionWrapper(torch.nn.Module):
         aug_t: Optional[torch.Tensor] = None,
         cache_start: Optional[int] = None,
         retrieved_kv: Optional[List[dict]] = None,
+        memory_context_mode: str = "replace_recent",
         capture_kv: bool = False,
     ) -> torch.Tensor:
         prompt_embeds = conditional_dict["prompt_embeds"]
@@ -249,6 +250,7 @@ class WanDiffusionWrapper(torch.nn.Module):
                 current_start=current_start,
                 cache_start=cache_start,
                 retrieved_kv=retrieved_kv,
+                memory_context_mode=memory_context_mode,
                 capture_kv=capture_kv,
             ).permute(0, 2, 1, 3, 4)
         else:

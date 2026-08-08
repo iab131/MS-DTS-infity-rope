@@ -51,6 +51,31 @@ def block_relative_positions(start_frame, num_frames, prefix_frames=0, device=No
 
 def assemble_noncontiguous_context(retrieved_kv, local_key, local_value, frame_tokens, current_frames):
     """Replace recent non-sink frames with transient historical KV."""
+    return assemble_memory_context(
+        retrieved_kv, local_key, local_value, frame_tokens, current_frames, mode="replace_recent")
+
+
+def memory_context_layout(retrieved_frames, local_frames, current_frames, mode):
+    """Describe the transient [sink, retrieved, local, current] frame layout."""
+    if mode not in {"replace_recent", "prepend"}:
+        raise ValueError(f"unsupported memory context mode: {mode}")
+    if min(retrieved_frames, local_frames, current_frames) < 0:
+        raise ValueError("frame counts must be non-negative")
+    retained_local = local_frames - retrieved_frames if mode == "replace_recent" else local_frames
+    if retained_local < 0:
+        raise ValueError("replace_recent cannot replace more local frames than available")
+    total = 1 + retrieved_frames + retained_local + current_frames
+    return {
+        "sink_frames": 1,
+        "retrieved_frames": retrieved_frames,
+        "local_frames": retained_local,
+        "current_frames": current_frames,
+        "positions": list(range(total)),
+    }
+
+
+def assemble_memory_context(retrieved_kv, local_key, local_value, frame_tokens, current_frames, mode):
+    """Keep the transformed sink in slot zero and add raw history transiently."""
     if retrieved_kv is None:
         return local_key, local_value
     retrieved_key, retrieved_value = retrieved_kv["k"], retrieved_kv["v"]
@@ -59,13 +84,20 @@ def assemble_noncontiguous_context(retrieved_kv, local_key, local_value, frame_t
     if retrieved_key.shape[1] % frame_tokens:
         raise ValueError("retrieved KV token count must be a whole number of frames")
     retrieved_frames = retrieved_key.shape[1] // frame_tokens
-    if retrieved_frames not in (1, 2):
-        raise ValueError("retrieval count must be one or two frames")
-    expected_frames = 1 + 2 + current_frames
-    if local_key.shape[1] != expected_frames * frame_tokens:
-        raise ValueError("matched retrieval requires [sink, recent, recent, current] context")
+    local_frames = local_key.shape[1] // frame_tokens
+    if local_frames * frame_tokens != local_key.shape[1] or local_value.shape != local_key.shape:
+        raise ValueError("local K/V must contain complete matching frames")
+    non_sink_local_frames = local_frames - current_frames - 1
+    if non_sink_local_frames < 0:
+        raise ValueError("local context must contain a sink and current frames")
+    memory_context_layout(retrieved_frames, non_sink_local_frames, current_frames, mode)
     sink_end = frame_tokens
-    current_start = 3 * frame_tokens
+    current_start = (local_frames - current_frames) * frame_tokens
+    if mode == "prepend":
+        return (
+            torch.cat([local_key[:, :sink_end], retrieved_key, local_key[:, sink_end:]], dim=1),
+            torch.cat([local_value[:, :sink_end], retrieved_value, local_value[:, sink_end:]], dim=1),
+        )
     retained_recent_start = (1 + retrieved_frames) * frame_tokens
     return (
         torch.cat([
@@ -172,6 +204,7 @@ class CausalWanSelfAttention(nn.Module):
         cache_start=None,
         timestep=None,
         retrieved_kv=None,
+        memory_context_mode="replace_recent",
         capture_kv=False,
     ):
         # kv_cache = None # @hidir: ODE Regression enters here
@@ -278,6 +311,8 @@ class CausalWanSelfAttention(nn.Module):
                 if retrieved_kv["k"].shape[1] % frame_seqlen:
                     raise ValueError("retrieved KV token count must be a whole number of frames")
                 retrieved_frames = retrieved_kv["k"].shape[1] // frame_seqlen
+                if memory_context_mode not in {"replace_recent", "prepend"}:
+                    raise ValueError(f"unsupported memory context mode: {memory_context_mode}")
             num_new_tokens = q.shape[1]
             num_new_frames = num_new_tokens // frame_seqlen
             current_end = current_start + num_new_tokens
@@ -347,13 +382,24 @@ class CausalWanSelfAttention(nn.Module):
                     
             local_value = kv_cache["v"][:, max(0, local_end_index - self.max_attention_size):local_end_index]
             if retrieved_kv is not None:
+                if memory_context_mode == "prepend":
+                    # The persistent sink is already RoPE-transformed. A
+                    # prepended history expands the context, so re-position
+                    # only raw local slots and current queries after it.
+                    roped_query = block_relativistic_rope(
+                        q, grid_sizes, freqs, start_frame=relative_start_frame,
+                        scene_cut=scene_cut, prefix_frames=retrieved_frames).type_as(v)
+                    roped_key = block_relativistic_rope(
+                        k_for_rope, grid_sizes_full, freqs, start_frame=0,
+                        scene_cut=scene_cut, prefix_frames=retrieved_frames).type_as(v)
+                    roped_key[:, :frame_seqlen] = k_for_rope[:, :frame_seqlen]
                 retrieved_grid_sizes = grid_sizes.clone()
                 retrieved_grid_sizes[0][0] = retrieved_frames
                 roped_retrieved = block_relativistic_rope(
                     retrieved_kv["k"], retrieved_grid_sizes, freqs, start_frame=1).type_as(v)
-                roped_key, value = assemble_noncontiguous_context(
+                roped_key, value = assemble_memory_context(
                     {"k": roped_retrieved, "v": retrieved_kv["v"]}, roped_key, local_value,
-                    frame_seqlen, num_new_frames)
+                    frame_seqlen, num_new_frames, memory_context_mode)
             else:
                 value = local_value
             x = attention(roped_query, roped_key, value)
@@ -426,6 +472,7 @@ class CausalWanAttentionBlock(nn.Module):
         current_start=0,
         cache_start=None,
         retrieved_kv=None,
+        memory_context_mode="replace_recent",
         capture_kv=False,
     ):
         r"""
@@ -447,7 +494,7 @@ class CausalWanAttentionBlock(nn.Module):
             (self.norm1(x).unflatten(dim=1, sizes=(num_frames, frame_seqlen)) * (1 + e[1]) + e[0]).flatten(1, 2),
             seq_lens, grid_sizes,
             freqs, block_mask, kv_cache, current_start, cache_start,
-            retrieved_kv=retrieved_kv, capture_kv=capture_kv)
+            retrieved_kv=retrieved_kv, memory_context_mode=memory_context_mode, capture_kv=capture_kv)
 
         # with amp.autocast(dtype=torch.float32):
         x = x + (y.unflatten(dim=1, sizes=(num_frames, frame_seqlen)) * e[2]).flatten(1, 2)
@@ -855,6 +902,7 @@ class CausalWanModel(ModelMixin, ConfigMixin):
         current_start: int = 0,
         cache_start: int = 0,
         retrieved_kv=None,
+        memory_context_mode="replace_recent",
         capture_kv=False,
     ):
         r"""
@@ -952,8 +1000,9 @@ class CausalWanModel(ModelMixin, ConfigMixin):
                         "current_start": current_start,
                         "cache_start": cache_start,
                         "freqs": self.freqs,
-                        "retrieved_kv": None if retrieved_kv is None else materialize_retrieved_kv(
+                        "retrieved_kv": None if retrieved_kv is None or retrieved_kv[block_index] is None else materialize_retrieved_kv(
                             retrieved_kv[block_index], x.device),
+                        "memory_context_mode": memory_context_mode,
                         "capture_kv": capture_kv,
                     }
                 )
@@ -970,8 +1019,9 @@ class CausalWanModel(ModelMixin, ConfigMixin):
                         "current_start": current_start,
                         "cache_start": cache_start,
                         "freqs": self.freqs,
-                        "retrieved_kv": None if retrieved_kv is None else materialize_retrieved_kv(
+                        "retrieved_kv": None if retrieved_kv is None or retrieved_kv[block_index] is None else materialize_retrieved_kv(
                             retrieved_kv[block_index], x.device),
+                        "memory_context_mode": memory_context_mode,
                         "capture_kv": capture_kv,
                     }
                 )

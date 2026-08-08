@@ -167,6 +167,50 @@ parser.add_argument("--save-clean-latent-blocks", type=str, default=None,
                     help="Comma-separated one-based clean-latent block numbers to save.")
 parser.add_argument("--save-raw-decoded", action="store_true",
                     help="Save the decoded tensor before MP4 conversion.")
+parser.add_argument("--attention-memory-policy", action="store_true",
+                    help="Enable the experimental clean-pass attention-memory policy.")
+parser.add_argument("--memory-retrieval", action=argparse.BooleanOptionalAction, default=True,
+                    help="Enable content-routed historical K/V retrieval when the policy is enabled.")
+parser.add_argument("--memory-context-mode", choices=["replace_recent", "prepend"], default="prepend",
+                    help="Replace local frames at matched budget or prepend retrieved historical frames.")
+parser.add_argument("--memory-k", type=int, default=5,
+                    help="Number of historical latent frames selected by content routing.")
+parser.add_argument("--memory-descriptor-layers", type=str, default="0,1,5,14,16",
+                    help="Comma-separated clean-K layers used for mean-pooled routing descriptors.")
+parser.add_argument("--memory-injection-layers", type=str, default="0,1,5,14,16",
+                    help="Comma-separated layers that retain historical K/V and receive transient injection.")
+parser.add_argument("--memory-manual-frame-ids", type=str, default=None,
+                    help="Comma-separated MemoryStore frame IDs overriding descriptor routing in order.")
+parser.add_argument("--memory-manual-target-blocks", type=str, default=None,
+                    help="Optional comma-separated one-based blocks where manual memory injection is allowed.")
+parser.add_argument("--memory-transition-auto-retrieval", action=argparse.BooleanOptionalAction, default=False,
+                    help="Allow automatic descriptor routing on the first block after a scene transition.")
+parser.add_argument("--memory-local-retention", choices=["sink_only", "sink+1", "sink+2"], default="sink_only",
+                    help="Local cache retained at policy-managed scene transitions.")
+parser.add_argument("--memory-decay", action=argparse.BooleanOptionalAction, default=True,
+                    help="Apply fixed beta decay to retained non-sink local K/V at policy transitions.")
+parser.add_argument("--memory-decay-beta", type=float, default=0.3,
+                    help="Fixed retained non-sink K/V multiplier at policy transitions.")
+parser.add_argument("--memory-crossattn-reset", action=argparse.BooleanOptionalAction, default=True,
+                    help="Reset cross-attention cache at policy-managed scene transitions.")
+parser.add_argument("--memory-archive", action=argparse.BooleanOptionalAction, default=True,
+                    help="Archive a utility-weighted scene summary at policy-managed scene transitions.")
+parser.add_argument("--memory-archive-top-m", type=int, default=3,
+                    help="Top utility frames compressed into each SceneArchive entry.")
+parser.add_argument("--memory-archive-recent-scenes", type=int, default=10,
+                    help="Recent SceneArchive entries retained after archive trimming.")
+parser.add_argument("--memory-archive-high-utility", type=int, default=5,
+                    help="High-utility SceneArchive entries retained after archive trimming.")
+parser.add_argument("--memory-consolidation", action=argparse.BooleanOptionalAction, default=True,
+                    help="Consolidate MemoryStore when its configurable frame threshold is exceeded.")
+parser.add_argument("--memory-consolidate-n-max", type=int, default=200,
+                    help="MemoryStore frame count that triggers consolidation.")
+parser.add_argument("--memory-target-budget", type=int, default=150,
+                    help="MemoryStore frame count retained by consolidation.")
+parser.add_argument("--memory-diversity-threshold", type=float, default=0.9,
+                    help="Cosine similarity threshold above which consolidation treats entries as redundant.")
+parser.add_argument("--memory-policy-log", type=str, default=None,
+                    help="JSONL event log path; defaults under output_folder when policy is enabled.")
 args = parser.parse_args()
 
 if args.noncontiguous_kv:
@@ -192,6 +236,64 @@ if args.noncontiguous_kv:
 else:
     noncontiguous_source_blocks = None
     noncontiguous_history_frame_ids = None
+
+if args.attention_memory_policy:
+    if args.noncontiguous_kv:
+        parser.error("--attention-memory-policy and --noncontiguous-kv are separate experiments and cannot be combined")
+    try:
+        memory_descriptor_layers = sorted({
+            int(layer.strip()) for layer in args.memory_descriptor_layers.split(",") if layer.strip()
+        })
+        memory_manual_frame_ids = [
+            int(frame.strip()) for frame in (args.memory_manual_frame_ids or "").split(",") if frame.strip()
+        ]
+        memory_injection_layers = sorted({
+            int(layer.strip()) for layer in args.memory_injection_layers.split(",") if layer.strip()
+        })
+        memory_manual_target_blocks = {
+            int(block.strip()) for block in (args.memory_manual_target_blocks or "").split(",") if block.strip()
+        }
+    except ValueError:
+        parser.error("memory layer and manual frame lists must be comma-separated integers")
+    if not memory_descriptor_layers or not memory_injection_layers or any(
+            layer < 0 or layer >= 30 for layer in memory_descriptor_layers + memory_injection_layers):
+        parser.error("memory descriptor and injection layers must select transformer layers 0 through 29")
+    if any(block < 1 for block in memory_manual_target_blocks):
+        parser.error("--memory-manual-target-blocks must contain positive block numbers")
+    if args.memory_k < 0 or args.memory_archive_top_m < 0 or args.memory_archive_recent_scenes < 0 or \
+            args.memory_archive_high_utility < 0 or args.memory_target_budget <= 0 or \
+            args.memory_consolidate_n_max <= 0 or not 0.0 <= args.memory_decay_beta <= 1.0 or \
+            not -1.0 <= args.memory_diversity_threshold <= 1.0:
+        parser.error("memory policy numeric settings are out of range")
+    if memory_manual_frame_ids and (len(memory_manual_frame_ids) != args.memory_k or
+                                    len(set(memory_manual_frame_ids)) != len(memory_manual_frame_ids)):
+        parser.error("--memory-manual-frame-ids requires exactly --memory-k distinct frame IDs")
+    memory_policy_config = {
+        "enabled": True,
+        "retrieval": args.memory_retrieval,
+        "context_mode": args.memory_context_mode,
+        "k": args.memory_k,
+        "descriptor_layers": memory_descriptor_layers,
+        "injection_layers": memory_injection_layers,
+        "manual_frame_ids": memory_manual_frame_ids or None,
+        "manual_target_blocks": memory_manual_target_blocks or None,
+        "transition_auto_retrieval": args.memory_transition_auto_retrieval,
+        "local_retention": args.memory_local_retention,
+        "decay": args.memory_decay,
+        "decay_beta": args.memory_decay_beta,
+        "cross_attention_reset": args.memory_crossattn_reset,
+        "archive": args.memory_archive,
+        "archive_top_m": args.memory_archive_top_m,
+        "archive_recent_scenes": args.memory_archive_recent_scenes,
+        "archive_high_utility": args.memory_archive_high_utility,
+        "consolidation": args.memory_consolidation,
+        "consolidate_n_max": args.memory_consolidate_n_max,
+        "target_budget": args.memory_target_budget,
+        "diversity_threshold": args.memory_diversity_threshold,
+        "log_path": args.memory_policy_log or os.path.join(args.output_folder, "memory_policy.jsonl"),
+    }
+else:
+    memory_policy_config = None
 
 try:
     clean_latent_snapshot_blocks = {
@@ -407,6 +509,7 @@ for i, batch_data in tqdm(enumerate(dataloader), disable=(local_rank != 0)):
         noncontiguous_random_seed=args.seed,
         noncontiguous_manual_frame_id=args.noncontiguous_history_frame_id,
         noncontiguous_manual_frame_ids=noncontiguous_history_frame_ids,
+        memory_policy_config=memory_policy_config,
         clean_pass_callback=save_clean_latent if clean_latent_snapshot_blocks else None,
     )
     if args.save_raw_decoded:
