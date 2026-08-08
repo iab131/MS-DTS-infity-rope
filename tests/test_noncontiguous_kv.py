@@ -199,6 +199,19 @@ class NonContiguousContextAssemblyTest(unittest.TestCase):
             [{"source_block": 6, "frame_index": 2, "global_frame_id": 17}],
         )
 
+    def test_two_frame_oracle_selection_preserves_the_manual_order(self):
+        captured = {13: {"frame_ids": [36, 37, 38]}}
+
+        self.assertEqual(
+            select_history_frame_refs(
+                captured, [13], retrieval_count=2, mode="same_entity_history",
+                manual_frame_ids=[37, 38]),
+            [
+                {"source_block": 13, "frame_index": 1, "global_frame_id": 37},
+                {"source_block": 13, "frame_index": 2, "global_frame_id": 38},
+            ],
+        )
+
     def test_captured_kv_is_cpu_resident_and_only_selected_frame_is_packed(self):
         raw_k = torch.arange(12, dtype=torch.float32).view(1, 3, 2, 2)
         raw_v = raw_k + 100

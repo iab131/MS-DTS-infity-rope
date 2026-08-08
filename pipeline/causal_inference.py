@@ -10,7 +10,7 @@ from demo_utils.memory import gpu, get_cuda_free_memory_gb, DynamicSwapInstaller
 
 def select_history_frame_refs(
         captured_source_kv, source_blocks, retrieval_count, mode, random_seed=0,
-        manual_frame_id=None):
+        manual_frame_id=None, manual_frame_ids=None):
     """Select individual latent frames without perturbing the generation RNG."""
     candidates = [
         {"source_block": block, "frame_index": index, "global_frame_id": frame_id}
@@ -20,12 +20,13 @@ def select_history_frame_refs(
     if retrieval_count > len(candidates):
         raise ValueError("not enough captured source frames for retrieval")
     if mode in {"same_entity_history", "wrong_entity_history"}:
-        if retrieval_count != 1 or manual_frame_id is None:
-            raise ValueError("oracle history requires one manually selected frame")
-        for candidate in candidates:
-            if candidate["global_frame_id"] == manual_frame_id:
-                return [candidate]
-        raise ValueError(f"manual history frame {manual_frame_id} was not captured")
+        selected_ids = manual_frame_ids if manual_frame_ids is not None else [manual_frame_id]
+        if len(selected_ids) != retrieval_count or len(set(selected_ids)) != retrieval_count:
+            raise ValueError("oracle history requires distinct manually selected frames")
+        candidates_by_id = {candidate["global_frame_id"]: candidate for candidate in candidates}
+        if any(frame_id not in candidates_by_id for frame_id in selected_ids):
+            raise ValueError(f"manual history frames {selected_ids} were not captured")
+        return [candidates_by_id[frame_id] for frame_id in selected_ids]
     if mode == "coherent_history":
         selected = []
         for offset in range(max(len(captured_source_kv[block]["frame_ids"]) for block in source_blocks)):
@@ -132,6 +133,7 @@ class CausalInferencePipeline(torch.nn.Module):
         noncontiguous_retrieval_count: int = 1,
         noncontiguous_random_seed: int = 0,
         noncontiguous_manual_frame_id: Optional[int] = None,
+        noncontiguous_manual_frame_ids: Optional[List[int]] = None,
         clean_pass_callback=None,
     ) -> torch.Tensor:
         """
@@ -350,7 +352,7 @@ class CausalInferencePipeline(torch.nn.Module):
                     history_refs = select_history_frame_refs(
                         captured_source_kv, source_blocks, noncontiguous_retrieval_count,
                         noncontiguous_mode, noncontiguous_random_seed,
-                        noncontiguous_manual_frame_id)
+                        noncontiguous_manual_frame_id, noncontiguous_manual_frame_ids)
                     retrieved_kv = select_history_kv(
                         captured_source_kv, history_refs, self.num_transformer_blocks,
                         self.frame_seq_length)

@@ -155,3 +155,82 @@ records an observation.
 - Quantitative result / human review / failures: **not observed**.
 - Planned conclusion limit: no conclusion before all three exit statuses,
   hashes, raw comparisons, and any separately labeled human review are added.
+
+## E20260807-LG-P1 (observed raw run addendum; append-only)
+
+- Date / commit: 2026-08-07 local; `c0d3f9e8c81ae072000f432f7fd48f9035bc2698`.
+  Research question and preregistered hypothesis are in the planned record
+  above. Exact prompt, requested versus effective boundaries, method, context
+  orders, commands, logs, and all artifact paths are in
+  `NONCONTIGUOUS_PHASE1_LONG_GAP_ORACLE_GPU_20260807.md`.
+- Raw run outcomes: baseline (exit 0, 107.595 s, 69,936 MiB sampled VRAM),
+  same entity ID 38 (exit 0, 91.100 s, 49,671 MiB), wrong entity ID 44
+  (exit 0, 90.984 s, 49,671 MiB). Raw decoded / MP4 SHA-256 values and the
+  saved clean-block hashes are retained in
+  `outputs/noncontiguous_phase1_long_gap/metrics.json`.
+- Quantitative result with units: baseline vs both histories has block-33
+  clean-latent max absolute difference 0.0 and raw RGB frames 0--392 max
+  absolute difference 0.0. Both first differ at block 34/local latent 0/global
+  ID 99 and raw decoded frame 393. Same history all-frame unit-interval RGB
+  MAE is 0.075158; wrong history is 0.080417. These are differences, not
+  identity-quality scores.
+- Human review: not recorded. Failure/confounds: no failed inference; the
+  baseline-first device-wide VRAM sample is higher, so no runtime or memory
+  claim is supported by this ordering. One seed and no identity metric prevent
+  any identity-benefit conclusion.
+- Limited conclusion: one-seed long-gap manual histories are target-causal at
+  the raw tensor boundary. Next experiment: multi-seed, balanced-order runs
+  with preregistered human or automated identity evaluation.
+
+## Claim → evidence update (E20260807-LG-P1)
+
+| Candidate paper claim | Status after long-gap run | Evidence / limitation |
+| --- | --- | --- |
+| Manual long-gap historical K/V affects only the configured first A2 target. | Supported, single seed | Exact through block 33/frame 392; first divergence at block 34/global 99/frame 393 for both interventions. |
+| Same-entity history is visually better than wrong-entity history. | Unsupported | No human review or identity metric; MAE is not a quality score. |
+| Historical K/V reduces runtime or VRAM. | Unsupported | Baseline-first telemetry is warm-up/order-confounded and device-wide. |
+
+## Figure / table index update (E20260807-LG-P1)
+
+| ID | Artifact | Intended later use | Status |
+| --- | --- | --- | --- |
+| F3 | `outputs/noncontiguous_phase1_long_gap/block33_to35_baseline_same_wrong.mp4` | Long-gap target-adjacent triptych | Generated; human review not recorded |
+| T4 | `outputs/noncontiguous_phase1_long_gap/metrics.json` | Long-gap raw hashes and target-adjacent difference table | Generated |
+| T5 | `outputs/noncontiguous_phase1_long_gap/{mode}/run.log`, `run.json`, `vram.json` | Reproducibility, command, exit, and telemetry appendix | Generated |
+
+## Negative-control validity addendum (2026-08-07)
+
+- Important negative observation: in E20260807-LG-P1, the requested unrelated
+  robot B shot retained Amara's identity and showed robotic-arm leakage. Its
+  selected “wrong entity” history is therefore **not a valid semantic-negative
+  control**. It remains a target-causal tensor intervention, but it cannot
+  support a claim about semantically wrong identity memory.
+- Consequence: all identity-quality interpretation for that wrong-memory arm is
+  unsupported. E20260807-TRUE-WRONG-P1 substitutes an explicitly car-only B
+  shot and requires human contact-sheet verification of source ID 17 before
+  its wrong-history inference is allowed to run.
+
+## E20260807-LG-MEMSTRENGTH (planned record)
+
+- Research question / hypothesis: does one versus two manually selected clean
+  A frames produce a detectable target-only change under the same six-frame
+  context? The baseline and r=1 evidence are reused from E20260807-LG-P1;
+  r=2 uses ordered distinct A IDs `[37,38]`, source blocks 13,15, target 34,
+  and context `[sink:0,history:37,history:38,current:99,current:100,current:101]`.
+- Requested/effective duration, prompt, checkpoint/config/seed/resolution/
+  steps/cache, and target-adjacent artifacts are exactly E20260807-LG-P1.
+  The r=2 command will save only blocks 33--35 plus raw decoded output.
+- Status: **not run**. Cross-commit reuse of baseline/r=1 will be disclosed as
+  a limitation; no memory-strength claim is allowed without observed r=2 data.
+
+## E20260807-TRUE-WRONG-P1 (planned record)
+
+- Research question / hypothesis: with a visually verified car-only B source,
+  do same/wrong manual histories remain target-causal at short gap? A/B/A2
+  requested and effective durations are 2.25/2.25/3.0 seconds; blocks are
+  A 1--3, B 4--6, A2 7--10. Same ID 8, wrong ID 17, target 8, sources 3,6,
+  retrieval count 1, six frames / 9,360 tokens, raw output plus clean 7--9.
+- Exact prompt and commands are in
+  `NONCONTIGUOUS_PHASE1_TRUE_WRONG_MEMORY_PREPARATION_20260807.md`.
+- Status: **not run**. Human B-source verification is a required gate, not an
+  expected result.

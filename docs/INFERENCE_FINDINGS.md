@@ -170,3 +170,27 @@ claim.
 - The central paper-facing prompt/result ledger is
   `docs/NONCONTIGUOUS_PHASE1_PAPER_LEDGER.md`. No long-gap GPU generation has
   been launched.
+
+## 2026-08-07: Long-gap oracle result
+
+- E20260807-LG-P1 completed all three runs at commit `c0d3f9e`. Same-entity
+  ID 38 and wrong-entity ID 44 are exactly equal to baseline through clean
+  block 33 and raw decoded frame 392, then first diverge at target block 34,
+  global latent 99, decoded frame 393.
+- This is one-seed target-causality evidence only. No human visual review or
+  identity metric was run; raw RGB MAE does not demonstrate identity quality.
+- Baseline-first sampled device VRAM is higher than later runs and is treated
+  as warm-up/order-confounded, not a performance effect. Full raw data and
+  interpretation limits are in
+  `docs/NONCONTIGUOUS_PHASE1_LONG_GAP_ORACLE_GPU_20260807.md`.
+
+## 2026-08-07: Wrong-memory negative-control invalidation
+
+- Human review found that the intended robot B shot in the long-gap sequence
+  retained Amara's identity and leaked robotic arms. Its wrong-history arm is
+  invalid as a semantic-negative control and must not be used to claim that
+  wrong-entity memory has an identity effect.
+- The follow-up short true-wrong oracle instead uses an explicitly car-only B
+  shot and requires a human contact-sheet check of source ID 17 before any
+  wrong-history run. See
+  `docs/NONCONTIGUOUS_PHASE1_TRUE_WRONG_MEMORY_PREPARATION_20260807.md`.

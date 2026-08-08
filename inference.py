@@ -161,6 +161,8 @@ parser.add_argument("--noncontiguous-retrieval-count", type=int, choices=[1, 2],
                     help="Historical latent frames replacing recent non-sink context frames.")
 parser.add_argument("--noncontiguous-history-frame-id", type=int, default=None,
                     help="Manually selected global latent frame for an oracle history mode.")
+parser.add_argument("--noncontiguous-history-frame-ids", type=str, default=None,
+                    help="Comma-separated manual global latent frames for an oracle history mode.")
 parser.add_argument("--save-clean-latent-blocks", type=str, default=None,
                     help="Comma-separated one-based clean-latent block numbers to save.")
 parser.add_argument("--save-raw-decoded", action="store_true",
@@ -176,11 +178,20 @@ if args.noncontiguous_kv:
         parser.error("--noncontiguous-source-blocks must be comma-separated integers")
     if not noncontiguous_source_blocks or args.noncontiguous_target_block is None:
         parser.error("--noncontiguous-kv requires --noncontiguous-source-blocks and --noncontiguous-target-block")
+    try:
+        noncontiguous_history_frame_ids = [
+            int(frame.strip()) for frame in (args.noncontiguous_history_frame_ids or "").split(",") if frame.strip()
+        ]
+    except ValueError:
+        parser.error("--noncontiguous-history-frame-ids must be comma-separated integers")
+    if args.noncontiguous_history_frame_id is not None:
+        noncontiguous_history_frame_ids = [args.noncontiguous_history_frame_id]
     if args.noncontiguous_kv_mode in {"same_entity_history", "wrong_entity_history"} and \
-            args.noncontiguous_history_frame_id is None:
-        parser.error("oracle history modes require --noncontiguous-history-frame-id")
+            len(noncontiguous_history_frame_ids) != args.noncontiguous_retrieval_count:
+        parser.error("oracle history modes require one distinct manual frame per retrieval slot")
 else:
     noncontiguous_source_blocks = None
+    noncontiguous_history_frame_ids = None
 
 try:
     clean_latent_snapshot_blocks = {
@@ -395,6 +406,7 @@ for i, batch_data in tqdm(enumerate(dataloader), disable=(local_rank != 0)):
         noncontiguous_retrieval_count=args.noncontiguous_retrieval_count,
         noncontiguous_random_seed=args.seed,
         noncontiguous_manual_frame_id=args.noncontiguous_history_frame_id,
+        noncontiguous_manual_frame_ids=noncontiguous_history_frame_ids,
         clean_pass_callback=save_clean_latent if clean_latent_snapshot_blocks else None,
     )
     if args.save_raw_decoded:

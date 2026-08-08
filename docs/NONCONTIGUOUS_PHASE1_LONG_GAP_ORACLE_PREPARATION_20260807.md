@@ -71,3 +71,11 @@ unlink wan_models
 ```
 
 No descriptor routing, MemoryStore, or retrieval-count-2 path is involved.
+
+## Execution addendum (2026-08-07)
+
+The three commands above were run at commit `c0d3f9e`. The preparation text and
+its requested-versus-effective duration accounting are retained unchanged. Raw
+outcomes, logs, hashes, target-adjacent metrics, confounds, and interpretation
+limits are recorded separately in
+`NONCONTIGUOUS_PHASE1_LONG_GAP_ORACLE_GPU_20260807.md`.
