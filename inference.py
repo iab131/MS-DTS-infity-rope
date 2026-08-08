@@ -161,6 +161,10 @@ parser.add_argument("--noncontiguous-retrieval-count", type=int, choices=[1, 2],
                     help="Historical latent frames replacing recent non-sink context frames.")
 parser.add_argument("--noncontiguous-history-frame-id", type=int, default=None,
                     help="Manually selected global latent frame for an oracle history mode.")
+parser.add_argument("--save-clean-latent-blocks", type=str, default=None,
+                    help="Comma-separated one-based clean-latent block numbers to save.")
+parser.add_argument("--save-raw-decoded", action="store_true",
+                    help="Save the decoded tensor before MP4 conversion.")
 args = parser.parse_args()
 
 if args.noncontiguous_kv:
@@ -177,6 +181,15 @@ if args.noncontiguous_kv:
         parser.error("oracle history modes require --noncontiguous-history-frame-id")
 else:
     noncontiguous_source_blocks = None
+
+try:
+    clean_latent_snapshot_blocks = {
+        int(block.strip()) for block in (args.save_clean_latent_blocks or "").split(",") if block.strip()
+    }
+except ValueError:
+    parser.error("--save-clean-latent-blocks must be comma-separated integers")
+if any(block < 1 for block in clean_latent_snapshot_blocks):
+    parser.error("--save-clean-latent-blocks must contain positive block numbers")
 
 # Initialize distributed inference
 if "LOCAL_RANK" in os.environ:
@@ -364,7 +377,12 @@ for i, batch_data in tqdm(enumerate(dataloader), disable=(local_rank != 0)):
             [args.num_samples, num_latent_frames, 16, 60, 104], device=device, dtype=torch.bfloat16
         )
 
-    # Generate 81 frames
+    def save_clean_latent(block, clean_latents, _cache):
+        if block in clean_latent_snapshot_blocks:
+            torch.save(
+                clean_latents.detach().cpu().clone(),
+                os.path.join(args.output_folder, f"{idx}_clean_latents_block_{block:02d}.pt"))
+
     video, latents = pipeline.inference(
         noise=sampled_noise,
         text_prompts=prompts,
@@ -377,7 +395,12 @@ for i, batch_data in tqdm(enumerate(dataloader), disable=(local_rank != 0)):
         noncontiguous_retrieval_count=args.noncontiguous_retrieval_count,
         noncontiguous_random_seed=args.seed,
         noncontiguous_manual_frame_id=args.noncontiguous_history_frame_id,
+        clean_pass_callback=save_clean_latent if clean_latent_snapshot_blocks else None,
     )
+    if args.save_raw_decoded:
+        torch.save(
+            video.detach().cpu().clone(),
+            os.path.join(args.output_folder, f"{idx}_raw_decoded_before_mp4.pt"))
     current_video = rearrange(video, 'b t c h w -> b t h w c').cpu()
     all_video.append(current_video)
     num_generated_frames += latents.shape[1]

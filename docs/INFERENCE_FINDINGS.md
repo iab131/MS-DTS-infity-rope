@@ -142,3 +142,31 @@ claim.
   `inference.py` does. Its first attempt omitted this and OOMed at block 2 from
   retained autograd activations; no configuration changed for the recorded
   three-run gate after that correction.
+
+## 2026-08-04: Matched oracle A-B-A GPU result
+
+- Commit `361ed7e` completed the baseline, same-entity (manual global latent
+  ID 8), and wrong-entity (ID 17) matrix at target block 8 with matched
+  six-frame / 9,360-token contexts. Both history runs are exactly equal to
+  baseline through clean block 7 and raw decoded frame 80.
+- Both first diverge at target global latent ID 21 and decoded frame 81. This
+  passes the target-causality condition for the A-B-A comparison. See
+  `docs/NONCONTIGUOUS_PHASE1_ABA_GPU_20260804.md` for raw hashes, commands,
+  telemetry, output paths, and the blocks 7--10 side-by-side artifact.
+- One outer harness command exited 130 because `tee` was given a not-yet-made
+  output directory. Its baseline inference artifact was already complete;
+  individual same/wrong commands then completed with unchanged settings. The
+  failure and distinction are recorded in the GPU report.
+
+## 2026-08-07: Long-gap oracle preparation
+
+- The requested 10 s / 15 s / 10 s prompt resolves in the live three-frame
+  block implementation to A blocks 1--13, B 14--33, and A2 34--47. Per-scene
+  flooring gives A 9.5625 s, while global latent rounding appends a final A2
+  block for 10.5 s. This is documented rather than normalized away.
+- Target block 34 will receive manual A ID 38 or B ID 44 while preserving the
+  six-frame / 9,360-token matched context. The planned output stores only
+  blocks 33--35 clean latents and raw decoded video before MP4 encoding.
+- The central paper-facing prompt/result ledger is
+  `docs/NONCONTIGUOUS_PHASE1_PAPER_LEDGER.md`. No long-gap GPU generation has
+  been launched.
