@@ -92,24 +92,31 @@ def sparse_historical_rope(key, grid_sizes, freqs, original_token_indices, tempo
     return torch.view_as_real(key_complex * multipliers).flatten(3).type_as(key)
 
 
-def grouped_selective_attention(query, base_key, base_value, historical_key, historical_value,
-                                selected_query_indices, attention_fn=attention):
-    """Keep baseline attention for all queries and recompute only selected queries with history."""
+def grouped_selective_attention(query, base_key, base_value, selective_memory=None,
+                                attention_fn=attention):
+    """Add isolated historical attention for each selected query group to baseline attention."""
     output = attention_fn(query, base_key, base_value)
-    selected_query_indices = torch.as_tensor(
-        selected_query_indices, device=query.device, dtype=torch.long)
-    if selected_query_indices.ndim != 1:
-        raise ValueError("selected_query_indices must have shape [Q]")
-    if torch.any(selected_query_indices < 0) or torch.any(selected_query_indices >= query.shape[1]):
-        raise ValueError("selected_query_indices must be valid query positions")
-    if not selected_query_indices.numel():
+    if not selective_memory:
         return output
-    selected_output = attention_fn(
-        query.index_select(1, selected_query_indices),
-        torch.cat([base_key, historical_key], dim=1),
-        torch.cat([base_value, historical_value], dim=1),
-    )
-    return output.index_copy(1, selected_query_indices, selected_output)
+    seen = torch.zeros(query.shape[1], device=query.device, dtype=torch.bool)
+    for group in selective_memory:
+        query_indices = torch.as_tensor(
+            group["query_indices"], device=query.device, dtype=torch.long)
+        if query_indices.ndim != 1:
+            raise ValueError("selective_memory query_indices must have shape [Q]")
+        if (torch.any(query_indices < 0) or torch.any(query_indices >= query.shape[1]) or
+                torch.any(seen[query_indices])):
+            raise ValueError("selective_memory query groups must be valid and non-overlapping")
+        seen[query_indices] = True
+        if query_indices.numel():
+            output = output.index_add(
+                1, query_indices,
+                attention_fn(
+                    query.index_select(1, query_indices),
+                    group["historical_key"], group["historical_value"],
+                ),
+            )
+    return output
 
 
 def assemble_noncontiguous_context(retrieved_kv, local_key, local_value, frame_tokens, current_frames):

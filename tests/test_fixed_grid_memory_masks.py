@@ -75,25 +75,42 @@ class FixedGridMemoryMasksTest(unittest.TestCase):
         self.assertEqual(masks.history_token_indices(6), [2 * 52 + 3])
         self.assertEqual(masks.history_token_indices(7), [29 * 52 + 51])
 
-    def test_grouped_selective_attention_scatter_preserves_background_and_query_order(self):
+    def test_grouped_selective_attention_adds_isolated_history_groups_in_query_order(self):
         calls = []
 
         def cpu_attention(query, key, value):
-            calls.append((query[:, :, 0, 0].tolist(), key.shape[1]))
+            calls.append((
+                query[:, :, 0, 0].tolist(),
+                key[:, :, 0, 0].tolist(),
+                value[:, :, 0, 0].tolist(),
+            ))
             return query + value.sum(dim=1, keepdim=True)
 
-        query = torch.arange(4, dtype=torch.float32).view(1, 4, 1, 1)
-        base_key = torch.zeros(1, 2, 1, 1)
+        query = torch.arange(5, dtype=torch.float32).view(1, 5, 1, 1)
+        base_key = torch.tensor([10.0, 20.0]).view(1, 2, 1, 1)
         base_value = torch.tensor([10.0, 20.0]).view(1, 2, 1, 1)
-        history_key = torch.zeros(1, 2, 1, 1)
-        history_value = torch.tensor([100.0, 200.0]).view(1, 2, 1, 1)
+        selective_memory = [
+            {
+                "query_indices": torch.tensor([3, 1]),
+                "historical_key": torch.tensor([1000.0]).view(1, 1, 1, 1),
+                "historical_value": torch.tensor([100.0]).view(1, 1, 1, 1),
+            },
+            {
+                "query_indices": torch.tensor([4]),
+                "historical_key": torch.tensor([2000.0]).view(1, 1, 1, 1),
+                "historical_value": torch.tensor([200.0]).view(1, 1, 1, 1),
+            },
+        ]
 
         output = grouped_selective_attention(
-            query, base_key, base_value, history_key, history_value,
-            torch.tensor([3, 1]), attention_fn=cpu_attention)
+            query, base_key, base_value, selective_memory, attention_fn=cpu_attention)
 
-        self.assertEqual(calls, [([[0.0, 1.0, 2.0, 3.0]], 2), ([[3.0, 1.0]], 4)])
-        self.assertEqual(output[:, :, 0, 0].tolist(), [[30.0, 331.0, 32.0, 333.0]])
+        self.assertEqual(calls, [
+            ([[0.0, 1.0, 2.0, 3.0, 4.0]], [[10.0, 20.0]], [[10.0, 20.0]]),
+            ([[3.0, 1.0]], [[1000.0]], [[100.0]]),
+            ([[4.0]], [[2000.0]], [[200.0]]),
+        ])
+        self.assertEqual(output[:, :, 0, 0].tolist(), [[30.0, 132.0, 32.0, 136.0, 238.0]])
 
     def test_sparse_historical_rope_keeps_original_spatial_coordinates(self):
         angles = torch.tensor([
