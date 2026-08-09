@@ -49,6 +49,69 @@ def block_relative_positions(start_frame, num_frames, prefix_frames=0, device=No
     return torch.arange(start_frame + prefix_frames, start_frame + prefix_frames + num_frames, device=device)
 
 
+def sparse_historical_rope(key, grid_sizes, freqs, original_token_indices, temporal_slots):
+    """RoPE sparse historical keys using their original row-major H/W coordinates."""
+    if key.ndim != 4:
+        raise ValueError("sparse historical key must have shape [B, L, N, D]")
+    batch_size, token_count, _, head_dim = key.shape
+    if head_dim % 2 or grid_sizes.shape != (batch_size, 3):
+        raise ValueError("key head dimension must be even and grid_sizes must have shape [B, 3]")
+
+    def per_token(values, name):
+        values = torch.as_tensor(values, device=key.device, dtype=torch.long)
+        if values.ndim == 1 and values.numel() == token_count:
+            return values.unsqueeze(0).expand(batch_size, -1)
+        if values.shape == (batch_size, token_count):
+            return values
+        raise ValueError(f"{name} must have shape [L] or [B, L]")
+
+    original_token_indices = per_token(original_token_indices, "original_token_indices")
+    temporal_slots = per_token(temporal_slots, "temporal_slots")
+    heights = grid_sizes[:, 1].to(key.device).view(batch_size, 1)
+    widths = grid_sizes[:, 2].to(key.device).view(batch_size, 1)
+    if torch.any(original_token_indices < 0) or torch.any(original_token_indices >= heights * widths):
+        raise ValueError("original_token_indices must be valid row-major per-frame positions")
+    if torch.any((temporal_slots != 1) & (temporal_slots != 2)):
+        raise ValueError("temporal_slots must use slot 1 for source ID 6 or slot 2 for source ID 7")
+
+    complex_dim = head_dim // 2
+    temporal_freqs, height_freqs, width_freqs = freqs.to(key.device).split(
+        [complex_dim - 2 * (complex_dim // 3), complex_dim // 3, complex_dim // 3], dim=1)
+    if (torch.any(temporal_slots >= temporal_freqs.shape[0]) or
+            torch.any(heights > height_freqs.shape[0]) or
+            torch.any(widths > width_freqs.shape[0])):
+        raise ValueError("RoPE frequencies do not cover the requested sparse coordinates")
+
+    rows = torch.div(original_token_indices, widths, rounding_mode="floor")
+    columns = torch.remainder(original_token_indices, widths)
+    multipliers = torch.cat([
+        temporal_freqs[temporal_slots], height_freqs[rows], width_freqs[columns],
+    ], dim=-1).unsqueeze(2)
+    key_complex = torch.view_as_complex(key.to(torch.float64).reshape(
+        batch_size, token_count, key.shape[2], -1, 2))
+    return torch.view_as_real(key_complex * multipliers).flatten(3).type_as(key)
+
+
+def grouped_selective_attention(query, base_key, base_value, historical_key, historical_value,
+                                selected_query_indices, attention_fn=attention):
+    """Keep baseline attention for all queries and recompute only selected queries with history."""
+    output = attention_fn(query, base_key, base_value)
+    selected_query_indices = torch.as_tensor(
+        selected_query_indices, device=query.device, dtype=torch.long)
+    if selected_query_indices.ndim != 1:
+        raise ValueError("selected_query_indices must have shape [Q]")
+    if torch.any(selected_query_indices < 0) or torch.any(selected_query_indices >= query.shape[1]):
+        raise ValueError("selected_query_indices must be valid query positions")
+    if not selected_query_indices.numel():
+        return output
+    selected_output = attention_fn(
+        query.index_select(1, selected_query_indices),
+        torch.cat([base_key, historical_key], dim=1),
+        torch.cat([base_value, historical_value], dim=1),
+    )
+    return output.index_copy(1, selected_query_indices, selected_output)
+
+
 def assemble_noncontiguous_context(retrieved_kv, local_key, local_value, frame_tokens, current_frames):
     """Replace recent non-sink frames with transient historical KV."""
     return assemble_memory_context(
@@ -71,6 +134,29 @@ def memory_context_layout(retrieved_frames, local_frames, current_frames, mode):
         "local_frames": retained_local,
         "current_frames": current_frames,
         "positions": list(range(total)),
+    }
+
+
+def memory_context_rope_positions(retrieved_frames, local_frames, current_frames, mode,
+                                  current_start_frame, scene_cut):
+    """Report the temporal coordinates used by the live transient KV assembly."""
+    layout = memory_context_layout(retrieved_frames, local_frames, current_frames, mode)
+    key_prefix = retrieved_frames if mode == "prepend" else 0
+    if scene_cut:
+        current_key_positions = list(range(45, 45 + current_frames))
+        current_query_positions = list(range(45, 45 + current_frames))
+    else:
+        current_key_positions = list(range(
+            key_prefix + 1 + local_frames, key_prefix + 1 + local_frames + current_frames))
+        current_query_positions = list(range(
+            current_start_frame + key_prefix, current_start_frame + key_prefix + current_frames))
+    local_start = key_prefix + 1 + (retrieved_frames if mode == "replace_recent" else 0)
+    return {
+        "sink_key_position": "preserved",
+        "history_key_positions": list(range(1, 1 + retrieved_frames)),
+        "local_key_positions": list(range(local_start, local_start + layout["local_frames"])),
+        "current_key_positions": current_key_positions,
+        "current_query_positions": current_query_positions,
     }
 
 
