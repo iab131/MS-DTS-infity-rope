@@ -217,7 +217,8 @@ parser.add_argument("--memory-policy-log", type=str, default=None,
 parser.add_argument("--memory-fixed-grid-mask-path", type=str, default=None,
                     help="Opt-in fixed 30x52 source/target mask JSON for the manual recall oracle.")
 parser.add_argument("--memory-fixed-grid-mode", choices=[
-                    "subject_to_subject", "background_to_background"], default=None,
+                    "subject_to_subject", "subject_erode1", "subject_erode2",
+                    "subject_boundary_only", "background_to_background"], default=None,
                     help="Apply only the matching fixed-grid historical-memory arm.")
 args = parser.parse_args()
 

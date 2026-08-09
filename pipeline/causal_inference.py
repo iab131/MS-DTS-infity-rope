@@ -177,15 +177,14 @@ def capture_clean_memory_block(memory_store, scene_index, current_start_frame, c
 def pack_fixed_grid_selective_memory(memory_store, masks, mode, current_frames, num_layers):
     """Pack raw masked K/V with original source coordinates and fixed temporal slots."""
     entries = memory_store.get_entries([6, 7])
-    if mode == "subject_to_subject":
-        source_indices = {frame_id: masks.history_token_indices(frame_id) for frame_id in (6, 7)}
-        target_indices = masks.subject_query_indices()
-    elif mode == "background_to_background":
+    if mode == "background_to_background":
         source_indices = {
             frame_id: masks.history_background_token_indices(frame_id) for frame_id in (6, 7)}
         target_indices = masks.background_query_indices()
     else:
-        raise ValueError(f"unsupported fixed-grid mode: {mode}")
+        source_indices = {
+            frame_id: masks.history_token_indices_for_mode(mode, frame_id) for frame_id in (6, 7)}
+        target_indices = masks.target_query_indices_for_mode(mode)
 
     query_indices = torch.tensor([
         frame * memory_store.frame_tokens + index
@@ -580,15 +579,18 @@ class CausalInferencePipeline(torch.nn.Module):
                                 selective_memory = pack_fixed_grid_selective_memory(
                                     memory_store, fixed_grid_masks, fixed_grid_config["mode"],
                                     current_num_frames, self.num_transformer_blocks)
-                                target_indices = fixed_grid_masks.subject_query_indices() \
-                                    if fixed_grid_config["mode"] == "subject_to_subject" \
-                                    else fixed_grid_masks.background_query_indices()
-                                source_indices = {
-                                    frame_id: (fixed_grid_masks.history_token_indices(frame_id)
-                                               if fixed_grid_config["mode"] == "subject_to_subject"
-                                               else fixed_grid_masks.history_background_token_indices(frame_id))
-                                    for frame_id in (6, 7)
-                                }
+                                if fixed_grid_config["mode"] == "background_to_background":
+                                    target_indices = fixed_grid_masks.background_query_indices()
+                                    source_indices = {
+                                        frame_id: fixed_grid_masks.history_background_token_indices(frame_id)
+                                        for frame_id in (6, 7)}
+                                else:
+                                    target_indices = fixed_grid_masks.target_query_indices_for_mode(
+                                        fixed_grid_config["mode"])
+                                    source_indices = {
+                                        frame_id: fixed_grid_masks.history_token_indices_for_mode(
+                                            fixed_grid_config["mode"], frame_id)
+                                        for frame_id in (6, 7)}
                                 base_sink_frame = current_start_frame - context_non_sink_frames - 1
                                 base_ordering = (
                                     [f"sink:{base_sink_frame}"] +

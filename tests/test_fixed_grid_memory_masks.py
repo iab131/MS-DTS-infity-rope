@@ -78,6 +78,28 @@ class FixedGridMemoryMasksTest(unittest.TestCase):
         self.assertEqual(masks.history_token_indices(6), [2 * 52 + 3])
         self.assertEqual(masks.history_token_indices(7), [29 * 52 + 51])
 
+    def test_subject_core_and_boundary_modes_partition_the_full_mask(self):
+        root = Path(__file__).resolve().parents[1]
+        masks = FixedGridMemoryMasks.from_json(
+            root / "docs/attention_memory_policy_fixed_grid_masks_20260809.json")
+
+        for frame_id in (6, 7):
+            full = set(masks.history_token_indices_for_mode("subject_to_subject", frame_id))
+            erode1 = set(masks.history_token_indices_for_mode("subject_erode1", frame_id))
+            erode2 = set(masks.history_token_indices_for_mode("subject_erode2", frame_id))
+            boundary = set(masks.history_token_indices_for_mode("subject_boundary_only", frame_id))
+            self.assertEqual(full, erode1 | boundary)
+            self.assertFalse(erode1 & boundary)
+            self.assertTrue(erode2 < erode1 < full)
+
+        full = set(masks.target_query_indices_for_mode("subject_to_subject"))
+        erode1 = set(masks.target_query_indices_for_mode("subject_erode1"))
+        erode2 = set(masks.target_query_indices_for_mode("subject_erode2"))
+        boundary = set(masks.target_query_indices_for_mode("subject_boundary_only"))
+        self.assertEqual(full, erode1 | boundary)
+        self.assertFalse(erode1 & boundary)
+        self.assertTrue(erode2 < erode1 < full)
+
     def test_history_background_excludes_each_sources_dilated_subject(self):
         source_6 = [[0] * 52 for _ in range(30)]
         source_6[10][20] = 1
@@ -123,6 +145,12 @@ class FixedGridMemoryMasksTest(unittest.TestCase):
                 "masks.json", "background_to_background", True, [6, 7], {8},
                 local_retention="transition_no_sink", context_mode="replace_recent"),
             {"mask_path": "masks.json", "mode": "background_to_background"},
+        )
+        self.assertEqual(
+            validate_fixed_grid_options(
+                "masks.json", "subject_erode2", True, [6, 7], {8},
+                local_retention="transition_no_sink", context_mode="replace_recent"),
+            {"mask_path": "masks.json", "mode": "subject_erode2"},
         )
 
     def test_grouped_selective_attention_adds_isolated_history_groups_in_query_order(self):

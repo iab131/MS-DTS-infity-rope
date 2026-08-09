@@ -22,6 +22,9 @@ class InferenceCliTest(unittest.TestCase):
         self.assertIn("--memory-transition-auto-retrieval", result.stdout)
         self.assertIn("--memory-fixed-grid-mask-path", result.stdout)
         self.assertIn("--memory-fixed-grid-mode", result.stdout)
+        self.assertIn("subject_erode1", result.stdout)
+        self.assertIn("subject_erode2", result.stdout)
+        self.assertIn("subject_boundary_only", result.stdout)
 
     def test_fixed_grid_cli_flags_must_be_paired(self):
         root = Path(__file__).resolve().parents[1]

@@ -21,6 +21,12 @@ FRAME_TOKENS = 30 * 52
 SOURCE_DECODED_FRAMES = {6: 26, 7: 30}
 TARGET_LATENT_FRAMES = [21, 22, 23]
 TARGET_DECODED_FRAMES = [81, 85, 89]
+SUBJECT_ABLATION_MODES = (
+    ("subject_to_subject", "full subject"),
+    ("subject_erode1", "erode1 core"),
+    ("subject_erode2", "erode2 core"),
+    ("subject_boundary_only", "boundary ring"),
+)
 
 
 def _coordinates(indices):
@@ -58,6 +64,25 @@ def build_mask_audit(masks):
         }
     subject_queries = masks.subject_query_indices()
     background_queries = masks.background_query_indices()
+    subject_ablation = {}
+    for mode in ("subject_to_subject", "subject_erode1", "subject_erode2", "subject_boundary_only"):
+        target = masks.target_query_indices_for_mode(mode)
+        subject_ablation[mode] = {
+            "source": {
+                str(frame_id): {
+                    "token_count": len(masks.history_token_indices_for_mode(mode, frame_id)),
+                    "token_indices": masks.history_token_indices_for_mode(mode, frame_id),
+                    "row_col_coordinates": _coordinates(
+                        masks.history_token_indices_for_mode(mode, frame_id)),
+                }
+                for frame_id in (6, 7)
+            },
+            "target_per_frame_token_count": len(target),
+            "target_per_frame_indices": target,
+            "target_per_frame_row_col_coordinates": _coordinates(target),
+            "target_query_count": 3 * len(target),
+            "target_query_indices": _expanded(target),
+        }
     return {
         "grid": {"height": 30, "width": 52, "tokens_per_frame": FRAME_TOKENS,
                  "index_order": "frame_then_row_major"},
@@ -79,6 +104,7 @@ def build_mask_audit(masks):
             "background_query_indices": _expanded(background_queries),
             "background_query_count": 3 * len(background_queries),
         },
+        "subject_ablation": subject_ablation,
         "base_context": {
             "ordering": base_ordering,
             "derived_from": {
@@ -162,6 +188,8 @@ def main():
     parser.add_argument(
         "--output-dir", type=Path,
         default=ROOT / "outputs/attention_memory_policy_fixed_grid_selective_recall/preflight")
+    parser.add_argument("--subject-ablation-overlays", action="store_true",
+                        help="Write full/core/ring source and target overlays for the fixed oracle.")
     args = parser.parse_args()
 
     masks = FixedGridMemoryMasks.from_json(args.mask_path)
@@ -182,6 +210,21 @@ def main():
             frames[decoded_frame], masks.target_subject_mask, path,
             f"target block 8 / latent ID {latent_frame} / decoded frame {decoded_frame}")
         artifacts.append(path)
+
+    if args.subject_ablation_overlays:
+        for mode, label in SUBJECT_ABLATION_MODES:
+            for frame_id, decoded_frame in SOURCE_DECODED_FRAMES.items():
+                path = args.output_dir / (
+                    f"{mode}-source-{frame_id}-frame-{decoded_frame}-overlay.png")
+                _write_overlay(frames[decoded_frame], masks.source_mask_for_mode(mode, frame_id), path,
+                               f"{label} / source ID {frame_id} / decoded frame {decoded_frame}")
+                artifacts.append(path)
+            for latent_frame, decoded_frame in zip(TARGET_LATENT_FRAMES, TARGET_DECODED_FRAMES):
+                path = args.output_dir / (
+                    f"{mode}-target-block-8-frame-{decoded_frame}-overlay.png")
+                _write_overlay(frames[decoded_frame], masks.target_mask_for_mode(mode), path,
+                               f"{label} / target block 8 / latent ID {latent_frame} / decoded frame {decoded_frame}")
+                artifacts.append(path)
 
     audit = build_mask_audit(masks)
     audit["inputs"] = {

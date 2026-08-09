@@ -7,6 +7,12 @@ from pathlib import Path
 
 GRID_HEIGHT = 30
 GRID_WIDTH = 52
+SUBJECT_MODES = {
+    "subject_to_subject": 0,
+    "subject_erode1": 1,
+    "subject_erode2": 2,
+    "subject_boundary_only": None,
+}
 
 
 def validate_fixed_grid_options(mask_path, mode, attention_memory_policy,
@@ -20,6 +26,8 @@ def validate_fixed_grid_options(mask_path, mode, attention_memory_policy,
             "--memory-fixed-grid-mask-path and --memory-fixed-grid-mode must be provided together")
     if not attention_memory_policy:
         raise ValueError("fixed-grid recall requires --attention-memory-policy")
+    if mode not in {*SUBJECT_MODES, "background_to_background"}:
+        raise ValueError("unsupported fixed-grid recall mode")
     if manual_frame_ids != [6, 7]:
         raise ValueError("fixed-grid recall requires frame IDs 6,7 via --memory-manual-frame-ids")
     if manual_target_blocks != {8}:
@@ -85,7 +93,7 @@ class FixedGridMemoryMasks:
         return tuple(int(value) for value in values)
 
     def subject_query_indices(self):
-        return [index for index, value in enumerate(self.target_subject_mask) if value]
+        return self.target_query_indices_for_mode("subject_to_subject")
 
     def background_query_indices(self):
         return self._dilated_complement(self.target_subject_mask)
@@ -102,7 +110,45 @@ class FixedGridMemoryMasks:
         return [index for index in range(self.height * self.width) if index not in excluded]
 
     def history_token_indices(self, frame_id):
-        return [index for index, value in enumerate(self.source_masks[int(frame_id)]) if value]
+        return self.history_token_indices_for_mode("subject_to_subject", frame_id)
+
+    def _erode(self, mask):
+        """Return the 8-connected one-token interior of a binary grid mask."""
+        eroded = []
+        for index, value in enumerate(mask):
+            row, column = divmod(index, self.width)
+            eroded.append(int(value and all(
+                0 <= row + dr < self.height and 0 <= column + dc < self.width and
+                mask[(row + dr) * self.width + column + dc]
+                for dr in (-1, 0, 1) for dc in (-1, 0, 1))))
+        return tuple(eroded)
+
+    def _subject_mask_for_mode(self, mask, mode):
+        if mode not in SUBJECT_MODES:
+            raise ValueError(f"{mode} is not a subject mask mode")
+        erode_steps = SUBJECT_MODES[mode]
+        if erode_steps is None:
+            eroded = self._erode(mask)
+            return tuple(int(value and not eroded[index]) for index, value in enumerate(mask))
+        for _ in range(erode_steps):
+            mask = self._erode(mask)
+        return mask
+
+    @staticmethod
+    def _mask_indices(mask):
+        return [index for index, value in enumerate(mask) if value]
+
+    def source_mask_for_mode(self, mode, frame_id):
+        return self._subject_mask_for_mode(self.source_masks[int(frame_id)], mode)
+
+    def target_mask_for_mode(self, mode):
+        return self._subject_mask_for_mode(self.target_subject_mask, mode)
+
+    def history_token_indices_for_mode(self, mode, frame_id):
+        return self._mask_indices(self.source_mask_for_mode(mode, frame_id))
+
+    def target_query_indices_for_mode(self, mode):
+        return self._mask_indices(self.target_mask_for_mode(mode))
 
     def history_background_token_indices(self, frame_id):
         """Return source background outside its eight-connected one-token dilation."""

@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
+from unittest.mock import patch
 from pathlib import Path
 
 from pipeline.fixed_grid_memory_masks import FixedGridMemoryMasks
+from scripts import prepare_fixed_grid_memory_oracle as preflight
 from scripts.prepare_fixed_grid_memory_oracle import build_mask_audit
 
 
@@ -38,6 +42,32 @@ class PrepareFixedGridMemoryOracleTest(unittest.TestCase):
             "current_num_frames": 3,
         })
         self.assertTrue(audit["base_context"]["local_current_order_unchanged"])
+
+    def test_audit_records_subject_core_and_boundary_counts(self):
+        root = Path(__file__).resolve().parents[1]
+        masks = FixedGridMemoryMasks.from_json(
+            root / "docs/attention_memory_policy_fixed_grid_masks_20260809.json")
+
+        audit = build_mask_audit(masks)
+
+        variants = audit["subject_ablation"]
+        self.assertEqual(
+            variants["subject_to_subject"]["target_per_frame_token_count"],
+            variants["subject_erode1"]["target_per_frame_token_count"] +
+            variants["subject_boundary_only"]["target_per_frame_token_count"],
+        )
+        self.assertLess(
+            variants["subject_erode2"]["target_per_frame_token_count"],
+            variants["subject_erode1"]["target_per_frame_token_count"],
+        )
+
+    def test_subject_ablation_overlay_flag_is_available(self):
+        output = StringIO()
+        with patch("sys.argv", ["prepare_fixed_grid_memory_oracle.py", "--help"]), \
+                redirect_stdout(output), self.assertRaises(SystemExit) as raised:
+            preflight.main()
+        self.assertEqual(raised.exception.code, 0)
+        self.assertIn("--subject-ablation-overlays", output.getvalue())
 
 
 if __name__ == "__main__":
