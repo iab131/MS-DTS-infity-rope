@@ -1,15 +1,27 @@
 #!/usr/bin/env python3
 """CPU checks for the opt-in attention-as-memory policy scaffold."""
 
+import inspect
+import json
 import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 import torch
 
-from pipeline.causal_inference import apply_memory_transition, capture_clean_memory_block
+from pipeline.causal_inference import (
+    apply_memory_transition, capture_clean_memory_block,
+    pack_fixed_grid_selective_memory,
+)
+from pipeline.fixed_grid_memory_masks import FixedGridMemoryMasks
 from pipeline.content_routing import MemoryPolicyEventLogger, retrieval_allowed, route_memory
 from pipeline.memory_store import MemoryStore
-from wan.modules.causal_model import assemble_memory_context, memory_context_layout
+from utils.wan_wrapper import WanDiffusionWrapper
+from wan.modules.causal_model import (
+    CausalWanAttentionBlock, CausalWanModel, CausalWanSelfAttention,
+    assemble_memory_context, memory_context_layout, sparse_historical_rope,
+)
 
 
 def layer_kv(frame_values, frame_tokens=2):
@@ -20,6 +32,90 @@ def layer_kv(frame_values, frame_tokens=2):
 
 
 class AttentionMemoryPolicyTest(unittest.TestCase):
+    def test_selective_pack_preserves_source_indices_slots_and_three_target_frames(self):
+        source_6 = [0] * 1560
+        source_6[1] = source_6[3] = 1
+        source_7 = [0] * 1560
+        source_7[2] = 1
+        target = [0] * 1560
+        target[4] = target[5] = 1
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as handle:
+            json.dump({
+                "height": 30, "width": 52,
+                "source_masks": {"6": source_6, "7": source_7},
+                "target_subject_mask": target,
+            }, handle)
+        self.addCleanup(lambda: Path(handle.name).unlink(missing_ok=True))
+        masks = FixedGridMemoryMasks.from_json(handle.name)
+        store = MemoryStore(
+            frame_tokens=1560, descriptor_layers=[0], injection_layers=[0, 2], memory_budget=10)
+        frame_6 = torch.arange(1560, dtype=torch.float32).view(1, 1560, 1, 1)
+        frame_7 = frame_6 + 10000
+        layer = {"k": torch.cat([frame_6, frame_7], dim=1),
+                 "v": torch.cat([frame_6 + 100, frame_7 + 100], dim=1)}
+        store.add_clean_block(0, [6, 7], [layer, layer, layer])
+
+        packed = pack_fixed_grid_selective_memory(
+            store, masks, "subject_to_subject", current_frames=3, num_layers=3)
+
+        self.assertIsNone(packed[1])
+        group = packed[0][0]
+        self.assertEqual(group["source_frame_ids"], [6, 7])
+        self.assertEqual(group["source_token_indices"], {6: [1, 3], 7: [2]})
+        self.assertEqual(group["original_token_indices"].tolist(), [1, 3, 2])
+        self.assertEqual(group["temporal_slots"].tolist(), [1, 1, 2])
+        self.assertEqual(group["query_indices"].tolist(), [4, 5, 1564, 1565, 3124, 3125])
+        self.assertEqual(group["historical_key"].flatten().tolist(), [1.0, 3.0, 10002.0])
+        self.assertEqual(group["historical_value"].flatten().tolist(), [101.0, 103.0, 10102.0])
+        self.assertEqual(packed[2][0]["temporal_slots"].tolist(), [1, 1, 2])
+
+    def test_selective_memory_is_optional_through_every_model_interface(self):
+        for function in (
+                WanDiffusionWrapper.forward,
+                CausalWanModel._forward_inference,
+                CausalWanAttentionBlock.forward,
+                CausalWanSelfAttention.forward):
+            parameter = inspect.signature(function).parameters["selective_memory"]
+            self.assertIsNone(parameter.default)
+
+    def test_self_attention_ropes_raw_sparse_history_before_grouped_attention(self):
+        module = CausalWanSelfAttention(
+            dim=2, num_heads=1, local_attn_size=6, sink_size=1, qk_norm=False)
+        for linear in (module.q, module.k, module.v, module.o):
+            linear.weight.data.copy_(torch.eye(2))
+            linear.bias.data.zero_()
+        cache = {
+            "k": torch.zeros(1, 6, 1, 2),
+            "v": torch.zeros(1, 6, 1, 2),
+            "global_end_index": torch.tensor([0]),
+            "local_end_index": torch.tensor([0]),
+        }
+        group = {
+            "query_indices": torch.tensor([0]),
+            "historical_key": torch.tensor([[[[1.0, 0.0]]]]),
+            "historical_value": torch.tensor([[[[2.0, 0.0]]]]),
+            "original_token_indices": torch.tensor([0]),
+            "temporal_slots": torch.tensor([1]),
+        }
+        calls = []
+
+        def cpu_attention(query, key, value):
+            calls.append((query.shape[1], key.detach().clone()))
+            return torch.zeros_like(query)
+
+        with patch("wan.modules.causal_model.attention", cpu_attention), \
+                patch("wan.modules.causal_model.sparse_historical_rope",
+                      wraps=sparse_historical_rope) as sparse_rope:
+            module(
+                torch.tensor([[[1.0, 0.0]]]), torch.tensor([1]),
+                torch.tensor([[1, 1, 1]]),
+                torch.polar(torch.ones(3, 1), torch.zeros(3, 1)), None,
+                kv_cache=cache, selective_memory=[group])
+
+        sparse_rope.assert_called_once()
+        self.assertEqual([length for length, _ in calls], [1, 1])
+        torch.testing.assert_close(calls[1][1], group["historical_key"])
+
     def test_clean_capture_uses_the_active_scene_index(self):
         store = MemoryStore(frame_tokens=1, descriptor_layers=[0], injection_layers=[0], memory_budget=10)
 

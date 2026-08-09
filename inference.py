@@ -17,6 +17,7 @@ from pipeline import (
 from utils.dataset import TextDataset, TextImagePairDataset
 from utils.misc import set_seed
 from utils.interactive import add_subtitles
+from pipeline.fixed_grid_memory_masks import FixedGridMemoryMasks, validate_fixed_grid_options
 
 from demo_utils.memory import gpu, get_cuda_free_memory_gb, DynamicSwapInstaller
 
@@ -211,6 +212,11 @@ parser.add_argument("--memory-diversity-threshold", type=float, default=0.9,
                     help="Cosine similarity threshold above which consolidation treats entries as redundant.")
 parser.add_argument("--memory-policy-log", type=str, default=None,
                     help="JSONL event log path; defaults under output_folder when policy is enabled.")
+parser.add_argument("--memory-fixed-grid-mask-path", type=str, default=None,
+                    help="Opt-in fixed 30x52 source/target mask JSON for the manual recall oracle.")
+parser.add_argument("--memory-fixed-grid-mode", choices=[
+                    "subject_to_subject", "background_to_background"], default=None,
+                    help="Apply only the matching fixed-grid historical-memory arm.")
 args = parser.parse_args()
 
 if args.noncontiguous_kv:
@@ -236,6 +242,11 @@ if args.noncontiguous_kv:
 else:
     noncontiguous_source_blocks = None
     noncontiguous_history_frame_ids = None
+
+if bool(args.memory_fixed_grid_mask_path) != bool(args.memory_fixed_grid_mode):
+    parser.error("--memory-fixed-grid-mask-path and --memory-fixed-grid-mode must be provided together")
+if args.memory_fixed_grid_mask_path and not args.attention_memory_policy:
+    parser.error("fixed-grid recall requires --attention-memory-policy")
 
 if args.attention_memory_policy:
     if args.noncontiguous_kv:
@@ -268,6 +279,15 @@ if args.attention_memory_policy:
     if memory_manual_frame_ids and (len(memory_manual_frame_ids) != args.memory_k or
                                     len(set(memory_manual_frame_ids)) != len(memory_manual_frame_ids)):
         parser.error("--memory-manual-frame-ids requires exactly --memory-k distinct frame IDs")
+    try:
+        fixed_grid_config = validate_fixed_grid_options(
+            args.memory_fixed_grid_mask_path, args.memory_fixed_grid_mode,
+            args.attention_memory_policy, memory_manual_frame_ids or None,
+            memory_manual_target_blocks or None)
+        if fixed_grid_config:
+            FixedGridMemoryMasks.from_json(fixed_grid_config["mask_path"])
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
     memory_policy_config = {
         "enabled": True,
         "retrieval": args.memory_retrieval,
@@ -292,6 +312,8 @@ if args.attention_memory_policy:
         "diversity_threshold": args.memory_diversity_threshold,
         "log_path": args.memory_policy_log or os.path.join(args.output_folder, "memory_policy.jsonl"),
     }
+    if fixed_grid_config:
+        memory_policy_config["fixed_grid"] = fixed_grid_config
 else:
     memory_policy_config = None
 

@@ -18,6 +18,16 @@ class InferenceCliTest(unittest.TestCase):
         self.assertIn("--memory-injection-layers", result.stdout)
         self.assertIn("--memory-local-retention", result.stdout)
         self.assertIn("--memory-transition-auto-retrieval", result.stdout)
+        self.assertIn("--memory-fixed-grid-mask-path", result.stdout)
+        self.assertIn("--memory-fixed-grid-mode", result.stdout)
+
+    def test_fixed_grid_cli_flags_must_be_paired(self):
+        root = Path(__file__).resolve().parents[1]
+        result = subprocess.run(
+            [sys.executable, "inference.py", "--memory-fixed-grid-mask-path", "masks.json"],
+            cwd=root, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("must be provided together", result.stderr)
 
 
 if __name__ == "__main__":

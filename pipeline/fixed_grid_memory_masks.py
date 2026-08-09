@@ -9,6 +9,23 @@ GRID_HEIGHT = 30
 GRID_WIDTH = 52
 
 
+def validate_fixed_grid_options(mask_path, mode, attention_memory_policy,
+                                manual_frame_ids, manual_target_blocks):
+    """Validate the exact opt-in manual oracle configuration."""
+    if mask_path is None and mode is None:
+        return None
+    if mask_path is None or mode is None:
+        raise ValueError(
+            "--memory-fixed-grid-mask-path and --memory-fixed-grid-mode must be provided together")
+    if not attention_memory_policy:
+        raise ValueError("fixed-grid recall requires --attention-memory-policy")
+    if manual_frame_ids != [6, 7]:
+        raise ValueError("fixed-grid recall requires frame IDs 6,7 via --memory-manual-frame-ids")
+    if manual_target_blocks != {8}:
+        raise ValueError("fixed-grid recall requires --memory-manual-target-blocks target block 8")
+    return {"mask_path": str(mask_path), "mode": mode}
+
+
 @dataclass(frozen=True)
 class FixedGridMemoryMasks:
     """Fixed 30x52 source masks and one target subject mask.
@@ -66,8 +83,11 @@ class FixedGridMemoryMasks:
         return [index for index, value in enumerate(self.target_subject_mask) if value]
 
     def background_query_indices(self):
-        excluded = set(self.subject_query_indices())
-        for index, value in enumerate(self.target_subject_mask):
+        return self._dilated_complement(self.target_subject_mask)
+
+    def _dilated_complement(self, mask):
+        excluded = set()
+        for index, value in enumerate(mask):
             if not value:
                 continue
             row, column = divmod(index, self.width)
@@ -78,3 +98,7 @@ class FixedGridMemoryMasks:
 
     def history_token_indices(self, frame_id):
         return [index for index, value in enumerate(self.source_masks[int(frame_id)]) if value]
+
+    def history_background_token_indices(self, frame_id):
+        """Return source background outside its eight-connected one-token dilation."""
+        return self._dilated_complement(self.source_masks[int(frame_id)])

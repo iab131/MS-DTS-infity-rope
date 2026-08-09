@@ -5,6 +5,7 @@ import re
 
 from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
 from pipeline.memory_store import MemoryStore
+from pipeline.fixed_grid_memory_masks import FixedGridMemoryMasks
 from pipeline.content_routing import MemoryPolicyEventLogger, retrieval_allowed, route_memory
 from wan.modules.causal_model import memory_context_layout
 
@@ -129,6 +130,51 @@ def capture_clean_memory_block(memory_store, scene_index, current_start_frame, c
     """Store one clean block under the scene currently being generated."""
     return memory_store.add_clean_block(
         scene_index, list(range(current_start_frame, current_start_frame + current_num_frames)), clean_layers)
+
+
+def pack_fixed_grid_selective_memory(memory_store, masks, mode, current_frames, num_layers):
+    """Pack raw masked K/V with original source coordinates and fixed temporal slots."""
+    entries = memory_store.get_entries([6, 7])
+    if mode == "subject_to_subject":
+        source_indices = {frame_id: masks.history_token_indices(frame_id) for frame_id in (6, 7)}
+        target_indices = masks.subject_query_indices()
+    elif mode == "background_to_background":
+        source_indices = {
+            frame_id: masks.history_background_token_indices(frame_id) for frame_id in (6, 7)}
+        target_indices = masks.background_query_indices()
+    else:
+        raise ValueError(f"unsupported fixed-grid mode: {mode}")
+
+    query_indices = torch.tensor([
+        frame * memory_store.frame_tokens + index
+        for frame in range(current_frames) for index in target_indices
+    ], dtype=torch.long)
+    original_indices = torch.tensor(
+        source_indices[6] + source_indices[7], dtype=torch.long)
+    temporal_slots = torch.tensor(
+        [1] * len(source_indices[6]) + [2] * len(source_indices[7]), dtype=torch.long)
+    packed = [None] * num_layers
+    for layer in memory_store.injection_layers:
+        if layer >= num_layers:
+            continue
+        selected = []
+        for entry in entries:
+            indices = torch.tensor(source_indices[entry.frame_id], dtype=torch.long)
+            selected.append({
+                name: entry.layers[layer][name].index_select(1, indices)
+                for name in ("k", "v")
+            })
+        packed[layer] = [{
+            "mode": mode,
+            "source_frame_ids": [6, 7],
+            "source_token_indices": source_indices,
+            "original_token_indices": original_indices,
+            "temporal_slots": temporal_slots,
+            "query_indices": query_indices,
+            "historical_key": torch.cat([item["k"] for item in selected], dim=1),
+            "historical_value": torch.cat([item["v"] for item in selected], dim=1),
+        }]
+    return packed
 
 
 class CausalInferencePipeline(torch.nn.Module):
@@ -383,6 +429,9 @@ class CausalInferencePipeline(torch.nn.Module):
         memory_store = None
         memory_logger = MemoryPolicyEventLogger(None)
         last_query_descriptors = {}
+        fixed_grid_config = memory_policy.get("fixed_grid")
+        fixed_grid_masks = FixedGridMemoryMasks.from_json(
+            fixed_grid_config["mask_path"]) if fixed_grid_config else None
         if memory_enabled:
             memory_store = MemoryStore(
                 frame_tokens=self.frame_seq_length,
@@ -445,6 +494,7 @@ class CausalInferencePipeline(torch.nn.Module):
             # ---------------------------------------------------------------- #
             current_block_number = current_block_index + 1
             retrieved_kv = None
+            selective_memory = None
             history_refs = []
             memory_route = None
             memory_query = local_query_descriptors(
@@ -473,10 +523,58 @@ class CausalInferencePipeline(torch.nn.Module):
                         memory_store, memory_query, memory_policy["k"], exclude_frame_ids={0, *local_frame_ids},
                         manual_frame_ids=memory_policy.get("manual_frame_ids"))
                     if memory_route.entries:
-                        retrieved_kv = memory_store.pack_kv(memory_route.entries, self.num_transformer_blocks)
-                        history_refs = [{"source_block": None, "frame_index": None,
-                                         "global_frame_id": entry.frame_id, "scene_id": entry.scene_id}
-                                        for entry in memory_route.entries]
+                        if fixed_grid_masks is not None:
+                            if current_block_number == 8:
+                                selective_memory = pack_fixed_grid_selective_memory(
+                                    memory_store, fixed_grid_masks, fixed_grid_config["mode"],
+                                    current_num_frames, self.num_transformer_blocks)
+                                target_indices = fixed_grid_masks.subject_query_indices() \
+                                    if fixed_grid_config["mode"] == "subject_to_subject" \
+                                    else fixed_grid_masks.background_query_indices()
+                                source_indices = {
+                                    frame_id: (fixed_grid_masks.history_token_indices(frame_id)
+                                               if fixed_grid_config["mode"] == "subject_to_subject"
+                                               else fixed_grid_masks.history_background_token_indices(frame_id))
+                                    for frame_id in (6, 7)
+                                }
+                                base_sink_frame = current_start_frame - context_non_sink_frames - 1
+                                base_ordering = (
+                                    [f"sink:{base_sink_frame}"] +
+                                    [f"local:{frame_id}" for frame_id in range(
+                                        current_start_frame - context_non_sink_frames, current_start_frame)] +
+                                    [f"current:{frame_id}" for frame_id in range(
+                                        current_start_frame, current_start_frame + current_num_frames)]
+                                )
+                                memory_logger.write("fixed_grid_selective_memory", {
+                                    "block": current_block_number,
+                                    "mode": fixed_grid_config["mode"],
+                                    "source_frame_ids": [6, 7],
+                                    "source_token_counts": {
+                                        frame_id: len(indices) for frame_id, indices in source_indices.items()},
+                                    "source_temporal_slots": {6: 1, 7: 2},
+                                    "source_token_indices": source_indices,
+                                    "source_row_col_coordinates": {
+                                        frame_id: [divmod(index, fixed_grid_masks.width) for index in indices]
+                                        for frame_id, indices in source_indices.items()},
+                                    "target_block": 8,
+                                    "target_query_frame_ids": list(range(
+                                        current_start_frame, current_start_frame + current_num_frames)),
+                                    "target_per_frame_query_indices": target_indices,
+                                    "target_query_count": current_num_frames * len(target_indices),
+                                    "base_ordering": base_ordering,
+                                    "base_order_derived_from": {
+                                        "current_start_frame": current_start_frame,
+                                        "context_non_sink_frames": context_non_sink_frames,
+                                        "current_num_frames": current_num_frames,
+                                    },
+                                    "base_context_unchanged": True,
+                                })
+                        else:
+                            retrieved_kv = memory_store.pack_kv(
+                                memory_route.entries, self.num_transformer_blocks)
+                            history_refs = [{"source_block": None, "frame_index": None,
+                                             "global_frame_id": entry.frame_id, "scene_id": entry.scene_id}
+                                            for entry in memory_route.entries]
                 memory_logger.write("retrieval", {
                     "block": current_block_number, "scene_id": scene_index,
                     "query_layers": sorted(memory_query), "query_source": memory_query_source,
@@ -535,6 +633,7 @@ class CausalInferencePipeline(torch.nn.Module):
                         current_start=current_start_frame * self.frame_seq_length,
                         retrieved_kv=retrieved_kv,
                         memory_context_mode=memory_policy.get("context_mode", "replace_recent"),
+                        selective_memory=selective_memory,
                     )
                     next_timestep = self.denoising_step_list[index + 1]
                     noisy_input = self.scheduler.add_noise(
@@ -554,6 +653,7 @@ class CausalInferencePipeline(torch.nn.Module):
                         current_start=current_start_frame * self.frame_seq_length,
                         retrieved_kv=retrieved_kv,
                         memory_context_mode=memory_policy.get("context_mode", "replace_recent"),
+                        selective_memory=selective_memory,
                     )
 
             # Step 3.2: record the model's output
@@ -570,6 +670,7 @@ class CausalInferencePipeline(torch.nn.Module):
                 current_start=current_start_frame * self.frame_seq_length,
                 retrieved_kv=retrieved_kv,
                 memory_context_mode=memory_policy.get("context_mode", "replace_recent"),
+                selective_memory=selective_memory,
                 capture_kv=(memory_enabled or (noncontiguous_enabled and current_block_number in source_blocks)),
             )
             if clean_pass_callback is not None:

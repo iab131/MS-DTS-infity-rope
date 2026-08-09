@@ -6,7 +6,10 @@ from pathlib import Path
 
 import torch
 
-from pipeline.fixed_grid_memory_masks import FixedGridMemoryMasks
+from pipeline.fixed_grid_memory_masks import (
+    FixedGridMemoryMasks,
+    validate_fixed_grid_options,
+)
 from wan.modules.causal_model import (
     grouped_selective_attention,
     sparse_historical_rope,
@@ -74,6 +77,44 @@ class FixedGridMemoryMasksTest(unittest.TestCase):
 
         self.assertEqual(masks.history_token_indices(6), [2 * 52 + 3])
         self.assertEqual(masks.history_token_indices(7), [29 * 52 + 51])
+
+    def test_history_background_excludes_each_sources_dilated_subject(self):
+        source_6 = [[0] * 52 for _ in range(30)]
+        source_6[10][20] = 1
+        source_7 = [[0] * 52 for _ in range(30)]
+        source_7[0][0] = 1
+        masks = FixedGridMemoryMasks.from_json(self.write_mask_file({
+            "height": 30,
+            "width": 52,
+            "source_masks": {"6": source_6, "7": source_7},
+            "target_subject_mask": source_6,
+        }))
+
+        background_6 = set(masks.history_background_token_indices(6))
+        for row in range(9, 12):
+            for column in range(19, 22):
+                self.assertNotIn(row * 52 + column, background_6)
+        self.assertIn(0, background_6)
+        self.assertNotIn(0, masks.history_background_token_indices(7))
+        self.assertNotIn(1, masks.history_background_token_indices(7))
+        self.assertNotIn(52, masks.history_background_token_indices(7))
+        self.assertNotIn(53, masks.history_background_token_indices(7))
+
+    def test_fixed_grid_options_are_jointly_opt_in_and_exact(self):
+        self.assertIsNone(validate_fixed_grid_options(None, None, False, None, None))
+        with self.assertRaisesRegex(ValueError, "must be provided together"):
+            validate_fixed_grid_options("masks.json", None, True, [6, 7], {8})
+        with self.assertRaisesRegex(ValueError, "--attention-memory-policy"):
+            validate_fixed_grid_options("masks.json", "subject_to_subject", False, [6, 7], {8})
+        with self.assertRaisesRegex(ValueError, "frame IDs 6,7"):
+            validate_fixed_grid_options("masks.json", "subject_to_subject", True, [7, 6], {8})
+        with self.assertRaisesRegex(ValueError, "target block 8"):
+            validate_fixed_grid_options("masks.json", "subject_to_subject", True, [6, 7], {7})
+        self.assertEqual(
+            validate_fixed_grid_options(
+                "masks.json", "background_to_background", True, [6, 7], {8}),
+            {"mask_path": "masks.json", "mode": "background_to_background"},
+        )
 
     def test_grouped_selective_attention_adds_isolated_history_groups_in_query_order(self):
         calls = []

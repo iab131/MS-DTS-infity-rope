@@ -216,6 +216,17 @@ def materialize_retrieved_kv(retrieved_kv, device):
     return {name: value.to(device, non_blocking=value.device.type == "cpu") for name, value in retrieved_kv.items()}
 
 
+def materialize_selective_memory(selective_memory, device):
+    """Move one layer's selective tensors without disturbing provenance metadata."""
+    if selective_memory is None:
+        return None
+    return [{
+        key: (value.to(device, non_blocking=value.device.type == "cpu")
+              if isinstance(value, torch.Tensor) else value)
+        for key, value in group.items()
+    } for group in selective_memory]
+
+
 def block_relativistic_rope(x, grid_sizes, freqs, start_frame=0, scene_cut=False, prefix_frames=0):
     n, c = x.size(2), x.size(3) // 2
 
@@ -299,6 +310,7 @@ class CausalWanSelfAttention(nn.Module):
         timestep=None,
         retrieved_kv=None,
         memory_context_mode="replace_recent",
+        selective_memory=None,
         capture_kv=False,
     ):
         # kv_cache = None # @hidir: ODE Regression enters here
@@ -496,7 +508,20 @@ class CausalWanSelfAttention(nn.Module):
                     frame_seqlen, num_new_frames, memory_context_mode)
             else:
                 value = local_value
-            x = attention(roped_query, roped_key, value)
+            if selective_memory:
+                if retrieved_kv is not None:
+                    raise ValueError("selective_memory cannot be combined with full retrieved KV")
+                groups = []
+                for group in selective_memory:
+                    group = dict(group)
+                    group["historical_key"] = sparse_historical_rope(
+                        group["historical_key"], grid_sizes, freqs,
+                        group["original_token_indices"], group["temporal_slots"]).type_as(v)
+                    groups.append(group)
+                x = grouped_selective_attention(
+                    roped_query, roped_key, value, groups, attention_fn=attention)
+            else:
+                x = attention(roped_query, roped_key, value)
      
             kv_cache["global_end_index"].fill_(current_end)
             kv_cache["local_end_index"].fill_(local_end_index)
@@ -567,6 +592,7 @@ class CausalWanAttentionBlock(nn.Module):
         cache_start=None,
         retrieved_kv=None,
         memory_context_mode="replace_recent",
+        selective_memory=None,
         capture_kv=False,
     ):
         r"""
@@ -588,7 +614,8 @@ class CausalWanAttentionBlock(nn.Module):
             (self.norm1(x).unflatten(dim=1, sizes=(num_frames, frame_seqlen)) * (1 + e[1]) + e[0]).flatten(1, 2),
             seq_lens, grid_sizes,
             freqs, block_mask, kv_cache, current_start, cache_start,
-            retrieved_kv=retrieved_kv, memory_context_mode=memory_context_mode, capture_kv=capture_kv)
+            retrieved_kv=retrieved_kv, memory_context_mode=memory_context_mode,
+            selective_memory=selective_memory, capture_kv=capture_kv)
 
         # with amp.autocast(dtype=torch.float32):
         x = x + (y.unflatten(dim=1, sizes=(num_frames, frame_seqlen)) * e[2]).flatten(1, 2)
@@ -997,6 +1024,7 @@ class CausalWanModel(ModelMixin, ConfigMixin):
         cache_start: int = 0,
         retrieved_kv=None,
         memory_context_mode="replace_recent",
+        selective_memory=None,
         capture_kv=False,
     ):
         r"""
@@ -1097,6 +1125,8 @@ class CausalWanModel(ModelMixin, ConfigMixin):
                         "retrieved_kv": None if retrieved_kv is None or retrieved_kv[block_index] is None else materialize_retrieved_kv(
                             retrieved_kv[block_index], x.device),
                         "memory_context_mode": memory_context_mode,
+                        "selective_memory": None if selective_memory is None else materialize_selective_memory(
+                            selective_memory[block_index], x.device),
                         "capture_kv": capture_kv,
                     }
                 )
@@ -1116,6 +1146,8 @@ class CausalWanModel(ModelMixin, ConfigMixin):
                         "retrieved_kv": None if retrieved_kv is None or retrieved_kv[block_index] is None else materialize_retrieved_kv(
                             retrieved_kv[block_index], x.device),
                         "memory_context_mode": memory_context_mode,
+                        "selective_memory": None if selective_memory is None else materialize_selective_memory(
+                            selective_memory[block_index], x.device),
                         "capture_kv": capture_kv,
                     }
                 )
