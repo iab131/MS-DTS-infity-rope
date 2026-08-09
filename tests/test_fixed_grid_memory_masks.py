@@ -112,6 +112,27 @@ class FixedGridMemoryMasksTest(unittest.TestCase):
         ])
         self.assertEqual(output[:, :, 0, 0].tolist(), [[30.0, 132.0, 32.0, 136.0, 238.0]])
 
+    def test_grouped_selective_attention_rejects_duplicate_indices_within_a_group(self):
+        calls = []
+
+        def cpu_attention(query, key, value):
+            calls.append(key.shape[1])
+            return query
+
+        with self.assertRaisesRegex(ValueError, "non-overlapping"):
+            grouped_selective_attention(
+                torch.zeros(1, 2, 1, 1),
+                torch.zeros(1, 1, 1, 1),
+                torch.zeros(1, 1, 1, 1),
+                [{
+                    "query_indices": torch.tensor([1, 1]),
+                    "historical_key": torch.zeros(1, 1, 1, 1),
+                    "historical_value": torch.zeros(1, 1, 1, 1),
+                }],
+                attention_fn=cpu_attention,
+            )
+        self.assertEqual(calls, [1])
+
     def test_sparse_historical_rope_keeps_original_spatial_coordinates(self):
         angles = torch.tensor([
             [0, 1, 0, 1, 0, 1],

@@ -104,7 +104,8 @@ def grouped_selective_attention(query, base_key, base_value, selective_memory=No
             group["query_indices"], device=query.device, dtype=torch.long)
         if query_indices.ndim != 1:
             raise ValueError("selective_memory query_indices must have shape [Q]")
-        if (torch.any(query_indices < 0) or torch.any(query_indices >= query.shape[1]) or
+        if (query_indices.unique().numel() != query_indices.numel() or
+                torch.any(query_indices < 0) or torch.any(query_indices >= query.shape[1]) or
                 torch.any(seen[query_indices])):
             raise ValueError("selective_memory query groups must be valid and non-overlapping")
         seen[query_indices] = True
