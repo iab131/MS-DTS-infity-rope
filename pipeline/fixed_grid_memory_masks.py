@@ -41,8 +41,8 @@ class FixedGridMemoryMasks:
             int(frame_id): cls._flatten_mask(mask, "source mask")
             for frame_id, mask in source_payload.items()
         }
-        if not {6, 7}.issubset(source_masks):
-            raise ValueError("source_masks must include frame IDs 6 and 7")
+        if set(source_masks) != {6, 7}:
+            raise ValueError("source_masks must contain exactly frame IDs 6 and 7")
         target = cls._flatten_mask(payload.get("target_subject_mask"), "target subject mask")
         return cls(source_masks, target)
 

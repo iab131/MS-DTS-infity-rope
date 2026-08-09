@@ -25,6 +25,17 @@ class FixedGridMemoryMasksTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "30x52"):
             FixedGridMemoryMasks.from_json(path)
 
+    def test_rejects_source_frames_other_than_six_and_seven(self):
+        mask = [0] * (30 * 52)
+        path = self.write_mask_file({
+            "height": 30,
+            "width": 52,
+            "source_masks": {"6": mask, "7": mask, "8": mask},
+            "target_subject_mask": mask,
+        })
+        with self.assertRaisesRegex(ValueError, "exactly frame IDs 6 and 7"):
+            FixedGridMemoryMasks.from_json(path)
+
     def test_background_excludes_one_token_dilated_subject_boundary(self):
         subject = [[0] * 52 for _ in range(30)]
         subject[10][20] = 1
@@ -44,19 +55,19 @@ class FixedGridMemoryMasksTest(unittest.TestCase):
         self.assertIn(0, background)
 
     def test_history_indices_are_flattened_per_source_frame(self):
-        source = [[0] * 52 for _ in range(30)]
-        source[2][3] = 1
-        source[29][51] = 1
+        source_6 = [[0] * 52 for _ in range(30)]
+        source_6[2][3] = 1
+        source_7 = [[0] * 52 for _ in range(30)]
+        source_7[29][51] = 1
         masks = FixedGridMemoryMasks.from_json(self.write_mask_file({
             "height": 30,
             "width": 52,
-            "source_masks": {"6": source, "7": source},
-            "target_subject_mask": source,
+            "source_masks": {"6": source_6, "7": source_7},
+            "target_subject_mask": source_6,
         }))
 
-        self.assertEqual(masks.history_token_indices(6), [2 * 52 + 3, 29 * 52 + 51])
-        with self.assertRaises(KeyError):
-            masks.history_token_indices(8)
+        self.assertEqual(masks.history_token_indices(6), [2 * 52 + 3])
+        self.assertEqual(masks.history_token_indices(7), [29 * 52 + 51])
 
 
 if __name__ == "__main__":
