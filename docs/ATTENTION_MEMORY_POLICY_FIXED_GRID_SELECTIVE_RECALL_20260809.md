@@ -46,7 +46,10 @@ bypassed. Base attention keeps the verified reset-only order
 `[sink:18,local:19,local:20,current:21,current:22,current:23]` (6 frames /
 9,360 tokens), including its existing sink/local/current RoPE behavior. The
 masked historical result is a separate addition only at selected current-query
-indices.
+indices. Fixed-grid CLI validation accepts only this matched reset protocol:
+`--memory-local-retention transition_no_sink` and
+`--memory-context-mode replace_recent`. The transition clean pass records A2
+frame 18 as the new persistent sink used by later ordinary context logging.
 
 ## CPU-only overlay and audit preflight
 
@@ -65,7 +68,7 @@ block-8 query frames, and
 The audit records source indices/counts/row-column coordinates, temporal slots,
 all expanded target subject/background query indices, target block/frame IDs,
 input and overlay hashes, and the unchanged base-context order. Audit SHA-256:
-`af29b82d475cd4b23f0cdf0244e789955113a62eaaa9b585f34160dc689a84bb`.
+`a6d7b90a0835ed39eedfab0d93d3733e048f26a0c0f635d6906189fd6fbafaf8`.
 
 ## Pending matched arms
 

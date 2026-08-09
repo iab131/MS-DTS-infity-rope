@@ -32,6 +32,11 @@ class PrepareFixedGridMemoryOracleTest(unittest.TestCase):
             audit["base_context"]["ordering"],
             ["sink:18", "local:19", "local:20", "current:21", "current:22", "current:23"],
         )
+        self.assertEqual(audit["base_context"]["derived_from"], {
+            "current_start_frame": 21,
+            "context_non_sink_frames": 2,
+            "current_num_frames": 3,
+        })
         self.assertTrue(audit["base_context"]["local_current_order_unchanged"])
 
 

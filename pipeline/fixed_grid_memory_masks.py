@@ -10,7 +10,8 @@ GRID_WIDTH = 52
 
 
 def validate_fixed_grid_options(mask_path, mode, attention_memory_policy,
-                                manual_frame_ids, manual_target_blocks):
+                                manual_frame_ids, manual_target_blocks,
+                                local_retention=None, context_mode=None):
     """Validate the exact opt-in manual oracle configuration."""
     if mask_path is None and mode is None:
         return None
@@ -23,6 +24,10 @@ def validate_fixed_grid_options(mask_path, mode, attention_memory_policy,
         raise ValueError("fixed-grid recall requires frame IDs 6,7 via --memory-manual-frame-ids")
     if manual_target_blocks != {8}:
         raise ValueError("fixed-grid recall requires --memory-manual-target-blocks target block 8")
+    if local_retention != "transition_no_sink":
+        raise ValueError("fixed-grid recall requires --memory-local-retention transition_no_sink")
+    if context_mode != "replace_recent":
+        raise ValueError("fixed-grid recall requires --memory-context-mode replace_recent")
     return {"mask_path": str(mask_path), "mode": mode}
 
 

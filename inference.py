@@ -186,7 +186,7 @@ parser.add_argument("--memory-manual-target-blocks", type=str, default=None,
                     help="Optional comma-separated one-based blocks where manual memory injection is allowed.")
 parser.add_argument("--memory-transition-auto-retrieval", action=argparse.BooleanOptionalAction, default=False,
                     help="Allow automatic descriptor routing on the first block after a scene transition.")
-parser.add_argument("--memory-local-retention", choices=["sink_only", "sink+1", "sink+2"], default="sink_only",
+parser.add_argument("--memory-local-retention", choices=["sink_only", "sink+1", "sink+2", "transition_no_sink"], default="sink_only",
                     help="Local cache retained at policy-managed scene transitions.")
 parser.add_argument("--memory-decay", action=argparse.BooleanOptionalAction, default=True,
                     help="Apply fixed beta decay to retained non-sink local K/V at policy transitions.")
@@ -283,7 +283,9 @@ if args.attention_memory_policy:
         fixed_grid_config = validate_fixed_grid_options(
             args.memory_fixed_grid_mask_path, args.memory_fixed_grid_mode,
             args.attention_memory_policy, memory_manual_frame_ids or None,
-            memory_manual_target_blocks or None)
+            memory_manual_target_blocks or None,
+            local_retention=args.memory_local_retention,
+            context_mode=args.memory_context_mode)
         if fixed_grid_config:
             FixedGridMemoryMasks.from_json(fixed_grid_config["mask_path"])
     except (OSError, ValueError) as error:

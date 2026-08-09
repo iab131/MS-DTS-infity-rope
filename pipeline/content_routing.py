@@ -22,13 +22,24 @@ class RoutedMemory:
 
 
 def retrieval_allowed(retrieval_enabled, is_transition_block, transition_auto_retrieval,
-                      manual_frame_ids, manual_target_blocks, block_number):
+                      manual_frame_ids, manual_target_blocks, block_number,
+                      manual_retrieval_lifetime="pulse_1"):
     """Keep first-new-scene visual routing experimental without blocking manual oracle use."""
     if not retrieval_enabled:
         return False, "retrieval_disabled"
     if manual_frame_ids is not None:
-        if manual_target_blocks is not None and block_number not in manual_target_blocks:
-            return False, "manual_target_not_selected"
+        if manual_target_blocks is not None:
+            first_block = min(manual_target_blocks)
+            if manual_retrieval_lifetime == "pulse_1":
+                allowed = block_number == first_block
+            elif manual_retrieval_lifetime == "pulse_2":
+                allowed = first_block <= block_number < first_block + 2
+            elif manual_retrieval_lifetime == "persistent":
+                allowed = block_number >= first_block
+            else:
+                raise ValueError(f"unknown manual retrieval lifetime: {manual_retrieval_lifetime}")
+            if not allowed:
+                return False, "manual_target_not_selected" if block_number < first_block else "manual_lifetime_expired"
         return True, "manual_override"
     if is_transition_block and not transition_auto_retrieval:
         return False, "automatic_transition_disabled"

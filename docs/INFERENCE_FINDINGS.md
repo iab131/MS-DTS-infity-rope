@@ -194,3 +194,228 @@ claim.
   shot and requires a human contact-sheet check of source ID 17 before any
   wrong-history run. See
   `docs/NONCONTIGUOUS_PHASE1_TRUE_WRONG_MEMORY_PREPARATION_20260807.md`.
+
+## 2026-08-07: Follow-up oracle results
+
+- Long-gap r=2 (A IDs 37 then 38) kept six frames / 9,360 tokens and first
+  diverged at target block 34/ID 99/raw frame 393. Its block-34/35 maxima
+  (4.1640625/5.046875) exceeded r=1 (3.703125/4.203125), but RGB MAE was lower
+  (0.065835 vs 0.075158): non-monotonic single-seed perturbation evidence, not
+  visible-memory-strength or identity evidence. Baseline/r=1 use `c0d3f9e`;
+  r=2 uses `5d0eda3`.
+- The first r=2 launcher attempt supplied retrieval count 1 and exited 2 at
+  parsing, without a model output; it is preserved in
+  `outputs/noncontiguous_phase1_long_gap/same_entity_history_r2/attempt1_run.json`.
+- True-wrong source ID 17 passed the car/no-person condition: decoded frames
+  65--68 visibly show yellow car/no woman or humanoid. Greenhouse-like
+  background leakage remains. Both interventions equal baseline through block
+  7/frame 80 and first differ at target block 8/ID 21/frame 81; no output
+  identity/quality review was performed.
+- Paper-ready results and limits: `NONCONTIGUOUS_PHASE1_PAPER_LEDGER.md`.
+
+## 2026-08-07: Attention-as-Memory-Policy implementation facts
+
+- The opt-in scaffold captures only clean-pass raw K/V, clones every selected
+  frame to CPU, and moves only routed frame K/V back to GPU as transient
+  per-layer attention input. Persistent cache writes, rolling indices, and
+  eviction are not used for MemoryStore entries.
+- The live 30-layer model has independent per-layer attention calls. Historical
+  CPU K/V is now retained only for configured injection layers; other layers
+  receive no transient K/V and retain normal local attention. Representative
+  descriptor layers remain independent mean-pooled raw-K readers.
+- The six-frame local cache plus three-frame block means matched
+  `replace_recent` has only two non-sink local slots available after rolling
+  eviction. The full policy defaults to `prepend`; `replace_recent` skips and
+  logs requests that cannot fit rather than enlarging the matched context.
+- `prepend` keeps the already-RoPEd sink in slot zero, places retrieved raw K
+  after it, and shifts only raw local/current RoPE coordinates. Replacement
+  preserves the existing Phase 1 slot coordinates. Neither behavior has been
+  GPU-tested as part of the full pipeline.
+- A `sink_only` transition has no local raw K for the first new-scene query.
+  The implementation explicitly logs and uses the final pre-transition raw-K
+  descriptor as a fallback. Its semantic suitability is an assumption, not a
+  validated retrieval signal.
+- No prompt-conflict decay, FlashAttention-weight utility, descriptor
+  semantic-accuracy result, archive retrieval, or identity-quality claim was
+  added. CPU validation command: `conda run -n wan python -m unittest
+  tests.test_inference_cli tests.test_attention_memory_policy
+  tests.test_noncontiguous_kv -v`.
+
+## 2026-08-07: Attention-memory policy layer and transition refinements
+
+- Descriptor layers and injection layers are independent. The MemoryStore now
+  preserves historical CPU K/V only for configured injection layers; every
+  other transformer layer retains normal local attention. Descriptor layers
+  still read mean-pooled raw clean K, so they do not imply K/V injection.
+- Automatic descriptor routing is disabled by default only on the first block
+  after a scene transition. JSONL logs identify `local_raw`,
+  `pre_transition_raw`, or unavailable query source and distinguish an
+  `automatic_transition_disabled` skip from a manual override. Manual memory
+  can be constrained to explicit target blocks.
+- Existing decoded source frames verified global A IDs 6,7 as Amara-only and
+  B IDs 16,17 as yellow-car-only. All retain greenhouse-background leakage;
+  this validates source entity contrast, not isolated-scene semantics.
+- Mistake corrected in the unrun combined-policy oracle: live duration parsing
+  of the exact woman → car → woman prompt yields `[3,3,4]` blocks, so A2 starts
+  at block 7/current IDs 18--20, not the inherited block-8 target. The planned
+  manual-retrieval commands and ledger correction now target block 7.
+
+## 2026-08-07: Combined-policy short A/B/A2 oracle
+
+- The normal baseline and the `sink_only` hard-flush arm first differ at saved
+  raw RGB frame 33 (the A→B boundary). This means hard flush is a real policy
+  intervention and manual-memory comparisons must use hard_flush, not normal
+  baseline, as their causal control.
+- Hard_flush versus either manual all-layer two-frame history is exactly equal
+  through raw frame 68 and saved clean block 6; both first differ at raw frame
+  69 / clean block 7 local latent 0. Target JSONL verifies `[sink,history,
+  history,current×3]`, positions 0--5, and 9,360 tokens for A IDs 6,7 and car
+  IDs 16,17.
+- A requested/scheduled 7.5-second `[3,3,4]` prompt saved 117 RGB frames at
+  16 FPS (7.3125 seconds): the first shot has raw frames 0--32, unlike the
+  nominal 2.25-second block duration. Paper records must distinguish requested,
+  scheduled-block, and saved-RGB durations.
+- GPU execution surfaced two scaffold defects before successful manual runs:
+  clean capture referenced undefined `scene_id`, and JSONL config could not
+  serialize manual target-block sets. Both have focused regression tests in
+  commit `0efd5ad`; the first attempts remain in output logs. A missing
+  workspace `wan_models` link also prevented the initial baseline load and was
+  restored as a local symlink to the existing `/home/sigasia2026/models` tree;
+  no dependency or generation setting changed.
+- Raw RGB MAE/PSNR shows perturbation (hard vs A memory 0.101799488 / 12.677845
+  dB; hard vs car 0.099336967 / 13.134525 dB) but does not measure identity or
+  visual quality. Human visual conclusions remain pending.
+
+## 2026-08-08: Identity-selectivity source gate
+
+- The requested white hair streak plus small red under-left-eye star did not
+  survive prompt rendering at seed 101. Across inspected A source IDs 0--8,
+  the woman has a black bob and yellow patch but a red eye-level beam instead
+  of both required identity anchors. This disqualifies the source for a
+  “correct-memory” identity-selectivity condition.
+- The B source has only a bright blue/turquoise pickup truck and no
+  people/humanoids, but it visibly remains in a greenhouse. It is a person-free
+  object source, not the requested desert environmental negative.
+- Baseline/hard A2 screening also has strong greenhouse recall and no snowy
+  mountain; white streak and small star are absent. The yellow patch persists
+  in one hard-flush screen without retrieval, so it cannot be called a memory
+  effect. The manual C/D arms were correctly withheld rather than using invalid
+  sources. Full artifacts, human-review statements, and commands are in
+  `ATTENTION_MEMORY_POLICY_IDENTITY_SELECTIVITY_20260808.md`.
+
+## 2026-08-08: Transition-retention ablation (woman → truck)
+
+- Human review from the preceding source-gate experiment is now recorded as a
+  separate transition finding: the ordinary baseline produced a truck while
+  retaining greenhouse/farm context, then a catastrophic car→woman carry-over;
+  `sink_only` removed that catastrophic entity carry-over at A2 but did not
+  remove greenhouse persistence at A→B. This is evidence about transition
+  retention, not identity retrieval.
+- A matched seed-101 woman→truck retention ablation independently reproduces
+  the A→B half: `sink+2` and `sink+1` show a woman's head in the early truck
+  windshield and retain the greenhouse across sampled B frames. `sink_only`
+  removes the obvious post-blend person but retains the greenhouse. The
+  opt-in, experimental `transition_no_sink` excludes both sink and prior local
+  K/V only for B block 4; frame 33 is still a cut blend, but frame 34 onward
+  sampled frames show an intact blue pickup, desert, and no person.
+- Exact first-B contexts are: `sink+2` six frames/9,360 tokens;
+  `sink+1` five/7,800; `sink_only` four/6,240; and `transition_no_sink`
+  three/4,680. Their current positions are respectively preceded by
+  `[0,1,2]`, `[0,1]`, `[0]`, and no retained positions, with current positions
+  `[45,46,47]` in all cases. The old transformed sink was excluded, never
+  re-rotated or mutated, in the experimental arm; ordinary cache writes resume
+  after its one transition block.
+- All four outputs are bit-identical through clean block 3 and first diverge at
+  B block 4/raw RGB frame 33. This supports a causal local-attention effect at
+  the intended cut but remains one prompt/seed, qualitative evidence. Full
+  commands, raw hashes, review sheets, video, and limits are in
+  `docs/ATTENTION_MEMORY_POLICY_TRANSITION_RETENTION_GPU_20260808.md`.
+
+## 2026-08-08: Reset-then-delayed-recall oracle
+
+- A `transition_no_sink` reset writes the first clean new-scene frame into
+  cache slot zero. At delayed A2 block 8 that physical preserved sink is global
+  frame 18, not original frame 0; JSONL now records it accurately.
+- Matched two-frame delayed history uses live `replace_recent`, physically
+  `[sink:18,history,history,current:21..23]`: six frames/9,360 tokens. The
+  new logger records preserved sink, history K `[1,2]`, current K `[3,4,5]`,
+  and query `[21,22,23]`; logical slots 0--5 are not query positions.
+- Two logging defects were caught and preserved: a new sink was labeled ID 0,
+  then Python `[-0:]` incorrectly listed replaced local IDs and 8/12,480.
+  Both are logging-only output attempts, excluded from evidence; regression
+  tests cover the sink label, actual coordinates, and zero-local slice. The
+  reset raw tensor is byte-identical across the logging-only rerun.
+- Official reset/correct/wrong outputs equal through A2 block 7/raw frame 80
+  and first diverge at delayed target block 8/frame 81. Human review: reset
+  reaches the snowy observatory; A history recalls greenhouse/orchids; B-car
+  history recalls yellow car/desert. This demonstrates one-seed source-selective
+  steering, but not identity-only recall without old-scene leakage. See
+  `ATTENTION_MEMORY_POLICY_RESET_THEN_RECALL_GPU_20260808.md`.
+
+## 2026-08-09: Coarse layer-selective A-history ablation
+
+- The verified reset-then-recall setup was held fixed at A IDs 6/7, block 8,
+  `transition_no_sink` reset, matched six-frame / 9,360-token context, and
+  all manual-routing safeguards. Only injection layers varied: 0--9, 10--19,
+  and 20--29; the verified 0--29 result was reused unchanged.
+- All layer ranges are exactly equal to reset through A2 block 7/raw frame 80
+  and first diverge at block 8/frame 81. Each JSONL records
+  `[sink:18,history:6,history:7,current:21..23]`, logical slots 0--5, and
+  preserved-sink/history-K/current-K/query coordinates.
+- Human review finds no ten-layer range with verified A-woman recall beyond
+  the A2 prompt baseline, no greenhouse/orchid recall, and retained snowy
+  observatory across reviewed blocks 8--9. In contrast, all-layer A history
+  strongly restores greenhouse/orchids; prior verified B history restores
+  car/desert. This is source-selective but scene-entangled historical K/V
+  recall, not evidence of subject/scene layer separation.
+- No coarse range meets the stated identity-only promise, so no finer sweep was
+  launched. The paper-ready raw record and five-way comparison are in
+  `docs/ATTENTION_MEMORY_POLICY_LAYER_SELECTIVE_GPU_20260809.md`.
+
+## 2026-08-09: Manual retrieval lifetime audit and L0--9 oracle
+
+- Inspection of both verified policy JSONLs corrected an assumption: with
+  `--memory-manual-target-blocks 8`, IDs 6/7 were injected at A2 block 8 only;
+  blocks 7, 9, and 10 logged `manual_target_not_selected`. Manual IDs with no
+  target restriction were the generic persistent path. Explicit lifetime is
+  required for an unambiguous pulse experiment, not a baseline change.
+- L0--9 pulse-1, pulse-2, and persistent retain matched six-frame/9,360-token
+  recall contexts. Logs show IDs 6/7 at block 8 only, 8--9, and 8--10; added
+  raw divergence begins exactly at RGB 81, 93, and 105 respectively.
+- One-seed human review finds no incremental Amara appearance correction beyond
+  the explicit A2 prompt, no visible greenhouse/orchid recall, and no obvious
+  extra flicker. Adjacent-frame RGB change is not a flicker metric. Full raw
+  record is `docs/ATTENTION_MEMORY_POLICY_RETRIEVAL_LIFETIME_GPU_20260809.md`.
+
+
+## 2026-08-09: L0--9 manual source-specificity oracle
+
+- The missing wrong-memory arm used prior-gated B IDs 16/17: yellow-car-only,
+  no woman/humanoid, with greenhouse-background leakage retained as source
+  confound. It injected only at A2 block 8 with the exact six-frame/9,360-token
+  context and same preserved-sink RoPE coordinates as A IDs 6/7.
+- Correct-A and wrong-car both equal reset through RGB 80 and diverge at target
+  RGB 81; they differ from each other at the same target. This is source-
+  dependent raw perturbation, not source-dependent semantic recall.
+- Human review through A2 block 10 finds small face/pose/detail changes in both
+  arms but no verified original-A feature beyond the A2 prompt and no car/desert
+  trait in wrong-car. Visible evidence is consistent with generic transient
+  facial perturbation. Do not infer source independence from raw differences
+  alone. Full record: `docs/ATTENTION_MEMORY_POLICY_L0_9_SOURCE_SPECIFICITY_GPU_20260809.md`.
+
+## 2026-08-09: Fixed-grid selective-recall oracle preflight (arms pending)
+
+- The manually supplied inclusive spans reconstruct exactly into distinct
+  30x52 source masks for A IDs 6/7 and one target conservative-union mask.
+  CPU-only overlays at reset frames 26/30 and target frames 81/85/89 were
+  checked; `mask_audit.json` records the exact source/query indices,
+  row/column coordinates, slots 1/2, dilated complements, and input hashes.
+- The protocol requires manual IDs 6/7, target block 8, `replace_recent`, and
+  `transition_no_sink`. After the no-old-context A2 block 7, the first clean
+  frame is recorded as sink 18. The block-8 base remains
+  `[sink:18,local:19,local:20,current:21,current:22,current:23]`; selective
+  subject or background history is separate from that base.
+- Both `subject_to_subject` and `background_to_background` model arms remain
+  unrun. This is preflight/protocol evidence only: it supports no conclusion
+  about identity retention, background retention, leakage, visual quality,
+  runtime, VRAM, or generalization.

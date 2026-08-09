@@ -7,15 +7,16 @@ from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
 from pipeline.memory_store import MemoryStore
 from pipeline.fixed_grid_memory_masks import FixedGridMemoryMasks
 from pipeline.content_routing import MemoryPolicyEventLogger, retrieval_allowed, route_memory
-from wan.modules.causal_model import memory_context_layout
+from wan.modules.causal_model import memory_context_layout, memory_context_rope_positions
 
 from demo_utils.memory import gpu, get_cuda_free_memory_gb, DynamicSwapInstaller, move_model_to_device_with_memory_preservation
 
 
 def apply_memory_transition(kv_caches, crossattn_caches, frame_tokens, retention,
                             decay, decay_beta, scene_cut, device, cross_attention_reset=True):
-    """Apply an opt-in scene-boundary local policy without touching the sink."""
-    retained = {"sink_only": 0, "sink+1": 1, "sink+2": 2}.get(retention)
+    """Apply an opt-in scene-boundary local policy."""
+    persistent_sink_excluded = retention == "transition_no_sink"
+    retained = {"sink_only": 0, "sink+1": 1, "sink+2": 2, "transition_no_sink": 0}.get(retention)
     if retained is None:
         raise ValueError(f"unsupported memory local retention: {retention}")
     if not 0.0 <= decay_beta <= 1.0:
@@ -33,7 +34,8 @@ def apply_memory_transition(kv_caches, crossattn_caches, frame_tokens, retention
                 cache[name][:, sink_end:retained_end] = cache[name][:, source_start:local_end].clone()
                 if decay:
                     cache[name][:, sink_end:retained_end].mul_(decay_beta)
-        cache["local_end_index"] = torch.tensor([retained_end], dtype=torch.long, device=device)
+        cache["local_end_index"] = torch.tensor(
+            [0 if persistent_sink_excluded else retained_end], dtype=torch.long, device=device)
         cache["scene_cut"] = scene_cut
         if cross_attention_reset:
             cross_cache["is_init"] = False
@@ -44,7 +46,47 @@ def apply_memory_transition(kv_caches, crossattn_caches, frame_tokens, retention
         "decay_beta": decay_beta if decay else None,
         "scene_cut": scene_cut,
         "cross_attention_reset": cross_attention_reset,
+        "persistent_sink_excluded": persistent_sink_excluded,
     }
+
+
+def transition_attention_context(current_start_frame, current_num_frames, retention, scene_cut, frame_tokens=1,
+                                 sink_frame_id=0):
+    """Describe the actual first-block context after an opt-in transition policy."""
+    retained = {"sink_only": 0, "sink+1": 1, "sink+2": 2, "transition_no_sink": 0}.get(retention)
+    if retained is None:
+        raise ValueError(f"unsupported memory local retention: {retention}")
+    ordering = ([] if retention == "transition_no_sink" else [f"sink:{sink_frame_id}"]) + \
+        [f"local:{frame_id}" for frame_id in range(current_start_frame - retained, current_start_frame)] + \
+        [f"current:{frame_id}" for frame_id in range(current_start_frame, current_start_frame + current_num_frames)]
+    current_positions = list(range(45, 45 + current_num_frames)) if scene_cut else \
+        list(range(len(ordering) - current_num_frames, len(ordering)))
+    positions = list(range(len(ordering) - current_num_frames)) + current_positions
+    return {
+        "ordering": ordering,
+        "rope_temporal_positions": positions,
+        "total_frames": len(ordering),
+        "total_tokens": len(ordering) * frame_tokens,
+    }
+
+
+def record_transition_sink(kv_caches, current_start_frame, retention):
+    """Promote the first clean new-scene frame after a no-old-context transition."""
+    if retention != "transition_no_sink":
+        return None
+    for cache in kv_caches:
+        cache["persistent_sink_frame_id"] = current_start_frame
+    return current_start_frame
+
+
+def memory_context_order(sink_frame_id, history_frame_ids, local_frame_ids, current_frame_ids,
+                         retained_local_frames):
+    """Label the assembled transient context without exposing replaced local slots."""
+    retained_local_ids = local_frame_ids[-retained_local_frames:] if retained_local_frames else []
+    return ([f"sink:{sink_frame_id}"] +
+            [f"history:{frame_id}" for frame_id in history_frame_ids] +
+            [f"local:{frame_id}" for frame_id in retained_local_ids] +
+            [f"current:{frame_id}" for frame_id in current_frame_ids])
 
 
 def select_history_frame_refs(
@@ -510,10 +552,20 @@ class CausalInferencePipeline(torch.nn.Module):
             local_frame_ids = list(range(max(1, current_start_frame - local_non_sink_frames), current_start_frame))
             context_local_frame_ids = local_frame_ids[-context_non_sink_frames:]
             is_transition_block = current_block_index in scene_block_boundaries
+            if memory_enabled and is_transition_block:
+                memory_logger.write("attention_context", {
+                    "block": current_block_number, "scene_id": scene_index,
+                    "retention": memory_policy["local_retention"],
+                    **transition_attention_context(
+                        current_start_frame, current_num_frames, memory_policy["local_retention"],
+                        scene_cut_needed, self.frame_seq_length,
+                        self.kv_cache1[0].get("persistent_sink_frame_id", 0)),
+                })
             retrieval_allowed_now, retrieval_reason = retrieval_allowed(
                 memory_policy.get("retrieval", False), is_transition_block,
                 memory_policy.get("transition_auto_retrieval", False),
-                memory_policy.get("manual_frame_ids"), memory_policy.get("manual_target_blocks"), current_block_number)
+                memory_policy.get("manual_frame_ids"), memory_policy.get("manual_target_blocks"), current_block_number,
+                memory_policy.get("retrieval_lifetime", "pulse_1"))
             manual_retrieval = bool(memory_policy.get("manual_frame_ids"))
             if memory_enabled and retrieval_allowed_now and (memory_query or manual_retrieval) and len(memory_store):
                 retrieval_available = memory_policy["context_mode"] != "replace_recent" or \
@@ -583,7 +635,9 @@ class CausalInferencePipeline(torch.nn.Module):
                     "retrieved_scene_ids": [entry.scene_id for entry in memory_route.entries] if memory_route else [],
                     "scores": [] if memory_route is None else memory_route.scores,
                     "excluded_frame_ids": [0, *local_frame_ids], "memory_size": len(memory_store),
-                    "context_mode": memory_policy["context_mode"], "routing_mode": retrieval_reason,
+                    "context_mode": memory_policy["context_mode"],
+                    "retrieval_lifetime": memory_policy.get("retrieval_lifetime", "pulse_1"),
+                    "routing_mode": retrieval_reason,
                 })
             elif memory_enabled:
                 memory_logger.write("retrieval", {
@@ -593,6 +647,7 @@ class CausalInferencePipeline(torch.nn.Module):
                     "retrieved_frame_ids": [], "retrieved_scene_ids": [], "scores": [],
                     "excluded_frame_ids": [0, *local_frame_ids], "memory_size": len(memory_store),
                     "context_mode": memory_policy["context_mode"],
+                    "retrieval_lifetime": memory_policy.get("retrieval_lifetime", "pulse_1"),
                     "routing_mode": retrieval_reason,
                     "skipped": "no_query_or_memory" if not (memory_query or manual_retrieval) or not len(memory_store) else
                     ("replace_recent_local_slots" if retrieval_allowed_now else retrieval_reason),
@@ -676,6 +731,10 @@ class CausalInferencePipeline(torch.nn.Module):
             if clean_pass_callback is not None:
                 clean_pass_callback(current_block_number, denoised_pred, self.kv_cache1)
 
+            if memory_enabled and is_transition_block:
+                record_transition_sink(
+                    self.kv_cache1, current_start_frame, memory_policy["local_retention"])
+
             if noncontiguous_enabled and current_block_number in source_blocks:
                 captured_source_kv[current_block_number] = {
                     "frame_ids": list(range(current_start_frame, current_start_frame + current_num_frames)),
@@ -697,17 +756,21 @@ class CausalInferencePipeline(torch.nn.Module):
                     "memory_size": len(memory_store), "archive_size": len(memory_store.archive),
                     "consolidation": consolidation,
                 })
-            if memory_enabled and history_refs:
+            if memory_enabled and (history_refs or not is_transition_block):
                 retrieved_count = len(history_refs)
                 layout = memory_context_layout(
                     retrieved_count, context_non_sink_frames, current_num_frames, memory_policy["context_mode"])
-                context_order = ["sink:0"] + \
-                    [f"history:{frame['global_frame_id']}" for frame in history_refs] + \
-                    [f"local:{frame_id}" for frame_id in context_local_frame_ids[-layout["local_frames"]:]] + \
-                    [f"current:{frame_id}" for frame_id in range(current_start_frame, current_start_frame + current_num_frames)]
+                context_order = memory_context_order(
+                    self.kv_cache1[0].get("persistent_sink_frame_id", 0),
+                    [frame["global_frame_id"] for frame in history_refs], context_local_frame_ids,
+                    list(range(current_start_frame, current_start_frame + current_num_frames)),
+                    layout["local_frames"])
                 memory_logger.write("context", {
                     "block": current_block_number, "scene_id": scene_index,
                     "ordering": context_order, "positions": layout["positions"],
+                    "rope_positions": memory_context_rope_positions(
+                        retrieved_count, context_non_sink_frames, current_num_frames,
+                        memory_policy["context_mode"], current_start_frame, scene_cut_needed),
                     "retrieved_frames": retrieved_count, "local_frames": layout["local_frames"],
                     "current_frames": current_num_frames, "total_frames": len(context_order),
                     "total_tokens": len(context_order) * self.frame_seq_length,

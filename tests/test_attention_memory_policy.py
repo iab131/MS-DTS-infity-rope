@@ -11,8 +11,10 @@ from unittest.mock import patch
 import torch
 
 from pipeline.causal_inference import (
-    apply_memory_transition, capture_clean_memory_block,
+    apply_memory_transition, capture_clean_memory_block, memory_context_order,
     pack_fixed_grid_selective_memory,
+    record_transition_sink,
+    transition_attention_context,
 )
 from pipeline.fixed_grid_memory_masks import FixedGridMemoryMasks
 from pipeline.content_routing import MemoryPolicyEventLogger, retrieval_allowed, route_memory
@@ -20,7 +22,8 @@ from pipeline.memory_store import MemoryStore
 from utils.wan_wrapper import WanDiffusionWrapper
 from wan.modules.causal_model import (
     CausalWanAttentionBlock, CausalWanModel, CausalWanSelfAttention,
-    assemble_memory_context, memory_context_layout, sparse_historical_rope,
+    assemble_memory_context, memory_context_layout, memory_context_rope_positions,
+    sparse_historical_rope,
 )
 
 
@@ -186,7 +189,28 @@ class AttentionMemoryPolicyTest(unittest.TestCase):
         self.assertEqual(
             retrieval_allowed(True, is_transition_block=False, transition_auto_retrieval=False,
                               manual_frame_ids=[4, 5], manual_target_blocks={8}, block_number=9),
-            (False, "manual_target_not_selected"))
+            (False, "manual_lifetime_expired"))
+
+    def test_manual_retrieval_lifetime_starts_at_the_first_selected_block(self):
+        common = dict(
+            retrieval_enabled=True, is_transition_block=False, transition_auto_retrieval=False,
+            manual_frame_ids=[4, 5], manual_target_blocks={8},
+        )
+        self.assertEqual(
+            retrieval_allowed(**common, block_number=8, manual_retrieval_lifetime="pulse_1"),
+            (True, "manual_override"))
+        self.assertEqual(
+            retrieval_allowed(**common, block_number=9, manual_retrieval_lifetime="pulse_1"),
+            (False, "manual_lifetime_expired"))
+        self.assertEqual(
+            retrieval_allowed(**common, block_number=9, manual_retrieval_lifetime="pulse_2"),
+            (True, "manual_override"))
+        self.assertEqual(
+            retrieval_allowed(**common, block_number=10, manual_retrieval_lifetime="pulse_2"),
+            (False, "manual_lifetime_expired"))
+        self.assertEqual(
+            retrieval_allowed(**common, block_number=10, manual_retrieval_lifetime="persistent"),
+            (True, "manual_override"))
 
     def test_archive_compresses_top_utility_frames_and_consolidation_keeps_diversity(self):
         store = MemoryStore(frame_tokens=1, descriptor_layers=[0], memory_budget=2)
@@ -223,6 +247,28 @@ class AttentionMemoryPolicyTest(unittest.TestCase):
             "current_frames": 3, "positions": [0, 1, 2, 3, 4, 5, 6, 7],
         })
 
+    def test_matched_delayed_recall_logs_actual_rope_coordinates(self):
+        self.assertEqual(
+            memory_context_rope_positions(
+                retrieved_frames=2, local_frames=2, current_frames=3,
+                mode="replace_recent", current_start_frame=21, scene_cut=False),
+            {
+                "sink_key_position": "preserved",
+                "history_key_positions": [1, 2],
+                "local_key_positions": [],
+                "current_key_positions": [3, 4, 5],
+                "current_query_positions": [21, 22, 23],
+            },
+        )
+
+    def test_matched_replace_recent_log_omits_replaced_local_ids(self):
+        self.assertEqual(
+            memory_context_order(
+                sink_frame_id=18, history_frame_ids=[6, 7], local_frame_ids=[19, 20],
+                current_frame_ids=[21, 22, 23], retained_local_frames=0),
+            ["sink:18", "history:6", "history:7", "current:21", "current:22", "current:23"],
+        )
+
     def test_transition_retention_decay_preserves_sink_and_resets_cross_attention(self):
         cache = {
             "k": torch.tensor([[[[10.]], [[20.]], [[30.]], [[40.]], [[50.]], [[60.]]]]),
@@ -241,6 +287,43 @@ class AttentionMemoryPolicyTest(unittest.TestCase):
         self.assertTrue(cache["scene_cut"])
         self.assertFalse(cross["is_init"])
         self.assertEqual(event["retained_non_sink_frames"], 1)
+
+    def test_transition_no_sink_excludes_previous_context_for_one_cut_block(self):
+        cache = {
+            "k": torch.tensor([[[[10.]], [[20.]], [[30.]]]]),
+            "v": torch.tensor([[[[110.]], [[120.]], [[130.]]]]),
+            "local_end_index": torch.tensor([3]), "scene_cut": False,
+        }
+        cross = {"is_init": True}
+
+        event = apply_memory_transition(
+            [cache], [cross], frame_tokens=1, retention="transition_no_sink", decay=False,
+            decay_beta=0.3, scene_cut=True, device=torch.device("cpu"))
+
+        self.assertEqual(cache["local_end_index"].item(), 0)
+        self.assertTrue(event["persistent_sink_excluded"])
+        self.assertFalse(cross["is_init"])
+        self.assertEqual(
+            transition_attention_context(current_start_frame=9, current_num_frames=3,
+                                         retention="transition_no_sink", scene_cut=True),
+            {"ordering": ["current:9", "current:10", "current:11"],
+             "rope_temporal_positions": [45, 46, 47], "total_frames": 3, "total_tokens": 3},
+        )
+
+    def test_transition_context_reports_the_new_scene_sink_frame_id(self):
+        caches = [{}, {}]
+        self.assertEqual(
+            record_transition_sink(caches, current_start_frame=18, retention="transition_no_sink"), 18)
+        self.assertEqual([cache["persistent_sink_frame_id"] for cache in caches], [18, 18])
+        ordinary_cache = {}
+        self.assertIsNone(record_transition_sink(
+            [ordinary_cache], current_start_frame=18, retention="sink_only"))
+        self.assertNotIn("persistent_sink_frame_id", ordinary_cache)
+        self.assertEqual(
+            transition_attention_context(current_start_frame=21, current_num_frames=3,
+                                         retention="sink_only", scene_cut=False, sink_frame_id=18)["ordering"],
+            ["sink:18", "current:21", "current:22", "current:23"],
+        )
 
     def test_event_log_captures_component_configuration(self):
         with tempfile.NamedTemporaryFile() as handle:

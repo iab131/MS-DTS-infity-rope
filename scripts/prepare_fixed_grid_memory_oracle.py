@@ -33,6 +33,15 @@ def _expanded(indices):
 
 def build_mask_audit(masks):
     """Return exact token provenance independent of video decoding."""
+    current_start_frame, context_non_sink_frames, current_num_frames = 21, 2, 3
+    sink_frame = current_start_frame - context_non_sink_frames - 1
+    base_ordering = (
+        [f"sink:{sink_frame}"] +
+        [f"local:{frame_id}" for frame_id in range(
+            current_start_frame - context_non_sink_frames, current_start_frame)] +
+        [f"current:{frame_id}" for frame_id in range(
+            current_start_frame, current_start_frame + current_num_frames)]
+    )
     source_history = {}
     for frame_id, slot in ((6, 1), (7, 2)):
         subject = masks.history_token_indices(frame_id)
@@ -71,12 +80,14 @@ def build_mask_audit(masks):
             "background_query_count": 3 * len(background_queries),
         },
         "base_context": {
-            "ordering": [
-                "sink:18", "local:19", "local:20",
-                "current:21", "current:22", "current:23",
-            ],
-            "frames": 6,
-            "tokens": 6 * FRAME_TOKENS,
+            "ordering": base_ordering,
+            "derived_from": {
+                "current_start_frame": current_start_frame,
+                "context_non_sink_frames": context_non_sink_frames,
+                "current_num_frames": current_num_frames,
+            },
+            "frames": len(base_ordering),
+            "tokens": len(base_ordering) * FRAME_TOKENS,
             "local_current_order_unchanged": True,
             "historical_tokens_are_separate_from_base_context": True,
         },
