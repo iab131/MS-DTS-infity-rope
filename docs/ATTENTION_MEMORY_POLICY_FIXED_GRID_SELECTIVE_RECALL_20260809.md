@@ -1,8 +1,7 @@
-# Fixed-grid selective recall oracle — preflight record
+# Fixed-grid selective recall oracle — executed record
 
 Experiment `E20260809-FIXED-GRID-SELECTIVE-RECALL-ORACLE`, 2026-08-09.
-Status: implementation and CPU preflight complete; model runs and visual results
-are pending.
+Status: implementation, preflight, and the two authorized model arms complete.
 
 ## Scope and attribution
 
@@ -70,10 +69,10 @@ all expanded target subject/background query indices, target block/frame IDs,
 input and overlay hashes, and the unchanged base-context order. Audit SHA-256:
 `a6d7b90a0835ed39eedfab0d93d3733e048f26a0c0f635d6906189fd6fbafaf8`.
 
-## Pending matched arms
+## Matched executed arms
 
-Both commands below are specifications only; neither has been run. They differ
-only in `<mode>` and output folder.
+The commands below were run once each. They differ only in `<mode>` and output
+folder; reset-only and verified full-A controls were reused unchanged.
 
 ```bash
 conda run -n wan python inference.py \
@@ -95,6 +94,51 @@ conda run -n wan python inference.py \
   --save-clean-latent-blocks 7,8,9 --save-raw-decoded
 ```
 
-No claim about identity retention, background retention, leakage reduction,
-quality, runtime, VRAM, or paper-level generality is supported until both arms
-run and receive matched artifact and human review.
+## Execution and invariant check
+
+| Arm | Exit / runtime | Peak VRAM | Historical source K | Target queries |
+| --- | --- | --- | --- | --- |
+| `subject_to_subject_A_memory` | 0 / 53 s | 23,243 MiB | subject: 541 (ID 6) + 542 (ID 7) | 1,401 (467 × 3) |
+| `background_to_background_A_memory` | 0 / 54 s | 23,243 MiB | dilated-complement: 922 (ID 6) + 921 (ID 7) | 3,033 (1,011 × 3) |
+
+Both JSONLs log the same positional facts: source IDs `[6,7]`, original
+row/column source coordinates, source temporal slots `{6:1,7:2}`, target
+frames `[21,22,23]`, all 30 injection layers, and
+`base_context_unchanged=true`. The normal block-8 base order is exactly
+`[sink:18,local:19,local:20,current:21,current:22,current:23]`; the
+selective branch is the only extra computation. All non-manual archive,
+consolidation, decay, and automatic transition retrieval remain disabled.
+Each new result is exactly equal to reset-only at saved clean block 7; visual
+and raw differences begin at the retrieval block rather than before it.
+
+## Four-arm oracle readout
+
+Review used
+`outputs/attention_memory_policy_fixed_grid_selective_recall/comparison/four_arm_recall_sheet.png`
+(rows `reset_only | full_A | subject_to_subject | background_to_background`,
+decoded frames 77/81/85/89/93) and the two new MP4s. The companion
+`four_arm_metrics.json` is a pixel-proxy record, not a semantic score.
+
+- `reset_only` retains the snowy observatory and its prompted woman.
+- Reused `full_A` immediately replaces the observatory with greenhouse arches
+  and orchids, confirming the known scene-entangled control effect.
+- `subject_to_subject` changes face/hair/clothing-region appearance at the
+  target, while much of the snowy scene remains visible. It nevertheless adds
+  a bright green greenhouse-like structure behind the woman and creates a
+  sharp retrieval-boundary discontinuity. Relative to reset over RGB 81--92,
+  its MAE is 0.0905393; the frame-80→81 adjacent RGB change is 0.0678933
+  (reset: 0.0258359).
+- `background_to_background` preferentially transfers greenhouse
+  arches/orchids into the scene while leaving the woman more reset-like than
+  full-A at early recall frames. It strongly damages snowy-observatory
+  preservation and remains discontinuous after the one-block pulse (RGB
+  92→93 adjacent change 0.2033033; reset: 0.0245210).
+
+This single-prompt, one-seed oracle is evidence that raw historical K/V has a
+substantial spatially separable component: background-only routing strongly
+recalls the old background, while subject-only routing concentrates a smaller
+effect at the woman. It does **not** establish clean identity-only recall:
+subject routing still leaks old-scene structure and both new arms show
+retrieval-boundary artifacts. It remains an oracle separability result, not a
+novel masking claim or a general policy result; no automated masking,
+tracking, SAM, descriptors, or additional memory-policy machinery was added.

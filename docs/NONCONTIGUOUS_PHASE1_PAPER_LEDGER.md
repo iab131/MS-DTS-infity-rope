@@ -856,10 +856,10 @@ records an observation.
 | F22 | `outputs/attention_memory_policy_source_specificity/comparison/A2_blocks_7_10_three_way_still_sheet_reset_correctA_wrongcar.png` | RGB 69/81/93/105 rows reset/correct-A/wrong-car | Generated; qualitative only |
 | T13 | `docs/ATTENTION_MEMORY_POLICY_L0_9_SOURCE_SPECIFICITY_GPU_20260809.md` and `outputs/attention_memory_policy_source_specificity/l0_9_pulse_1_wrong_car/` | Command, policy log, metrics, raw output, limitations | Generated |
 
-## E20260809-AMP-FIXED-GRID-SELECTIVE-RECALL-ORACLE (preflight only; unrun)
+## E20260809-AMP-FIXED-GRID-SELECTIVE-RECALL-ORACLE (executed; one seed)
 
 - Scope: manual oracle separability protocol inspired by EM-Vid, DiTCtrl, and
-  BachVid; not a novel masking method and not an executed model result.
+  BachVid; not a novel masking method.
 - Immutable inputs: manually checked 30x52 source masks for A IDs 6/7 and one
   three-frame target conservative union are stored in
   `docs/attention_memory_policy_fixed_grid_masks_20260809.json` (SHA-256
@@ -877,6 +877,19 @@ records an observation.
   records exact source/query indices, row/column coordinates, slots, expanded
   three-frame query sets, hashes, and the derived base order. Audit SHA-256 is
   `a6d7b90a0835ed39eedfab0d93d3733e048f26a0c0f635d6906189fd6fbafaf8`.
-- Pending boundary: `subject_to_subject` and `background_to_background` are
-  both unrun. No identity, background, leakage, quality, runtime, VRAM, or
-  paper-level claim is supported by this preflight.
+- Executed arms: `subject_to_subject_A_memory` exits 0 in 53 s at 23,243 MiB;
+  `background_to_background_A_memory` exits 0 in 54 s at 23,243 MiB. Their
+  JSONLs retain the exact base order and report slots 1/2, source counts
+  541/542 and 922/921, and target query counts 1,401 and 3,033 respectively.
+  Both new arms are exactly equal to reset through saved clean block 7.
+- Human result: full A restores greenhouse/orchids. Subject-only routing
+  substantially affects woman-region appearance but leaves a visible green
+  greenhouse-like leak and a retrieval-boundary discontinuity; background-only
+  routing strongly restores greenhouse arches/orchids while preferentially
+  retaining the woman at early target frames. This supports spatial
+  separability of the raw-KV effect, but contradicts clean identity-only
+  recall in this one-seed oracle.
+- Evidence: `docs/ATTENTION_MEMORY_POLICY_FIXED_GRID_SELECTIVE_RECALL_20260809.md`,
+  the exact-mask preflight overlays/audit, policy JSONLs, raw tensors, MP4s,
+  and `comparison/four_arm_recall_sheet.png`. This is not a novel masking
+  method claim and is not paper-level generalization.

@@ -403,7 +403,7 @@ claim.
   facial perturbation. Do not infer source independence from raw differences
   alone. Full record: `docs/ATTENTION_MEMORY_POLICY_L0_9_SOURCE_SPECIFICITY_GPU_20260809.md`.
 
-## 2026-08-09: Fixed-grid selective-recall oracle preflight (arms pending)
+## 2026-08-09: Fixed-grid selective-recall oracle preflight (superseded below)
 
 - The manually supplied inclusive spans reconstruct exactly into distinct
   30x52 source masks for A IDs 6/7 and one target conservative-union mask.
@@ -415,7 +415,27 @@ claim.
   frame is recorded as sink 18. The block-8 base remains
   `[sink:18,local:19,local:20,current:21,current:22,current:23]`; selective
   subject or background history is separate from that base.
-- Both `subject_to_subject` and `background_to_background` model arms remain
-  unrun. This is preflight/protocol evidence only: it supports no conclusion
-  about identity retention, background retention, leakage, visual quality,
-  runtime, VRAM, or generalization.
+- At this preflight point the model arms had not run; the executed one-seed
+  result immediately below supersedes that status.
+
+## 2026-08-09: Fixed-grid selective-recall oracle (one-seed result)
+
+- Both authorized arms completed with all 30 layers, source IDs 6/7, target
+  block 8, `transition_no_sink`, `replace_recent`, and no automatic policy
+  mechanisms. JSONLs verify the unchanged six-frame base
+  `[sink:18,local:19,local:20,current:21,current:22,current:23]`; only the
+  historical branch is selectively gated.
+- Subject-to-subject uses 541/542 historical subject tokens and 1,401 target
+  queries. It changes face/hair/clothing-region appearance and preserves much
+  of the snow scene, but leaks a bright greenhouse-like structure and creates
+  a pronounced target-boundary discontinuity. It is not clean identity-only
+  recall.
+- Background-to-background uses 922/921 dilated-complement source tokens and
+  3,033 target background queries. It strongly restores greenhouse
+  arches/orchids and disrupts snowy-observatory preservation, while the woman
+  remains comparatively reset-like at early target frames. This is the
+  expected direction for a spatially separable background effect.
+- The four-arm sheet is
+  `outputs/attention_memory_policy_fixed_grid_selective_recall/comparison/four_arm_recall_sheet.png`.
+  The result is an oracle separability observation only; no automated masks,
+  tracking, SAM, descriptors, or further memory-policy work was added.
