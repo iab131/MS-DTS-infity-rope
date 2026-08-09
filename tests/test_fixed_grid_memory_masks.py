@@ -110,9 +110,18 @@ class FixedGridMemoryMasksTest(unittest.TestCase):
             validate_fixed_grid_options("masks.json", "subject_to_subject", True, [7, 6], {8})
         with self.assertRaisesRegex(ValueError, "target block 8"):
             validate_fixed_grid_options("masks.json", "subject_to_subject", True, [6, 7], {7})
+        with self.assertRaisesRegex(ValueError, "transition_no_sink"):
+            validate_fixed_grid_options(
+                "masks.json", "subject_to_subject", True, [6, 7], {8},
+                local_retention="sink_only", context_mode="replace_recent")
+        with self.assertRaisesRegex(ValueError, "replace_recent"):
+            validate_fixed_grid_options(
+                "masks.json", "subject_to_subject", True, [6, 7], {8},
+                local_retention="transition_no_sink", context_mode="prepend")
         self.assertEqual(
             validate_fixed_grid_options(
-                "masks.json", "background_to_background", True, [6, 7], {8}),
+                "masks.json", "background_to_background", True, [6, 7], {8},
+                local_retention="transition_no_sink", context_mode="replace_recent"),
             {"mask_path": "masks.json", "mode": "background_to_background"},
         )
 

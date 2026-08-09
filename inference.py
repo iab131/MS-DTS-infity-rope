@@ -184,6 +184,8 @@ parser.add_argument("--memory-manual-frame-ids", type=str, default=None,
                     help="Comma-separated MemoryStore frame IDs overriding descriptor routing in order.")
 parser.add_argument("--memory-manual-target-blocks", type=str, default=None,
                     help="Optional comma-separated one-based blocks where manual memory injection is allowed.")
+parser.add_argument("--memory-retrieval-lifetime", choices=["pulse_1", "pulse_2", "persistent"], default="pulse_1",
+                    help="Manual retrieval duration from the first selected block; pulse_1 preserves the oracle default.")
 parser.add_argument("--memory-transition-auto-retrieval", action=argparse.BooleanOptionalAction, default=False,
                     help="Allow automatic descriptor routing on the first block after a scene transition.")
 parser.add_argument("--memory-local-retention", choices=["sink_only", "sink+1", "sink+2", "transition_no_sink"], default="sink_only",
@@ -299,6 +301,7 @@ if args.attention_memory_policy:
         "injection_layers": memory_injection_layers,
         "manual_frame_ids": memory_manual_frame_ids or None,
         "manual_target_blocks": memory_manual_target_blocks or None,
+        "retrieval_lifetime": args.memory_retrieval_lifetime,
         "transition_auto_retrieval": args.memory_transition_auto_retrieval,
         "local_retention": args.memory_local_retention,
         "decay": args.memory_decay,
