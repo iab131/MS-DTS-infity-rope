@@ -142,3 +142,52 @@ subject routing still leaks old-scene structure and both new arms show
 retrieval-boundary artifacts. It remains an oracle separability result, not a
 novel masking claim or a general policy result; no automated masking,
 tracking, SAM, descriptors, or additional memory-policy machinery was added.
+
+## Subject-core / boundary ablation (one seed)
+
+The same immutable source masks and A2 target union were used to derive three
+additional subject-only arms with 8-connected binary erosion. No input mask was
+redrawn and sparse source coordinates remained the original row-major 30x52
+positions; temporal source slots remain 1/2. The CPU preflight wrote full,
+erode1, erode2, and removed-boundary-ring overlays for both A sources and all
+three A2 target frames under
+`outputs/attention_memory_policy_fixed_grid_selective_recall/subject_core_boundary_ablation/preflight/`.
+Its audit SHA-256 is
+`7da283110bb0849f9b5b576e796d31c5ba8e9d63c6cf5c91e6ea9f36776419b0`.
+
+| Arm | Source ID 6 / 7 tokens | Target tokens/frame (total) | Exit / runtime / peak VRAM |
+| --- | ---: | ---: | --- |
+| reused `subject_full` | 541 / 542 | 467 (1,401) | reused prior control |
+| `subject_erode1` | 426 / 427 | 366 (1,098) | 0 / 51 s / 23,243 MiB |
+| `subject_erode2` | 322 / 323 | 276 (828) | 0 / 52 s / 23,243 MiB |
+| `subject_boundary_only` | 115 / 115 | 101 (303) | 0 / 51 s / 23,247 MiB |
+
+All three new JSONLs confirm IDs 6/7, slots `{6:1,7:2}`, all 30 injection
+layers, block 8 target frames `[21,22,23]`, and the unchanged six-frame base
+`[sink:18,local:19,local:20,current:21,current:22,current:23]`. Each is
+exactly equal to reset-only at saved clean block 7, so the effects begin at
+retrieval rather than before it.
+
+Five-arm visual review used
+`comparison/five_arm_subject_core_boundary_sheet.png` (reset / full / erode1 /
+erode2 / boundary ring; decoded frames 77/81/85/89/93). Both eroded cores still
+restore the A1 woman appearance and the bright local greenhouse-like structure
+behind her. The snow observatory remains outside the subject much better than
+full-A, but erosion does not remove the local A1-background halo. The boundary
+ring alone leaves the A2 woman largely reset-like while producing a weaker,
+localized green/orange edge halo.
+
+The pixel proxy is consistent with that visual readout: total RGB MAE vs reset
+over frames 81--92 decreases full/e1/e2/ring =
+0.09054/0.07708/0.06836/0.03211, but erode2 still changes the original
+subject-core region by 0.22161 MAE and retains a visible local scene recall.
+The target-boundary adjacent-frame change similarly falls from full 0.06789 to
+erode1 0.05775 and erode2 0.04893, but remains above reset 0.02584; ring is
+0.03181. These are pixel/discontinuity proxies, not identity or halo scores.
+
+**Conclusion:** mixed boundary tokens contribute to the leakage magnitude, but
+they are not its main cause in this oracle. Even the two-token eroded core
+reproduces A1 surroundings with the woman, so raw subject-core K/V is already
+context-entangled. Simple spatial erosion is insufficient for clean
+subject-only recall. No alpha sweep, automatic masks, tracking, alpha blending,
+finer layers, or new memory-policy mechanism was run.

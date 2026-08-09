@@ -439,3 +439,26 @@ claim.
   `outputs/attention_memory_policy_fixed_grid_selective_recall/comparison/four_arm_recall_sheet.png`.
   The result is an oracle separability observation only; no automated masks,
   tracking, SAM, descriptors, or further memory-policy work was added.
+
+## 2026-08-09: Subject-core / boundary ablation (one-seed result)
+
+- The original manual 30x52 subject masks were eroded with an 8-connected
+  one- and two-token binary erosion; the full-minus-erode1 set is the boundary
+  ring. Preflight overlays cover all four variants at both A source frames and
+  all three A2 target frames, and the audit preserves source coordinates,
+  slots 1/2, query indices, and the six-frame base order.
+- Erode1/erode2/ring source counts are 426/427, 322/323, and 115/115; A2
+  per-frame target counts are 366, 276, and 101. New arms are numerically
+  equal to reset at saved clean block 7 and log only the selective historical
+  branch at block 8.
+- Both eroded cores still bring back the A1 woman *and* a bright local
+  greenhouse-like background structure, despite preserved snowy background
+  outside the subject. The ring alone gives a weaker localized halo while the
+  A2 woman remains largely reset-like. Therefore the boundary contributes but
+  cannot explain the leakage: the raw subject core is context-entangled in this
+  oracle.
+- Pixel MAE/discontinuity values are supporting proxies only. The five-arm
+  sheet and metrics are under
+  `outputs/attention_memory_policy_fixed_grid_selective_recall/subject_core_boundary_ablation/comparison/`.
+  No alpha sweep, automatic masks, tracking, alpha blending, finer layer sweep,
+  or new policy mechanism was run.

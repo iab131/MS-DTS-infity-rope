@@ -25,7 +25,7 @@
 **Interfaces:**
 - Produces `history_token_indices_for_mode(mode, frame_id)` and `target_query_indices_for_mode(mode)` for `subject_to_subject`, `subject_erode1`, `subject_erode2`, and `subject_boundary_only`.
 
-- [ ] **Step 1: Write failing mask-count and containment tests.**
+- [x] **Step 1: Write failing mask-count and containment tests.**
 
 ```python
 for mode in ("subject_erode1", "subject_erode2", "subject_boundary_only"):
@@ -35,9 +35,9 @@ self.assertFalse(set(core1) & set(ring))
 self.assertTrue(set(core2) < set(core1) < set(full))
 ```
 
-- [ ] **Step 2: Run the focused test and verify it fails because the helper is absent.**
-- [ ] **Step 3: Implement 8-connected binary erosion and the four explicit modes.**
-- [ ] **Step 4: Re-run focused tests and commit the helper/test change.**
+- [x] **Step 2: Run the focused test and verify it fails because the helper is absent.**
+- [x] **Step 3: Implement 8-connected binary erosion and the four explicit modes.**
+- [x] **Step 4: Re-run focused tests and commit the helper/test change.**
 
 ### Task 2: Route and audit the derived modes
 
@@ -52,10 +52,10 @@ self.assertTrue(set(core2) < set(core1) < set(full))
 - Consumes the Task 1 mode-index methods.
 - Produces exact mode-specific source/query counts, original coordinates, slots, and full/core/ring source and target overlays in a CPU-only audit.
 
-- [ ] **Step 1: Write failing CLI/mode-routing and audit tests.**
-- [ ] **Step 2: Run focused tests and verify expected failure.**
-- [ ] **Step 3: Permit only the three new explicit modes and use the shared mode-index methods for packing/logging; extend the existing overlay script.**
-- [ ] **Step 4: Re-run focused tests, inspect generated overlays/audit, and commit.**
+- [x] **Step 1: Write failing CLI/mode-routing and audit tests.**
+- [x] **Step 2: Run focused tests and verify expected failure.**
+- [x] **Step 3: Permit only the three new explicit modes and use the shared mode-index methods for packing/logging; extend the existing overlay script.**
+- [x] **Step 4: Re-run focused tests, inspect generated overlays/audit, and commit.**
 
 ### Task 3: Matched inference and bounded report
 
@@ -65,7 +65,7 @@ self.assertTrue(set(core2) < set(core1) < set(full))
 - Modify: `docs/INFERENCE_FINDINGS.md`
 - Create: output artifacts under `outputs/attention_memory_policy_fixed_grid_selective_recall/subject_core_boundary_ablation/`
 
-- [ ] **Step 1: Run CPU preflight, verify overlays/counts/coordinates/slots/base order, and run the focused unit suite.**
-- [ ] **Step 2: Check idle GPU/disk and run exactly the three new arms with telemetry.**
-- [ ] **Step 3: Compare reset/full/erode1/erode2/ring visually and with clearly labelled pixel discontinuity proxies.**
-- [ ] **Step 4: Append evidence and limitations to the ledger/findings, run final checks, commit, and push.**
+- [x] **Step 1: Run CPU preflight, verify overlays/counts/coordinates/slots/base order, and run the focused unit suite.**
+- [x] **Step 2: Check idle GPU/disk and run exactly the three new arms with telemetry.**
+- [x] **Step 3: Compare reset/full/erode1/erode2/ring visually and with clearly labelled pixel discontinuity proxies.**
+- [x] **Step 4: Append evidence and limitations to the ledger/findings, run final checks, commit, and push.**

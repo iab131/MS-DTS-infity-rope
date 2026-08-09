@@ -893,3 +893,25 @@ records an observation.
   the exact-mask preflight overlays/audit, policy JSONLs, raw tensors, MP4s,
   and `comparison/four_arm_recall_sheet.png`. This is not a novel masking
   method claim and is not paper-level generalization.
+
+## E20260809-AMP-SUBJECT-CORE-BOUNDARY-ABLATION (executed; one seed)
+
+- Fixed protocol and controls: exact reset→establish→delayed block-8 recall,
+  seed 101, A IDs 6/7, all 30 layers, `transition_no_sink`, `replace_recent`,
+  and the existing six-frame local/current base. Reused reset-only and
+  subject-full; ran only erode1, erode2, and full-minus-erode1 boundary ring.
+- Deterministic 8-connected erosion counts are source 426/427 and target 366
+  per frame for erode1; 322/323 and 276 for erode2; 115/115 and 101 for ring.
+  Source H/W coordinates and slots 1/2 are preserved; every new arm is equal
+  to reset through saved block 7.
+- Human result: both eroded cores still restore the A1 woman together with a
+  bright local greenhouse-like structure. The ring alone mainly leaves A2's
+  woman intact and yields a weaker local edge halo. Boundary filtering reduces
+  magnitude but does not eliminate local scene recall from erode2.
+- Claim status: the boundary is a contributor, not the primary explanation;
+  raw subject-core K/V is context-entangled in this one-seed oracle. Do not
+  claim clean spatial recovery or generalize beyond this manual experiment.
+- Evidence: `subject_core_boundary_ablation/preflight/mask_audit.json` SHA-256
+  `7da283110bb0849f9b5b576e796d31c5ba8e9d63c6cf5c91e6ea9f36776419b0`,
+  policy logs, raw outputs, and
+  `comparison/five_arm_subject_core_boundary_sheet.png`.
