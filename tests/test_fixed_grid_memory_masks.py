@@ -159,6 +159,12 @@ class FixedGridMemoryMasksTest(unittest.TestCase):
                 local_retention="transition_no_sink", context_mode="replace_recent"),
             {"mask_path": "masks.json", "mode": "compact_entity_memory"},
         )
+        self.assertEqual(
+            validate_fixed_grid_options(
+                "masks.json", "latent_subject_patch", True, [6, 7], {8},
+                local_retention="transition_no_sink", context_mode="replace_recent"),
+            {"mask_path": "masks.json", "mode": "latent_subject_patch"},
+        )
 
     def test_grouped_selective_attention_adds_isolated_history_groups_in_query_order(self):
         calls = []

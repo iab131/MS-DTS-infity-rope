@@ -218,7 +218,8 @@ parser.add_argument("--memory-fixed-grid-mask-path", type=str, default=None,
                     help="Opt-in fixed 30x52 source/target mask JSON for the manual recall oracle.")
 parser.add_argument("--memory-fixed-grid-mode", choices=[
                     "subject_to_subject", "subject_erode1", "subject_erode2",
-                    "subject_boundary_only", "background_to_background", "compact_entity_memory"], default=None,
+                    "subject_boundary_only", "background_to_background", "compact_entity_memory",
+                    "latent_subject_patch"], default=None,
                     help="Apply only the matching fixed-grid historical-memory arm.")
 parser.add_argument("--memory-fixed-grid-alpha", type=float, default=1.0,
                     help="Interpolate fixed-grid historical output from baseline (0) to full oracle (1).")

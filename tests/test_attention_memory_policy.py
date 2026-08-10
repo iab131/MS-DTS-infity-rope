@@ -13,6 +13,7 @@ import torch
 from pipeline.causal_inference import (
     apply_memory_transition, capture_clean_memory_block, memory_context_order,
     fixed_grid_denoising_schedule, fixed_grid_memory_active, pack_fixed_grid_selective_memory,
+    capture_subject_latent_memory, transplant_subject_latent_memory,
     record_transition_sink,
     transition_attention_context,
 )
@@ -35,6 +36,35 @@ def layer_kv(frame_values, frame_tokens=2):
 
 
 class AttentionMemoryPolicyTest(unittest.TestCase):
+    def test_subject_latent_memory_transplants_only_supported_target_cells(self):
+        source_6 = [0] * 1560
+        source_6[0] = 1
+        source_7 = [0] * 1560
+        source_7[0] = 1
+        target = [0] * 1560
+        target[0] = target[1] = 1
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as handle:
+            json.dump({"height": 30, "width": 52,
+                       "source_masks": {"6": source_6, "7": source_7},
+                       "target_subject_mask": target}, handle)
+        self.addCleanup(lambda: Path(handle.name).unlink(missing_ok=True))
+        masks = FixedGridMemoryMasks.from_json(handle.name)
+        source_latents = torch.zeros(1, 8, 1, 60, 104)
+        source_latents[:, 6].fill_(10)
+        source_latents[:, 7].fill_(20)
+        baseline = torch.ones(1, 3, 1, 60, 104)
+
+        memory = capture_subject_latent_memory(source_latents, masks)
+        patched, audit = transplant_subject_latent_memory(baseline, memory, masks)
+
+        self.assertEqual([item["content"].device.type for item in memory], ["cpu", "cpu"])
+        self.assertEqual(patched[:, 0, :, :2, :2].flatten().tolist(), [10.0] * 4)
+        self.assertEqual(patched[:, 1, :, :2, :2].flatten().tolist(), [15.0] * 4)
+        self.assertEqual(patched[:, 2, :, :2, :2].flatten().tolist(), [20.0] * 4)
+        self.assertTrue(torch.equal(patched[:, :, :, :2, 2:4], baseline[:, :, :, :2, 2:4]))
+        self.assertTrue(audit["outside_target_equal"])
+        self.assertEqual(audit["supported_token_counts"], [1, 1, 1])
+
     def test_fixed_grid_timestep_gate_uses_observed_execution_order(self):
         schedule = fixed_grid_denoising_schedule([1000.0, 937.5, 833.3333129882812, 625.0])
         self.assertEqual(schedule["execution_timesteps"], [1000.0, 937.5, 833.3333129882812, 625.0])

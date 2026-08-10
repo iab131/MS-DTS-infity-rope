@@ -199,6 +199,46 @@ def fixed_grid_memory_active(denoising_steps, clean_pass_enabled, index=None,
     return index >= total_steps - retained
 
 
+def _lift_fixed_grid_mask(mask, latent_height, latent_width, device):
+    if (latent_height, latent_width) != (60, 104):
+        raise ValueError("manual subject latent oracle requires 60x104 VAE latents")
+    return torch.tensor(mask, device=device, dtype=torch.bool).view(30, 52).repeat_interleave(2, 0).repeat_interleave(2, 1)
+
+
+def capture_subject_latent_memory(latents, masks):
+    """Keep only masked source VAE-latent content for IDs 6 and 7 on CPU."""
+    if latents.ndim != 5 or latents.shape[1] <= 7:
+        raise ValueError("source latent frames 6 and 7 must be available")
+    height, width = latents.shape[-2:]
+    memory = []
+    for frame_id in (6, 7):
+        support = _lift_fixed_grid_mask(masks.source_masks[frame_id], height, width, latents.device)
+        content = latents[:, frame_id].detach().clone() * support
+        memory.append({"content": content.to(device="cpu", copy=True), "support": support.cpu()})
+    return memory
+
+
+def transplant_subject_latent_memory(baseline, memory, masks):
+    """Apply the fixed 6 -> 6/7 -> 7 patch map only where source masks support it."""
+    if baseline.ndim != 5 or baseline.shape[1] != 3 or len(memory) != 2:
+        raise ValueError("latent subject patch requires three targets and two source patches")
+    target = _lift_fixed_grid_mask(masks.target_subject_mask, *baseline.shape[-2:], baseline.device)
+    content = [item["content"].to(device=baseline.device, dtype=baseline.dtype) for item in memory]
+    supports = [item["support"].to(device=baseline.device, dtype=torch.bool) & target for item in memory]
+    plans = [(supports[0], content[0]),
+             (supports[0] & supports[1], (content[0] + content[1]) * 0.5),
+             (supports[1], content[1])]
+    patched = baseline.clone()
+    for index, (support, values) in enumerate(plans):
+        patched[:, index] = torch.where(support[None, None], values, baseline[:, index])
+    outside = ~target
+    return patched, {
+        "outside_target_equal": torch.equal(patched[:, :, :, outside], baseline[:, :, :, outside]),
+        "outside_target_max_abs": float((patched[:, :, :, outside] - baseline[:, :, :, outside]).abs().max()),
+        "supported_token_counts": [int(support.sum().item() // 4) for support, _ in plans],
+    }
+
+
 def pack_fixed_grid_selective_memory(memory_store, masks, mode, current_frames, num_layers, alpha=1.0):
     """Pack raw masked K/V as spatial tokens or one pooled entity token per frame."""
     entries = memory_store.get_entries([6, 7])
@@ -511,6 +551,8 @@ class CausalInferencePipeline(torch.nn.Module):
         fixed_grid_config = memory_policy.get("fixed_grid")
         fixed_grid_masks = FixedGridMemoryMasks.from_json(
             fixed_grid_config["mask_path"]) if fixed_grid_config else None
+        latent_subject_patch = bool(fixed_grid_config and fixed_grid_config["mode"] == "latent_subject_patch")
+        source_latent_memory = None
         if memory_enabled:
             memory_store = MemoryStore(
                 frame_tokens=self.frame_seq_length,
@@ -622,11 +664,11 @@ class CausalInferencePipeline(torch.nn.Module):
                         if fixed_grid_masks is not None:
                             if current_block_number == 8:
                                 alpha = fixed_grid_config.get("alpha", 1.0)
-                                selective_memory = None if alpha == 0.0 else pack_fixed_grid_selective_memory(
+                                selective_memory = None if latent_subject_patch or alpha == 0.0 else pack_fixed_grid_selective_memory(
                                     memory_store, fixed_grid_masks, fixed_grid_config["mode"],
                                     current_num_frames, self.num_transformer_blocks, alpha=alpha)
                                 compact = fixed_grid_config["mode"] == "compact_entity_memory"
-                                if compact:
+                                if compact or latent_subject_patch:
                                     target_indices = fixed_grid_masks.subject_query_indices()
                                     source_indices = {
                                         frame_id: fixed_grid_masks.history_token_indices(frame_id)
@@ -655,16 +697,18 @@ class CausalInferencePipeline(torch.nn.Module):
                                     "block": current_block_number,
                                     "mode": fixed_grid_config["mode"],
                                     "alpha": alpha,
-                                    "historical_branch_bypassed": alpha == 0.0,
+                                    "historical_branch_bypassed": latent_subject_patch or alpha == 0.0,
                                     "source_frame_ids": [6, 7],
                                     "source_token_counts": {
                                         frame_id: len(indices) for frame_id, indices in source_indices.items()},
                                     "source_temporal_slots": {6: 1, 7: 2},
-                                    "representation": "mean_pooled_entity" if compact else "raw_sparse_spatial_kv",
+                                    "representation": ("manual_subject_latent_patch" if latent_subject_patch else
+                                                       "mean_pooled_entity" if compact else "raw_sparse_spatial_kv"),
                                     "pooled_memory_token_counts": {6: 1, 7: 1} if compact else None,
                                     "historical_position_mode": (
+                                        "vae_latent_2x2_mask_lift" if latent_subject_patch else
                                         "temporal_only_neutral_spatial" if compact else "original_source_spatial"),
-                                    "source_spatial_coordinates_applied": not compact,
+                                    "source_spatial_coordinates_applied": not (compact or latent_subject_patch),
                                     "source_token_indices": source_indices,
                                     "source_row_col_coordinates": {
                                         frame_id: [divmod(index, fixed_grid_masks.width) for index in indices]
@@ -793,8 +837,37 @@ class CausalInferencePipeline(torch.nn.Module):
                         selective_memory=denoising_selective_memory,
                     )
 
+            baseline_denoised_pred = denoised_pred
+            output_denoised_pred = denoised_pred
+            if latent_subject_patch and current_block_number == 8:
+                if source_latent_memory is None:
+                    raise RuntimeError("latent subject source frames were not captured before block 8")
+                output_denoised_pred, patch_audit = transplant_subject_latent_memory(
+                    baseline_denoised_pred, source_latent_memory, fixed_grid_masks)
+                memory_logger.write("latent_subject_patch", {
+                    "block": current_block_number,
+                    "source_frame_ids": [6, 7],
+                    "target_frame_ids": list(range(current_start_frame, current_start_frame + current_num_frames)),
+                    "temporal_mapping": ["source_6", "0.5_source_6+0.5_source_7", "source_7"],
+                    "latent_shape": list(output_denoised_pred.shape),
+                    "target_mask_lift": "30x52_to_60x104_exact_2x2",
+                    "clean_cache_input_equals_baseline": torch.equal(baseline_denoised_pred, denoised_pred),
+                    **patch_audit,
+                })
+
             # Step 3.2: record the model's output
-            output[:, current_start_frame:current_start_frame + current_num_frames] = denoised_pred
+            output[:, current_start_frame:current_start_frame + current_num_frames] = output_denoised_pred
+            if latent_subject_patch and source_latent_memory is None and \
+                    current_start_frame + current_num_frames > 7:
+                source_latent_memory = capture_subject_latent_memory(output, fixed_grid_masks)
+                memory_logger.write("latent_subject_memory_capture", {
+                    "source_frame_ids": [6, 7],
+                    "latent_shape_per_frame": list(source_latent_memory[0]["content"].shape),
+                    "source_token_counts": {
+                        frame_id: len(fixed_grid_masks.history_token_indices(frame_id)) for frame_id in (6, 7)},
+                    "mask_lift": "30x52_to_60x104_exact_2x2",
+                    "stored_content": "masked_subject_only_cpu",
+                })
 
             # Step 3.3: rerun with timestep zero to update KV cache using clean context
             context_timestep = torch.ones_like(timestep) * self.args.context_noise

@@ -1032,3 +1032,46 @@ records an observation.
   and the baseline latent is retained for the timestep-zero cache pass. This
   keeps both the DMD schedule and cache/background path unchanged. This is a
   proposed oracle, not an implemented or evaluated method.
+
+## E20260809-AMP-SUBJECT-LATENT-PATCH (executed; one seed)
+
+- Method: a direct VAE-latent representation oracle, not a learned
+  identity-memory method. The verified reset→establish schedule is unchanged:
+  seed 101, A source IDs 6/7, reset with `transition_no_sink`, target block 8,
+  all four DMD calls unchanged, six-frame / 9,360-token base, and automatic
+  routing/archive/consolidation/decay disabled. Reset-only and the existing
+  full subject-KV arm are reused controls.
+- Intervention: after final block-8 DMD prediction, before its output-latent
+  write only, masked A1 VAE latents `[B,16,60,104]` are copied from source
+  frames 6/7. The 30x52 masks lift by exact 2x2 replication. Target frames map
+  to source 6, mean(6,7), and source 7. To avoid reading unmasked A1
+  background, only source∩target support is copied: 386, 386, and 387 target
+  tokens, respectively; target-only cells retain the baseline prediction.
+- Isolation checks: the patch audit records `outside_target_equal=true` and
+  `outside_target_max_abs=0.0` at the latent intervention. Its clean cache
+  input is the original baseline `denoised_pred`; saved clean tensors for
+  blocks 8 and 9 are exactly reset-equal (max absolute difference 0.0). Thus
+  the patch cannot alter the AR cache write. RGB outside-mask differences are
+  not expected to be bit-exact because decoding has a spatial/temporal
+  receptive field; this does not alter the latent/cache isolation check.
+- Human result: within block 8, the A1 woman is visibly recognizable (face,
+  high bun/hair, blue clothing) while the snowy observatory remains intact
+  outside the subject region and no greenhouse/orchid reconstruction appears.
+  The three target frames are consistent enough to show the fixed mapping, but
+  the hard mask makes a pasted-looking subject with visible boundary/seam
+  behavior. The immediately following decoded frame is a ghostly A1/A2 blend;
+  it largely resolves by later A2 frames because the generation/cache path was
+  baseline. This is direct latent-patch behavior, not credible clean identity
+  transfer.
+- Interpretation: compared with raw spatial subject-KV, latent masking removes
+  the old-scene rewrite but exposes an alignment/blending problem. It is
+  evidence that VAE latent content can be spatially separated from the A1
+  greenhouse in this oracle, not evidence that it provides usable long-term
+  identity memory. Stop after this single oracle; no alpha, feathering,
+  tracking, warping, persistence, or further representation sweep is run.
+- Evidence: patch event in
+  `outputs/attention_memory_policy_fixed_grid_selective_recall/latent_subject_patch/memory_policy.jsonl`,
+  raw tensor SHA-256 `8dd389e847d36c227e560c0780761a0ee0765ea8bf2541216c1e839655db6967`,
+  and three-arm review sheet
+  `latent_subject_patch/comparison/three_arm_latent_subject_patch_temporal_sheet.png`
+  SHA-256 `dbeb89a20f474582708aa4b30261e934655ad97c60ffd39df100d990c2776188`.

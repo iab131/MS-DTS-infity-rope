@@ -559,3 +559,30 @@ claim.
   subject-only output editing cannot contaminate the future cache/background.
 - This is preparation only: no latent-memory code, GPU run, automatic mask,
   routing, or new method claim has been added.
+
+## 2026-08-09: Subject latent-patch representation oracle (one seed)
+
+- The only new arm keeps every DMD call and the clean cache input baseline,
+  then directly writes masked source-latent content to block-8 output cells.
+  Source masks for IDs 6/7 and the A2 target mask are lifted from 30x52 to
+  60x104 by exact 2x2 replication. The fixed temporal map is source 6,
+  half source 6 plus half source 7, then source 7. To avoid accidental
+  greenhouse copying, only cells supported by both source and target masks are
+  copied (386/386/387 token cells); unsupported target cells stay baseline.
+- Numerical audit: outside-target output latents are exactly unchanged
+  (`max_abs=0.0`), block-8 clean-cache input is exactly its baseline prediction,
+  and saved clean latents for blocks 8 and 9 exactly equal reset-only. Hence
+  the visible edit is not written into the autoregressive cache. Decoder RGB
+  can nevertheless differ just outside the mask due to the decoder receptive
+  field, so only the latent claim is bit-exact.
+- Visual review: the patch makes the A1 woman's face, high bun/hair, and blue
+  outfit recognizable during the three target frames without a greenhouse or
+  orchid reconstruction; the snow scene stays substantially intact. It looks
+  like a hard, spatially misaligned paste rather than identity transfer, with
+  a visible mask-edge seam and a ghostly blend just after the patched block.
+  By later A2 frames the baseline scene largely resumes. This is promising
+  spatial separation but not a validated identity-memory representation.
+- The three-arm temporal sheet is
+  `outputs/attention_memory_policy_fixed_grid_selective_recall/latent_subject_patch/comparison/three_arm_latent_subject_patch_temporal_sheet.png`.
+  No blending, warping, tracking, automatic mask, or additional sweep was
+  added.
