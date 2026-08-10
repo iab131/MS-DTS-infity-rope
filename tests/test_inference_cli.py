@@ -25,6 +25,15 @@ class InferenceCliTest(unittest.TestCase):
         self.assertIn("subject_erode1", result.stdout)
         self.assertIn("subject_erode2", result.stdout)
         self.assertIn("subject_boundary_only", result.stdout)
+        self.assertIn("--memory-fixed-grid-alpha", result.stdout)
+
+    def test_fixed_grid_alpha_rejects_values_outside_the_interpolation_range(self):
+        root = Path(__file__).resolve().parents[1]
+        result = subprocess.run(
+            [sys.executable, "inference.py", "--memory-fixed-grid-alpha", "1.1"],
+            cwd=root, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("between 0 and 1", result.stderr)
 
     def test_fixed_grid_cli_flags_must_be_paired(self):
         root = Path(__file__).resolve().parents[1]

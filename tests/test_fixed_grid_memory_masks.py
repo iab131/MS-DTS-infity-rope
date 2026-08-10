@@ -190,6 +190,34 @@ class FixedGridMemoryMasksTest(unittest.TestCase):
         ])
         self.assertEqual(output[:, :, 0, 0].tolist(), [[30.0, 132.0, 32.0, 136.0, 238.0]])
 
+    def test_grouped_selective_attention_interpolates_only_historical_branch(self):
+        calls = []
+
+        def cpu_attention(query, key, value):
+            calls.append(key.shape[1])
+            return query + value.sum(dim=1, keepdim=True)
+
+        query = torch.arange(3, dtype=torch.float32).view(1, 3, 1, 1)
+        base_key = torch.tensor([10.0, 20.0]).view(1, 2, 1, 1)
+        base_value = torch.tensor([10.0, 20.0]).view(1, 2, 1, 1)
+        group = {
+            "query_indices": torch.tensor([1]),
+            "historical_key": torch.tensor([1000.0]).view(1, 1, 1, 1),
+            "historical_value": torch.tensor([100.0]).view(1, 1, 1, 1),
+        }
+
+        baseline = grouped_selective_attention(
+            query, base_key, base_value, [{**group, "alpha": 0.0}], attention_fn=cpu_attention)
+        alpha_one = grouped_selective_attention(
+            query, base_key, base_value, [{**group, "alpha": 1.0}], attention_fn=cpu_attention)
+        alpha_quarter = grouped_selective_attention(
+            query, base_key, base_value, [{**group, "alpha": 0.25}], attention_fn=cpu_attention)
+
+        self.assertEqual(baseline[:, :, 0, 0].tolist(), [[30.0, 31.0, 32.0]])
+        self.assertEqual(alpha_one[:, :, 0, 0].tolist(), [[30.0, 132.0, 32.0]])
+        self.assertEqual(alpha_quarter[:, :, 0, 0].tolist(), [[30.0, 56.25, 32.0]])
+        self.assertEqual(calls, [2, 2, 1, 2, 1])
+
     def test_grouped_selective_attention_rejects_duplicate_indices_within_a_group(self):
         calls = []
 

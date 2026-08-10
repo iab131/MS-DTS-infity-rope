@@ -100,6 +100,9 @@ def grouped_selective_attention(query, base_key, base_value, selective_memory=No
         return output
     seen = torch.zeros(query.shape[1], device=query.device, dtype=torch.bool)
     for group in selective_memory:
+        alpha = float(group.get("alpha", 1.0))
+        if not 0.0 <= alpha <= 1.0:
+            raise ValueError("selective_memory alpha must be between 0 and 1")
         query_indices = torch.as_tensor(
             group["query_indices"], device=query.device, dtype=torch.long)
         if query_indices.ndim != 1:
@@ -109,13 +112,14 @@ def grouped_selective_attention(query, base_key, base_value, selective_memory=No
                 torch.any(seen[query_indices])):
             raise ValueError("selective_memory query groups must be valid and non-overlapping")
         seen[query_indices] = True
-        if query_indices.numel():
+        if query_indices.numel() and alpha:
+            historical_output = attention_fn(
+                query.index_select(1, query_indices),
+                group["historical_key"], group["historical_value"],
+            )
             output = output.index_add(
                 1, query_indices,
-                attention_fn(
-                    query.index_select(1, query_indices),
-                    group["historical_key"], group["historical_value"],
-                ),
+                historical_output if alpha == 1.0 else historical_output * alpha,
             )
     return output
 

@@ -220,6 +220,8 @@ parser.add_argument("--memory-fixed-grid-mode", choices=[
                     "subject_to_subject", "subject_erode1", "subject_erode2",
                     "subject_boundary_only", "background_to_background"], default=None,
                     help="Apply only the matching fixed-grid historical-memory arm.")
+parser.add_argument("--memory-fixed-grid-alpha", type=float, default=1.0,
+                    help="Interpolate fixed-grid historical output from baseline (0) to full oracle (1).")
 args = parser.parse_args()
 
 if args.noncontiguous_kv:
@@ -250,6 +252,10 @@ if bool(args.memory_fixed_grid_mask_path) != bool(args.memory_fixed_grid_mode):
     parser.error("--memory-fixed-grid-mask-path and --memory-fixed-grid-mode must be provided together")
 if args.memory_fixed_grid_mask_path and not args.attention_memory_policy:
     parser.error("fixed-grid recall requires --attention-memory-policy")
+if not 0.0 <= args.memory_fixed_grid_alpha <= 1.0:
+    parser.error("--memory-fixed-grid-alpha must be between 0 and 1")
+if args.memory_fixed_grid_alpha != 1.0 and not args.memory_fixed_grid_mask_path:
+    parser.error("--memory-fixed-grid-alpha requires fixed-grid recall")
 
 if args.attention_memory_policy:
     if args.noncontiguous_kv:
@@ -319,6 +325,7 @@ if args.attention_memory_policy:
         "log_path": args.memory_policy_log or os.path.join(args.output_folder, "memory_policy.jsonl"),
     }
     if fixed_grid_config:
+        fixed_grid_config["alpha"] = args.memory_fixed_grid_alpha
         memory_policy_config["fixed_grid"] = fixed_grid_config
 else:
     memory_policy_config = None

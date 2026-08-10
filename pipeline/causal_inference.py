@@ -174,7 +174,7 @@ def capture_clean_memory_block(memory_store, scene_index, current_start_frame, c
         scene_index, list(range(current_start_frame, current_start_frame + current_num_frames)), clean_layers)
 
 
-def pack_fixed_grid_selective_memory(memory_store, masks, mode, current_frames, num_layers):
+def pack_fixed_grid_selective_memory(memory_store, masks, mode, current_frames, num_layers, alpha=1.0):
     """Pack raw masked K/V with original source coordinates and fixed temporal slots."""
     entries = memory_store.get_entries([6, 7])
     if mode == "background_to_background":
@@ -207,6 +207,7 @@ def pack_fixed_grid_selective_memory(memory_store, masks, mode, current_frames, 
             })
         packed[layer] = [{
             "mode": mode,
+            "alpha": alpha,
             "source_frame_ids": [6, 7],
             "source_token_indices": source_indices,
             "original_token_indices": original_indices,
@@ -576,9 +577,10 @@ class CausalInferencePipeline(torch.nn.Module):
                     if memory_route.entries:
                         if fixed_grid_masks is not None:
                             if current_block_number == 8:
-                                selective_memory = pack_fixed_grid_selective_memory(
+                                alpha = fixed_grid_config.get("alpha", 1.0)
+                                selective_memory = None if alpha == 0.0 else pack_fixed_grid_selective_memory(
                                     memory_store, fixed_grid_masks, fixed_grid_config["mode"],
-                                    current_num_frames, self.num_transformer_blocks)
+                                    current_num_frames, self.num_transformer_blocks, alpha=alpha)
                                 if fixed_grid_config["mode"] == "background_to_background":
                                     target_indices = fixed_grid_masks.background_query_indices()
                                     source_indices = {
@@ -602,6 +604,8 @@ class CausalInferencePipeline(torch.nn.Module):
                                 memory_logger.write("fixed_grid_selective_memory", {
                                     "block": current_block_number,
                                     "mode": fixed_grid_config["mode"],
+                                    "alpha": alpha,
+                                    "historical_branch_bypassed": alpha == 0.0,
                                     "source_frame_ids": [6, 7],
                                     "source_token_counts": {
                                         frame_id: len(indices) for frame_id, indices in source_indices.items()},
