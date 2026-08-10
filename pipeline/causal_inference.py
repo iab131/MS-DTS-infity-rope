@@ -301,6 +301,11 @@ def transplant_subject_latent_memory(baseline, memory, masks, affine_align=False
     return patched, audit
 
 
+def latent_patch_clean_cache_input(baseline, patched, persistent, block_number):
+    """Allow only the requested block-8 patch to become autoregressive cache state."""
+    return patched if persistent and block_number == 8 else baseline
+
+
 def pack_fixed_grid_selective_memory(memory_store, masks, mode, current_frames, num_layers, alpha=1.0):
     """Pack raw masked K/V as spatial tokens or one pooled entity token per frame."""
     entries = memory_store.get_entries([6, 7])
@@ -614,9 +619,11 @@ class CausalInferencePipeline(torch.nn.Module):
         fixed_grid_masks = FixedGridMemoryMasks.from_json(
             fixed_grid_config["mask_path"]) if fixed_grid_config else None
         latent_subject_patch = bool(fixed_grid_config and fixed_grid_config["mode"] in {
-            "latent_subject_patch", "affine_aligned_latent_subject_patch"})
+            "latent_subject_patch", "affine_aligned_latent_subject_patch", "latent_subject_patch_persistent"})
         affine_aligned_latent_subject_patch = bool(
             fixed_grid_config and fixed_grid_config["mode"] == "affine_aligned_latent_subject_patch")
+        latent_subject_patch_persistent = bool(
+            fixed_grid_config and fixed_grid_config["mode"] == "latent_subject_patch_persistent")
         source_latent_memory = None
         if memory_enabled:
             memory_store = MemoryStore(
@@ -910,6 +917,8 @@ class CausalInferencePipeline(torch.nn.Module):
                 output_denoised_pred, patch_audit = transplant_subject_latent_memory(
                     baseline_denoised_pred, source_latent_memory, fixed_grid_masks,
                     affine_align=affine_aligned_latent_subject_patch)
+                clean_cache_denoised_pred = latent_patch_clean_cache_input(
+                    denoised_pred, output_denoised_pred, latent_subject_patch_persistent, current_block_number)
                 memory_logger.write("latent_subject_patch", {
                     "block": current_block_number,
                     "source_frame_ids": [6, 7],
@@ -918,9 +927,12 @@ class CausalInferencePipeline(torch.nn.Module):
                     "latent_shape": list(output_denoised_pred.shape),
                     "target_mask_lift": "30x52_to_60x104_exact_2x2",
                     "spatial_registration": "bbox_affine" if affine_aligned_latent_subject_patch else "none",
-                    "clean_cache_input_equals_baseline": torch.equal(baseline_denoised_pred, denoised_pred),
+                    "clean_cache_input": "patched_subject_latent" if latent_subject_patch_persistent else "baseline_denoised_pred",
+                    "clean_cache_input_equals_baseline": torch.equal(clean_cache_denoised_pred, denoised_pred),
                     **patch_audit,
                 })
+            else:
+                clean_cache_denoised_pred = denoised_pred
 
             # Step 3.2: record the model's output
             output[:, current_start_frame:current_start_frame + current_num_frames] = output_denoised_pred
@@ -944,7 +956,7 @@ class CausalInferencePipeline(torch.nn.Module):
                     fixed_grid_config.get("denoising_steps", "all"),
                     fixed_grid_config.get("clean_pass", True), clean_pass=True) else None
             self.generator(
-                noisy_image_or_video=denoised_pred,
+                noisy_image_or_video=clean_cache_denoised_pred,
                 conditional_dict=conditional_dict,
                 timestep=context_timestep,
                 kv_cache=self.kv_cache1,

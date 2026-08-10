@@ -610,3 +610,29 @@ claim.
   `outputs/attention_memory_policy_fixed_grid_selective_recall/affine_aligned_latent_subject_patch/comparison/`;
   no blending, feathering, tracking, optical flow, or further registration
   variant was added.
+
+## 2026-08-09: Unaligned subject-latent cache-persistence oracle (one seed)
+
+- `latent_subject_patch_persistent` reuses the exact unaligned block-8 patch,
+  but feeds that modified latent to the timestep-zero clean cache call. It has
+  no raw KV or later patch insertion. The policy log proves this distinct
+  intervention (`clean_cache_input=patched_subject_latent`, not baseline),
+  while block-8 output latents stay exactly unchanged outside the target mask.
+- The cache has a causal future effect: clean block 7 remains reset-equal,
+  block 8's exported pre-clean prediction remains reset-equal, and block 9
+  diverges (max latent difference 4.6875). The source retrieval branch is
+  expired at block 9; the later result is normal AR rollout from modified cache
+  state rather than further memory injection.
+- Visual review: the isolated patch ghosts then returns to the A2 crown/long
+  hair woman. The persistent arm instead evolves into a clearer A1-like
+  high-bun/downward-gaze woman with cobalt outfit/brooch through blocks 9--10.
+  The initial 8→9 transition remains abrupt. It also preserves a local
+  greenhouse-like green structure behind her, while the broader snow scene
+  remains recognizable. Hair/bun is the strongest qualitative A1 attribute;
+  face similarity is not established as an identity metric and cobalt clothing
+  is prompt-shared.
+- The fixed 7.5-second schedule ends at block 10, so no block 11 exists to
+  inspect without violating the matched setup. Artifacts are under
+  `outputs/attention_memory_policy_fixed_grid_selective_recall/latent_subject_patch_persistent/comparison/`.
+  Stop here; no further persistence, mask, blend, warp, or raw-KV experiment
+  was added.

@@ -14,6 +14,7 @@ from pipeline.causal_inference import (
     apply_memory_transition, capture_clean_memory_block, memory_context_order,
     fixed_grid_denoising_schedule, fixed_grid_memory_active, pack_fixed_grid_selective_memory,
     capture_subject_latent_memory, transplant_subject_latent_memory,
+    latent_patch_clean_cache_input,
     record_transition_sink,
     transition_attention_context,
 )
@@ -36,6 +37,14 @@ def layer_kv(frame_values, frame_tokens=2):
 
 
 class AttentionMemoryPolicyTest(unittest.TestCase):
+    def test_persistent_latent_patch_enters_only_block_eight_clean_cache(self):
+        baseline = torch.zeros(1, 3, 1, 2, 2)
+        patched = torch.ones_like(baseline)
+
+        self.assertIs(latent_patch_clean_cache_input(baseline, patched, True, 8), patched)
+        self.assertIs(latent_patch_clean_cache_input(baseline, patched, True, 9), baseline)
+        self.assertIs(latent_patch_clean_cache_input(baseline, patched, False, 8), baseline)
+
     def test_subject_latent_memory_transplants_only_supported_target_cells(self):
         source_6 = [0] * 1560
         source_6[0] = 1

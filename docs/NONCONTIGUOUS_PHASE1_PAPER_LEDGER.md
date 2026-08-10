@@ -1114,3 +1114,48 @@ records an observation.
   and raw tensor SHA-256
   `ca3b7b04440a980bed783746d2f23a1ecd7a4c7eb27776dd27996e6b38cdaada` under
   `outputs/attention_memory_policy_fixed_grid_selective_recall/affine_aligned_latent_subject_patch/`.
+
+## E20260809-AMP-UNALIGNED-SUBJECT-LATENT-CACHE-PERSISTENCE (executed; one seed)
+
+- Method: a persistence oracle, not another representation search. It reuses
+  the unaligned direct subject-latent transplant exactly (A IDs 6/7, fixed
+  6→6, 6/7 mean, 7 temporal map, 30x52→60x104 2x2 lift, 386/386/387 token
+  equivalents, block 8 only). DMD is unchanged and no raw KV, new patch,
+  alpha, warp, blending, tracking, or automatic mask is used after block 8.
+  The only difference from the isolated control is that the timestep-zero clean
+  cache call at block 8 receives the patched output latent, rather than its
+  baseline `denoised_pred`.
+- Isolation/provenance: the block-8 patch still leaves outside-target output
+  latents exact (`outside_target_equal=true`, max difference 0.0). The policy
+  event records `clean_cache_input=patched_subject_latent` and
+  `clean_cache_input_equals_baseline=false`; retrieval expires at block 9 and
+  no historical branch runs there or at block 10. Saved clean block 7 is
+  reset-equal. The exported block-8 clean latent remains reset-equal because
+  that export is the pre-clean denoised prediction; the block-9 clean latent
+  differs (max abs 4.6875), demonstrating the intended cache-mediated future
+  effect.
+- Human result: unlike isolated patch, which ghosts at block 9 and returns to
+  the A2 crown/long-hair woman, persistent cache input yields a progressively
+  more coherent A1-like high bun, downward gaze/face, cobalt outfit and brooch
+  through blocks 9 and 10. The block-8→9 transition is still abrupt, but the
+  later woman is less pasted/deformed than the direct block-8 output. Face
+  similarity is qualitative only; hair/bun persistence is the clearest A1
+  attribute, while outfit is less diagnostic because A2 requests cobalt blue.
+- Leakage/result limit: the snow landscape remains broadly recognizable, but
+  local green greenhouse-like tiles/structure reappear behind the woman and
+  persist. Pixel differences outside the original target mask rise from
+  0.003455 mean absolute RGB difference at decoded frame 93 to 0.037322 at
+  frame 113 (isolated is 0.000814→0.000290); these are perturbation proxies,
+  not semantic scores. Thus cache persistence propagates both useful
+  subject-state and local source context, rather than yielding clean identity
+  persistence.
+- Window limit: the matched 7.5-second schedule has only blocks 1--10;
+  therefore block 11 does not exist under the required unchanged setup. Review
+  covers all available later blocks 9--10. Stop after this comparison.
+- Evidence: policy JSONL, raw tensor and MP4 under
+  `outputs/attention_memory_policy_fixed_grid_selective_recall/latent_subject_patch_persistent/`,
+  with three-arm temporal sheet and subject crops under `comparison/`.
+  SHA-256: policy `1d556a6b26eb020ae425eaf034698f9994e0b6418e7d10490f1192d4c9194d9d`,
+  raw tensor `83ebcbabc8dd9d5cbb22e22c1eaffb58111cb28c3e253673953d97ee08f7ccdd`,
+  sheet `3c49fa9fc620e4d836f3b2bc8dea0f238b71bf5d66b55ee9aa39b28a0353ca63`,
+  crops `fa85835b3915453e3f2a5e68d2a144cf4bd34c5a5e3e3c2416ff7dff996331c3`.
