@@ -483,3 +483,22 @@ claim.
   schedule, automatic mask, tracking, alpha blending, or further sweep was
   added. Sheet and proxy metrics are under
   `outputs/attention_memory_policy_fixed_grid_selective_recall/subject_core_boundary_ablation/alpha_strength/comparison/`.
+
+## 2026-08-09: Erode2 DMD-timestep selectivity (one-seed result)
+
+- The actual DMD calls are `1000.0 → 937.5 → 833.3333129882812 → 625.0`
+  (high→low noise); clean cache update is a separate timestep 0. The fixed-grid
+  gate logs this observed schedule and activates either all, final one, or
+  final two calls, independently of the clean pass.
+- Final-step-only keeps the snow scene and nearly removes local greenhouse
+  leakage, but causes an ugly/deformed face rather than clean A1 recovery.
+  Final-two strengthens the A1-like woman with a far smaller local flash than
+  all-step recall, but still yields face artifacts and a later hybrid.
+- Clean-pass history in the final-two arm does not cause stronger propagation
+  into blocks 9--10. Relative to no-clean, it leaves post-recall frames closer
+  to reset/A2 while making the block-8→9 handoff somewhat larger.
+- This is evidence for denoising-time selectivity as a scene-preservation
+  lever, not a finished identity-recall solution. No extra timestep values,
+  alpha values, masks, layers, routing, segmentation, or temporal schedule was
+  added. Five-arm artifacts are under
+  `outputs/attention_memory_policy_fixed_grid_selective_recall/subject_core_boundary_ablation/dmd_timestep_selectivity/comparison/`.

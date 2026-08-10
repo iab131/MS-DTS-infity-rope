@@ -249,3 +249,63 @@ the established A2 scene and reduce the hard overwrite, but no tested alpha
 delivers a clearly verified A1 appearance correction without some tradeoff:
 0.10 is near-inert, 0.25 is subtle, and 0.50+ visibly leak/overwrite locally.
 No temporal alpha schedule was added or run.
+
+## Erode2 DMD-timestep selectivity (one seed)
+
+The verified alpha-0.50 run exposes the actual four-call DMD order in its run
+log: `1000.0 → 937.5 → 833.3333129882812 → 625.0`. This is monotonic
+high-noise→low-noise execution, so “latest” is defined from this observed
+order—not an assumed ordinal. The clean cache pass is a separate timestep
+`0.0`. New JSONLs now record this schedule, the timing gate, and whether clean
+history is active.
+
+All arms retain erode2 subject-only IDs 6/7, alpha 0.50, slots 1/2, all 30
+layers, pulse-only block 8, 322/323 source tokens, 828 target queries,
+`transition_no_sink`, the unchanged 6-frame/9,360-token context, and all
+automatic mechanisms off. Reset-only and the prior all-four-DMD-plus-clean
+alpha-0.50 output are reused. The new runs are:
+
+| Arm | DMD gate in observed order | Clean pass | Runtime / peak VRAM |
+| --- | --- | --- | --- |
+| `latest_step_only_no_clean` | `[false,false,false,true]` | off | 52 s / 23,243 MiB |
+| `latest_two_no_clean` | `[false,false,true,true]` | off | 52 s / 23,243 MiB |
+| `latest_two_plus_clean` | `[false,false,true,true]` | timestep 0 on | 50 s / 23,243 MiB |
+
+All new arms exit 0, log the exact schedule and gate vector, and are
+numerically equal to reset-only at saved block 7. The five-arm sheet is
+`subject_core_boundary_ablation/dmd_timestep_selectivity/comparison/five_arm_dmd_timestep_sheet.png`
+(pre 77, recall 81/85/89, post 93/105/113), SHA-256
+`fd3d5fff233972c6c7e2a663effabfbe433ef7c1371cc00ec7a05c4de36070e0`.
+
+Visual temporal review:
+
+- All four denoising steps plus clean (reused control) gives the strongest A1
+  woman and local green greenhouse flash, followed by the known A2-scene
+  reconciliation and hybrid appearance.
+- Latest step only affects the face/appearance while almost completely
+  suppressing local greenhouse leakage; the result is visibly ugly/deformed
+  rather than a clean A1 recovery. Snow remains intact through blocks 9--10.
+- Latest two steps yields a stronger A1-like face/hair/clothing influence than
+  latest-one with a much weaker, localized scene flash than the all-step
+  control. Snow remains substantially preserved, but face artifacts and a
+  hybrid later appearance remain.
+- Adding history to the clean pass does not make the recalled state more
+  persistent in this oracle. It changes the later rollout and makes blocks
+  9--10 visually closer to reset than latest-two/no-clean, while modestly
+  increasing the 8→9 handoff discontinuity.
+
+The pixel proxy supports the visual separation but is not semantic scoring.
+Recall-block core/outer-halo MAE vs reset is all-step
+0.18980/0.06378, latest-one 0.07340/0.00260, latest-two 0.11994/0.00512.
+For latest-two, clean and no-clean are identical during recall, as expected;
+post-recall core/halo MAE is lower with clean (0.08623/0.03369) than without
+(0.11889/0.04725), while the 92→93 adjacent change is higher
+(0.02721 vs 0.02075; reset 0.02452).
+
+**Conclusion:** late-DMD-only historical recall can affect appearance without
+substantially rewriting scene structure, but the latest-step result is
+artifact-prone and latest-two is still not clean identity recovery. In this
+one-seed test, clean-pass history does not cause stronger later propagation;
+it instead partially reconciles the rollout toward the A2/reset state. No
+additional timestep choices, alpha values, masks, layers, routing, automatic
+segmentation, or temporal schedule was added.

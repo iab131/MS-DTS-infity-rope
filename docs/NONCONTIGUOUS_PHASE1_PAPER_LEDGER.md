@@ -936,3 +936,23 @@ records an observation.
   `c02acedcbff8e81d9d13bb594ff429d90752ba28c299e130891312dc96258ca7`
   and companion metrics under `subject_core_boundary_ablation/alpha_strength/`.
   No temporal alpha scheduling or additional sweeps were run.
+
+## E20260809-AMP-ERODE2-DMD-TIMESTEP-SELECTIVITY (executed; one seed)
+
+- Observed, not assumed, DMD execution schedule is high→low
+  `[1000.0, 937.5, 833.3333129882812, 625.0]`; clean cache pass is timestep
+  0. New JSONLs record schedule/gate vectors at target block 8.
+- Reused reset and alpha-0.50 all-step-plus-clean controls. New late-1/no-clean,
+  late-2/no-clean, and late-2/clean arms keep every other erode2 oracle setting
+  fixed and pass numerical block-7 reset equality plus unchanged-base checks.
+- Human result: latest-one nearly removes greenhouse leakage but produces ugly
+  face perturbation; latest-two gives stronger A1-like appearance and small
+  local leakage while preserving most snow; all-step remains the strongest
+  local overwrite. Clean-pass history does not increase later propagation: it
+  makes blocks 9--10 more reset/A2-like than late-2/no-clean in this oracle.
+- Claim status: late timesteps spatially reduce scene rewrite but do not yet
+  deliver artifact-free appearance recovery. Evidence is one prompt/seed only;
+  do not generalize or tune further from this result.
+- Evidence: five-arm sheet SHA-256
+  `fd3d5fff233972c6c7e2a663effabfbe433ef7c1371cc00ec7a05c4de36070e0`
+  and metrics/policy logs under `subject_core_boundary_ablation/dmd_timestep_selectivity/`.
