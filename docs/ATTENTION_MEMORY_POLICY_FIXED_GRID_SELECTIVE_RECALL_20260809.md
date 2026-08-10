@@ -189,5 +189,63 @@ erode1 0.05775 and erode2 0.04893, but remains above reset 0.02584; ring is
 they are not its main cause in this oracle. Even the two-token eroded core
 reproduces A1 surroundings with the woman, so raw subject-core K/V is already
 context-entangled. Simple spatial erosion is insufficient for clean
-subject-only recall. No alpha sweep, automatic masks, tracking, alpha blending,
-finer layers, or new memory-policy mechanism was run.
+subject-only recall. The subsequent alpha-only experiment is reported below;
+no automatic masks, tracking, alpha blending, finer layers, or new
+memory-policy mechanism was run.
+
+## Erode2 historical-output strength (one seed)
+
+The alpha experiment changes only the existing erode2 historical branch at
+block 8. Let `O_base` be normal reset-only attention and `O_mem` be the prior
+erode2 selective result. The implementation uses
+`O_base + alpha * (O_mem - O_base)` at the selected erode2 queries. Alpha 0
+hard-bypasses that branch and therefore reuses reset-only exactly; alpha 1 has
+the previous erode2 addition path without a multiply and reuses its existing
+artifact. Background queries always take `O_base`.
+
+All settings are otherwise identical: seed 101, prompt, IDs 6/7, slots 1/2,
+block 8, pulse-1 retrieval, all 30 layers, erode2 counts 322/323 source and
+276 target queries/frame (828 total), no automatic routing/archive/
+consolidation/decay, and base
+`[sink:18,local:19,local:20,current:21,current:22,current:23]` (6 frames /
+9,360 tokens). The three new intermediate arms exit successfully:
+
+| Alpha | Artifact | Runtime / peak VRAM |
+| ---: | --- | --- |
+| 0.00 | reused reset-only | exact hard bypass |
+| 0.10 | `alpha_0_10` | 49 s / 23,243 MiB |
+| 0.25 | `alpha_0_25` | 49 s / 23,243 MiB |
+| 0.50 | `alpha_0_50` | 51 s / 23,243 MiB |
+| 1.00 | reused existing erode2 | unchanged full-strength path |
+
+Each new JSONL logs alpha, the same IDs/counts/coordinates/slots/query set,
+and `base_context_unchanged=true`; saved block 7 is numerically equal to
+reset-only. The five-strength sheet is
+`subject_core_boundary_ablation/alpha_strength/comparison/five_alpha_temporal_sheet.png`
+(pre-recall 77; recall 81/85/89; post-recall 93/105/113), SHA-256
+`c02acedcbff8e81d9d13bb594ff429d90752ba28c299e130891312dc96258ca7`.
+
+Visual temporal readout:
+
+- **Alpha 0.00:** stable snow woman and observatory.
+- **Alpha 0.10:** no clear A1 appearance recovery in this one-seed review;
+  snow scene and A2 woman remain effectively reset-like.
+- **Alpha 0.25:** a small face/pose appearance perturbation appears during the
+  recall block, without a clear A1 greenhouse flash in the reviewed stills;
+  post-recall A2 scene is preserved. This is a weak correction, not verified
+  A1 identity recovery.
+- **Alpha 0.50:** clear A1-like hair/face/clothing perturbation and local green
+  greenhouse flash at recall; subsequent A2 blocks restore most snow scenery
+  while leaving an A1/A2-looking hybrid woman.
+- **Alpha 1.00:** strongest A1 woman and local surroundings flash, followed by
+  the previously observed scene reconciliation and hybrid post-recall woman.
+
+The pixel proxy tracks this threshold-like tradeoff, but is not a semantic
+score. Core-region recall-block MAE vs reset is 0.07135/0.09958/0.18980/0.22161
+at alpha 0.10/0.25/0.50/1.00; one-token exterior-halo MAE is
+0.01928/0.03604/0.06378/0.07508. The 80→81 discontinuity is
+0.02686/0.03072/0.04214/0.04893 (reset 0.02584). Thus lower alpha can preserve
+the established A2 scene and reduce the hard overwrite, but no tested alpha
+delivers a clearly verified A1 appearance correction without some tradeoff:
+0.10 is near-inert, 0.25 is subtle, and 0.50+ visibly leak/overwrite locally.
+No temporal alpha schedule was added or run.

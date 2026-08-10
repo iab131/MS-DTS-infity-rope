@@ -915,3 +915,24 @@ records an observation.
   `7da283110bb0849f9b5b576e796d31c5ba8e9d63c6cf5c91e6ea9f36776419b0`,
   policy logs, raw outputs, and
   `comparison/five_arm_subject_core_boundary_sheet.png`.
+
+## E20260809-AMP-ERODE2-ALPHA-STRENGTH (executed; one seed)
+
+- Method: at only selected erode2 historical-query outputs, interpolate
+  `O_base + alpha * (O_mem - O_base)`. Alpha 0 hard-bypasses history and reuses
+  reset-only; alpha 1 uses the untouched prior erode2 path. Background/local/
+  current attention remains baseline.
+- Matched settings: seed 101, A IDs 6/7, target block 8, pulse-1, all 30
+  layers, 322/323 source tokens, 828 target queries, slots 1/2, exact six-frame
+  context, and all automatic policy machinery disabled. Only alpha changed.
+- Results: new 0.10/0.25/0.50 arms exit 0 in 49/49/51 s at 23,243 MiB. Their
+  JSONLs confirm the normal base and numerical reset equality through block 7.
+- Human conclusion: 0.10 is near-inert; 0.25 produces subtle appearance
+  perturbation while preserving snow but no verified A1 identity recovery;
+  0.50 and 1.00 show increasingly strong A1 woman/local-scene flash, followed
+  by A2-scene reconciliation and hybrid appearance. Lower strength reduces,
+  rather than solves, the scene/identity tradeoff.
+- Evidence: five-alpha pre/recall/post sheet SHA-256
+  `c02acedcbff8e81d9d13bb594ff429d90752ba28c299e130891312dc96258ca7`
+  and companion metrics under `subject_core_boundary_ablation/alpha_strength/`.
+  No temporal alpha scheduling or additional sweeps were run.

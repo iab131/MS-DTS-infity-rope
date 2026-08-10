@@ -460,5 +460,26 @@ claim.
 - Pixel MAE/discontinuity values are supporting proxies only. The five-arm
   sheet and metrics are under
   `outputs/attention_memory_policy_fixed_grid_selective_recall/subject_core_boundary_ablation/comparison/`.
-  No alpha sweep, automatic masks, tracking, alpha blending, finer layer sweep,
-  or new policy mechanism was run.
+  The subsequent alpha-only result is recorded below; no automatic masks,
+  tracking, alpha blending, finer layer sweep, or new policy mechanism was run.
+
+## 2026-08-09: Erode2 fixed-strength interpolation (one-seed result)
+
+- The historical-only erode2 attention addition now supports alpha
+  interpolation: alpha 0 bypasses the branch exactly, alpha 1 preserves the
+  existing result, and intermediate strengths scale only the selected
+  historical delta. Background queries and normal local/current attention are
+  untouched.
+- Reused alpha 0 reset-only and alpha 1 erode2 controls; new alpha 0.10/0.25/
+  0.50 arms keep all other matched settings fixed and pass the same block-8
+  provenance/base-context checks.
+- Visual result: 0.10 is effectively reset-like; 0.25 gives subtle
+  woman-region perturbation with retained snow scene but no verified A1
+  appearance correction; 0.50+ increasingly produce the A1 woman plus a local
+  green greenhouse flash. After the one-block pulse, the AR rollout largely
+  restores the A2 scene while retaining a hybrid A1/A2-looking woman.
+- The result shows a continuous reduction in raw perturbation, not a clean
+  identity-correction operating point in this one seed. No temporal alpha
+  schedule, automatic mask, tracking, alpha blending, or further sweep was
+  added. Sheet and proxy metrics are under
+  `outputs/attention_memory_policy_fixed_grid_selective_recall/subject_core_boundary_ablation/alpha_strength/comparison/`.
