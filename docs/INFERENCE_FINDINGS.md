@@ -523,3 +523,22 @@ claim.
 - The result separates visible recall-block overwrite from future cache effects
   but does not solve identity recovery. Artifacts are under
   `outputs/attention_memory_policy_fixed_grid_selective_recall/subject_core_boundary_ablation/clean_pass_only/comparison/`.
+
+## 2026-08-09: Compact entity-memory representation oracle (one-seed result)
+
+- From each full A1 subject mask, raw K and V are mean-pooled independently per
+  layer/head into one token per frame. The two compact memory tokens use source
+  temporal slots 1/2 but no H/W coordinate: temporal RoPE is applied while the
+  height/width rotary components are identity. Current/local/sink RoPE and the
+  9,360-token base remain unchanged; only 1,401 A2 subject queries receive the
+  compact branch.
+- The arm executes successfully and confirms the intended non-spatial path in
+  its JSONL. It avoids the full subject-KV arm's recognizable local greenhouse
+  reconstruction, but makes the woman a dark, severely distorted silhouette
+  during recall and leaves a perturbed A2-like woman later. No credible A1
+  braided-crown hair or face recovery is visible.
+- Therefore mean-pooled raw KV is not a usable entity-memory representation in
+  this one-seed oracle. This is representation evidence, not a validated
+  identity-memory method; raw spatial-KV injection tuning stops here. Artifacts
+  are under
+  `outputs/attention_memory_policy_fixed_grid_selective_recall/compact_entity_memory/`.

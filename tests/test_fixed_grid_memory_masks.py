@@ -13,6 +13,7 @@ from pipeline.fixed_grid_memory_masks import (
 from wan.modules.causal_model import (
     grouped_selective_attention,
     sparse_historical_rope,
+    temporal_only_historical_rope,
 )
 
 
@@ -152,6 +153,12 @@ class FixedGridMemoryMasksTest(unittest.TestCase):
                 local_retention="transition_no_sink", context_mode="replace_recent"),
             {"mask_path": "masks.json", "mode": "subject_erode2"},
         )
+        self.assertEqual(
+            validate_fixed_grid_options(
+                "masks.json", "compact_entity_memory", True, [6, 7], {8},
+                local_retention="transition_no_sink", context_mode="replace_recent"),
+            {"mask_path": "masks.json", "mode": "compact_entity_memory"},
+        )
 
     def test_grouped_selective_attention_adds_isolated_history_groups_in_query_order(self):
         calls = []
@@ -257,6 +264,23 @@ class FixedGridMemoryMasksTest(unittest.TestCase):
             complex_output[0, 0, 0], torch.polar(torch.ones(6, dtype=torch.float64), torch.tensor([10, 11, 0, 1, 0, 1], dtype=torch.float64))))
         self.assertTrue(torch.allclose(
             complex_output[0, 1, 0], torch.polar(torch.ones(6, dtype=torch.float64), torch.tensor([40, 41, 20, 21, 30, 31], dtype=torch.float64))))
+
+    def test_temporal_only_historical_rope_has_no_spatial_coordinate(self):
+        angles = torch.tensor([
+            [0, 1, 0, 1, 0, 1],
+            [10, 11, 20, 21, 30, 31],
+            [40, 41, 50, 51, 60, 61],
+        ], dtype=torch.float64)
+        freqs = torch.polar(torch.ones_like(angles), angles)
+        key = torch.tensor([1.0, 0.0] * 6, dtype=torch.float32).view(1, 1, 1, 12).repeat(1, 2, 1, 1)
+
+        output = temporal_only_historical_rope(key, freqs, torch.tensor([1, 2]))
+        complex_output = torch.view_as_complex(output.to(torch.float64).reshape(1, 2, 1, 6, 2))
+
+        self.assertTrue(torch.allclose(
+            complex_output[0, 0, 0], torch.polar(torch.ones(6, dtype=torch.float64), torch.tensor([10, 11, 0, 0, 0, 0], dtype=torch.float64))))
+        self.assertTrue(torch.allclose(
+            complex_output[0, 1, 0], torch.polar(torch.ones(6, dtype=torch.float64), torch.tensor([40, 41, 0, 0, 0, 0], dtype=torch.float64))))
 
 
 if __name__ == "__main__":

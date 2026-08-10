@@ -375,3 +375,57 @@ four_arm_clean_pass_only_temporal_sheet.png` (SHA-256
 `0e39cc4ee70bc8741578d5b8251519f9f158d7990bbba6b09ad076bc02e2e7b4`), its
 metrics JSON, and `clean_pass_only_identity_crops.png` (SHA-256
 `fae781fe9d03316ea487edd5cfcfe1760cc272d77cbde88bc980d9b9c74af36c`).
+
+## Compact entity-memory representation oracle (one seed)
+
+This is a representation test, not a validated identity-memory method. It
+reuses the reset→establish A2 schedule, seed/prompt, full manually verified A1
+subject masks, A IDs 6/7, target block 8, pulse-1 recall, all 30 layers,
+`transition_no_sink`, and the unchanged six-frame / 9,360-token base. Reset
+only and the prior full subject-KV arm are reused controls; only the compact
+arm is newly generated (exit 0, 51 s, 23,243 MiB).
+
+For each layer and each A1 source frame, the compact arm takes only masked raw
+subject K and V and independently mean-pools them over source tokens. This
+produces one token per source frame/layer: 541 source tokens become one slot-1
+token and 542 become one slot-2 token, for **two historical tokens per layer**.
+The same full target-subject set is queried (467 per latent frame; 1,401 over
+the three-frame block). Attention heads, layers, normal local/current
+attention, and normal local/current RoPE remain unchanged.
+
+**Positional treatment.** Infinity-RoPE factorizes each key head's rotary
+subspace into temporal, height, and width components. The pooled tokens apply
+only the temporal multiplier for historical slots 1 and 2. Their height and
+width multipliers are complex identity, so no source H/W coordinate is stored,
+derived, or pretended. This is an explicit non-spatial treatment rather than a
+contiguous sparse-grid packing hack; the preflight audit records it as
+`temporal_only_neutral_spatial` and `source_spatial_coordinates_applied=false`.
+
+The compact run's JSONL confirms source counts 541/542, pooled counts 1/1,
+slots 1/2, the 1,401 gated A2 subject queries, all-four-DMD-plus-clean timing,
+and the unchanged base ordering `[sink:18,local:19,local:20,current:21,
+current:22,current:23]`. Saved block 7 is exactly reset-equal, while block 8
+diverges (latent mean absolute error 0.35742), as expected for active recall.
+
+Visual review finds a sharp contrast with full spatial subject KV. Full KV
+restores A1-like hair/face/clothing together with the bright local greenhouse;
+compact pooling avoids that recognizable greenhouse reconstruction but turns
+the woman into a dark, severely distorted silhouette during the recall block.
+Later A2 frames retain the snowy observatory but show a perturbed A2-like woman
+rather than credible A1 hair or facial recovery. Subject/exterior RGB MAE at
+recall frame 89 is compact 0.15322/0.02783 versus full spatial
+0.25006/0.03807; these lower raw perturbations do not indicate semantic
+success, because the compact subject result is visibly degraded.
+
+**Conclusion:** removing source spatial layout can reduce the specific local
+greenhouse reconstruction, but mean-pooled raw K/V does not preserve a usable
+entity representation in this oracle. The compact token is not a clean
+identity-memory alternative, so raw spatial-KV tuning stops here. No further
+alpha, layer, timestep, mask, routing, tracking, or automatic segmentation
+sweep was added.
+
+Artifacts: `compact_entity_memory/preflight/compact_entity_memory_audit.json`
+(SHA-256 `7ab974612986d998f10be0dafbfd92f7095703f8fbe3b440a39054571ea29698`),
+`compact_entity_memory/comparison/three_arm_compact_entity_temporal_sheet.png`
+(SHA-256 `90768fe28e7e72dbe9a13b8a48d9477722157f52c5dbc520beed62e22feaf7cb`),
+metrics JSON, policy log, raw tensor, and MP4.

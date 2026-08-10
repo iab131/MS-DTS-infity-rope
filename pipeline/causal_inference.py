@@ -200,9 +200,13 @@ def fixed_grid_memory_active(denoising_steps, clean_pass_enabled, index=None,
 
 
 def pack_fixed_grid_selective_memory(memory_store, masks, mode, current_frames, num_layers, alpha=1.0):
-    """Pack raw masked K/V with original source coordinates and fixed temporal slots."""
+    """Pack raw masked K/V as spatial tokens or one pooled entity token per frame."""
     entries = memory_store.get_entries([6, 7])
-    if mode == "background_to_background":
+    compact = mode == "compact_entity_memory"
+    if compact:
+        source_indices = {frame_id: masks.history_token_indices(frame_id) for frame_id in (6, 7)}
+        target_indices = masks.subject_query_indices()
+    elif mode == "background_to_background":
         source_indices = {
             frame_id: masks.history_background_token_indices(frame_id) for frame_id in (6, 7)}
         target_indices = masks.background_query_indices()
@@ -215,9 +219,9 @@ def pack_fixed_grid_selective_memory(memory_store, masks, mode, current_frames, 
         frame * memory_store.frame_tokens + index
         for frame in range(current_frames) for index in target_indices
     ], dtype=torch.long)
-    original_indices = torch.tensor(
+    original_indices = None if compact else torch.tensor(
         source_indices[6] + source_indices[7], dtype=torch.long)
-    temporal_slots = torch.tensor(
+    temporal_slots = torch.tensor([1, 2], dtype=torch.long) if compact else torch.tensor(
         [1] * len(source_indices[6]) + [2] * len(source_indices[7]), dtype=torch.long)
     packed = [None] * num_layers
     for layer in memory_store.injection_layers:
@@ -226,21 +230,29 @@ def pack_fixed_grid_selective_memory(memory_store, masks, mode, current_frames, 
         selected = []
         for entry in entries:
             indices = torch.tensor(source_indices[entry.frame_id], dtype=torch.long)
-            selected.append({
+            selected_kv = {
                 name: entry.layers[layer][name].index_select(1, indices)
                 for name in ("k", "v")
-            })
-        packed[layer] = [{
+            }
+            selected.append({name: value.mean(dim=1, keepdim=True) for name, value in selected_kv.items()}
+                            if compact else selected_kv)
+        group = {
             "mode": mode,
             "alpha": alpha,
             "source_frame_ids": [6, 7],
-            "source_token_indices": source_indices,
-            "original_token_indices": original_indices,
+            "source_token_counts": {frame_id: len(indices) for frame_id, indices in source_indices.items()},
             "temporal_slots": temporal_slots,
             "query_indices": query_indices,
             "historical_key": torch.cat([item["k"] for item in selected], dim=1),
             "historical_value": torch.cat([item["v"] for item in selected], dim=1),
-        }]
+        }
+        if compact:
+            group["position_mode"] = "temporal_only_neutral_spatial"
+            group["source_memory_token_counts"] = {6: 1, 7: 1}
+        else:
+            group["source_token_indices"] = source_indices
+            group["original_token_indices"] = original_indices
+        packed[layer] = [group]
     return packed
 
 
@@ -613,7 +625,13 @@ class CausalInferencePipeline(torch.nn.Module):
                                 selective_memory = None if alpha == 0.0 else pack_fixed_grid_selective_memory(
                                     memory_store, fixed_grid_masks, fixed_grid_config["mode"],
                                     current_num_frames, self.num_transformer_blocks, alpha=alpha)
-                                if fixed_grid_config["mode"] == "background_to_background":
+                                compact = fixed_grid_config["mode"] == "compact_entity_memory"
+                                if compact:
+                                    target_indices = fixed_grid_masks.subject_query_indices()
+                                    source_indices = {
+                                        frame_id: fixed_grid_masks.history_token_indices(frame_id)
+                                        for frame_id in (6, 7)}
+                                elif fixed_grid_config["mode"] == "background_to_background":
                                     target_indices = fixed_grid_masks.background_query_indices()
                                     source_indices = {
                                         frame_id: fixed_grid_masks.history_background_token_indices(frame_id)
@@ -642,6 +660,11 @@ class CausalInferencePipeline(torch.nn.Module):
                                     "source_token_counts": {
                                         frame_id: len(indices) for frame_id, indices in source_indices.items()},
                                     "source_temporal_slots": {6: 1, 7: 2},
+                                    "representation": "mean_pooled_entity" if compact else "raw_sparse_spatial_kv",
+                                    "pooled_memory_token_counts": {6: 1, 7: 1} if compact else None,
+                                    "historical_position_mode": (
+                                        "temporal_only_neutral_spatial" if compact else "original_source_spatial"),
+                                    "source_spatial_coordinates_applied": not compact,
                                     "source_token_indices": source_indices,
                                     "source_row_col_coordinates": {
                                         frame_id: [divmod(index, fixed_grid_masks.width) for index in indices]

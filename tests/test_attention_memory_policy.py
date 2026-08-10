@@ -92,6 +92,41 @@ class AttentionMemoryPolicyTest(unittest.TestCase):
         self.assertEqual(group["historical_value"].flatten().tolist(), [101.0, 103.0, 10102.0])
         self.assertEqual(packed[2][0]["temporal_slots"].tolist(), [1, 1, 2])
 
+    def test_compact_entity_pack_mean_pools_each_subject_frame_without_spatial_indices(self):
+        source_6 = [0] * 1560
+        source_6[1] = source_6[3] = 1
+        source_7 = [0] * 1560
+        source_7[2] = 1
+        target = [0] * 1560
+        target[4] = target[5] = 1
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as handle:
+            json.dump({
+                "height": 30, "width": 52,
+                "source_masks": {"6": source_6, "7": source_7},
+                "target_subject_mask": target,
+            }, handle)
+        self.addCleanup(lambda: Path(handle.name).unlink(missing_ok=True))
+        masks = FixedGridMemoryMasks.from_json(handle.name)
+        store = MemoryStore(
+            frame_tokens=1560, descriptor_layers=[0], injection_layers=[0], memory_budget=10)
+        frame_6 = torch.arange(1560, dtype=torch.float32).view(1, 1560, 1, 1)
+        frame_7 = frame_6 + 10000
+        layer = {"k": torch.cat([frame_6, frame_7], dim=1),
+                 "v": torch.cat([frame_6 + 100, frame_7 + 100], dim=1)}
+        store.add_clean_block(0, [6, 7], [layer])
+
+        group = pack_fixed_grid_selective_memory(
+            store, masks, "compact_entity_memory", current_frames=3, num_layers=1)[0][0]
+
+        self.assertEqual(group["position_mode"], "temporal_only_neutral_spatial")
+        self.assertEqual(group["source_token_counts"], {6: 2, 7: 1})
+        self.assertEqual(group["temporal_slots"].tolist(), [1, 2])
+        self.assertNotIn("source_token_indices", group)
+        self.assertNotIn("original_token_indices", group)
+        self.assertEqual(group["historical_key"].flatten().tolist(), [2.0, 10002.0])
+        self.assertEqual(group["historical_value"].flatten().tolist(), [102.0, 10102.0])
+        self.assertEqual(group["query_indices"].tolist(), [4, 5, 1564, 1565, 3124, 3125])
+
     def test_selective_memory_is_optional_through_every_model_interface(self):
         for function in (
                 WanDiffusionWrapper.forward,

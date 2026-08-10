@@ -982,3 +982,29 @@ records an observation.
   `0e39cc4ee70bc8741578d5b8251519f9f158d7990bbba6b09ad076bc02e2e7b4`, companion
   metrics, policy logs, raw tensors, and MP4s under
   `subject_core_boundary_ablation/clean_pass_only/`.
+
+## E20260809-AMP-COMPACT-ENTITY-REPRESENTATION (executed; one seed)
+
+- Method: a representation oracle, not a masking-method or identity-memory
+  claim. Per layer/head, mean-pool only A1 full-subject raw K and V from each
+  source frame into one token per frame (two tokens total), then expose them
+  only to the same A2 full-subject queries. All matched reset→establish,
+  block-8, pulse-1, all-30-layer, and disabled-automatic-policy settings stay
+  fixed; reset and full spatial subject-KV are reused controls.
+- Position: the key receives temporal RoPE at slots 1/2 only. H/W rotary
+  components use identity and no H/W coordinate exists for pooled tokens. This
+  is an explicit neutral-spatial treatment enabled by factorized Infinity-RoPE,
+  not a fake source grid location. Audit confirms 541/542 source tokens,
+  1/1 pooled tokens, 1,401 target queries, and the unchanged 9,360-token base.
+- Result: new compact arm exits 0 in 51 s at 23,243 MiB. It suppresses the
+  recognizable local greenhouse reconstruction relative to full spatial KV,
+  but produces a dark/severely distorted subject at recall and later a
+  perturbed A2-like woman. A1 hair and credible facial identity are absent.
+- Claim status: mean-pooled raw K/V removes useful spatial layout and does not
+  create a viable semantic/entity memory. Stop raw-KV spatial injection tuning;
+  this is one prompt/seed representation evidence only.
+- Evidence: compact audit SHA-256
+  `7ab974612986d998f10be0dafbfd92f7095703f8fbe3b440a39054571ea29698` and
+  three-arm sheet SHA-256
+  `90768fe28e7e72dbe9a13b8a48d9477722157f52c5dbc520beed62e22feaf7cb` under
+  `compact_entity_memory/`.

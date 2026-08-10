@@ -92,6 +92,32 @@ def sparse_historical_rope(key, grid_sizes, freqs, original_token_indices, tempo
     return torch.view_as_real(key_complex * multipliers).flatten(3).type_as(key)
 
 
+def temporal_only_historical_rope(key, freqs, temporal_slots):
+    """RoPE pooled entity keys in time only, with identity height/width phases."""
+    if key.ndim != 4 or key.shape[-1] % 2:
+        raise ValueError("pooled historical key must have shape [B, L, N, D] with even D")
+    batch_size, token_count, _, head_dim = key.shape
+    temporal_slots = torch.as_tensor(temporal_slots, device=key.device, dtype=torch.long)
+    if temporal_slots.ndim == 1 and temporal_slots.numel() == token_count:
+        temporal_slots = temporal_slots.unsqueeze(0).expand(batch_size, -1)
+    if temporal_slots.shape != (batch_size, token_count):
+        raise ValueError("temporal_slots must have shape [L] or [B, L]")
+    if torch.any((temporal_slots != 1) & (temporal_slots != 2)):
+        raise ValueError("temporal_slots must use slot 1 for source ID 6 or slot 2 for source ID 7")
+    complex_dim = head_dim // 2
+    temporal_dim = complex_dim - 2 * (complex_dim // 3)
+    temporal_freqs = freqs.to(key.device)[:, :temporal_dim]
+    if torch.any(temporal_slots >= temporal_freqs.shape[0]):
+        raise ValueError("RoPE frequencies do not cover the requested temporal slots")
+    neutral_spatial = torch.ones(
+        batch_size, token_count, complex_dim - temporal_dim,
+        device=key.device, dtype=temporal_freqs.dtype)
+    multipliers = torch.cat([temporal_freqs[temporal_slots], neutral_spatial], dim=-1).unsqueeze(2)
+    key_complex = torch.view_as_complex(key.to(torch.float64).reshape(
+        batch_size, token_count, key.shape[2], -1, 2))
+    return torch.view_as_real(key_complex * multipliers).flatten(3).type_as(key)
+
+
 def grouped_selective_attention(query, base_key, base_value, selective_memory=None,
                                 attention_fn=attention):
     """Add isolated historical attention for each selected query group to baseline attention."""
@@ -518,9 +544,13 @@ class CausalWanSelfAttention(nn.Module):
                 groups = []
                 for group in selective_memory:
                     group = dict(group)
-                    group["historical_key"] = sparse_historical_rope(
-                        group["historical_key"], grid_sizes, freqs,
-                        group["original_token_indices"], group["temporal_slots"]).type_as(v)
+                    if group.get("position_mode") == "temporal_only_neutral_spatial":
+                        group["historical_key"] = temporal_only_historical_rope(
+                            group["historical_key"], freqs, group["temporal_slots"]).type_as(v)
+                    else:
+                        group["historical_key"] = sparse_historical_rope(
+                            group["historical_key"], grid_sizes, freqs,
+                            group["original_token_indices"], group["temporal_slots"]).type_as(v)
                     groups.append(group)
                 x = grouped_selective_attention(
                     roped_query, roped_key, value, groups, attention_fn=attention)
