@@ -168,6 +168,15 @@ def _write_overlay(frame, mask, path, label):
         raise OSError(f"failed to write overlay: {path}")
 
 
+def _latent_patch_support_masks(masks, erode_steps):
+    """Return 30x52 source-supported target masks for the 6 -> 6/7 -> 7 patch map."""
+    target = (masks.target_subject_mask if erode_steps == 0 else
+              masks.target_mask_for_mode(f"subject_erode{erode_steps}"))
+    source6 = tuple(a and b for a, b in zip(masks.source_masks[6], target))
+    source7 = tuple(a and b for a, b in zip(masks.source_masks[7], target))
+    return (source6, tuple(a and b for a, b in zip(source6, source7)), source7)
+
+
 def _sha256(path):
     digest = hashlib.sha256()
     with Path(path).open("rb") as handle:
@@ -190,6 +199,8 @@ def main():
         default=ROOT / "outputs/attention_memory_policy_fixed_grid_selective_recall/preflight")
     parser.add_argument("--subject-ablation-overlays", action="store_true",
                         help="Write full/core/ring source and target overlays for the fixed oracle.")
+    parser.add_argument("--latent-cache-write-overlays", action="store_true",
+                        help="Write full visible-patch and eroded cache-write overlays for block 8.")
     args = parser.parse_args()
 
     masks = FixedGridMemoryMasks.from_json(args.mask_path)
@@ -226,6 +237,24 @@ def main():
                                f"{label} / target block 8 / latent ID {latent_frame} / decoded frame {decoded_frame}")
                 artifacts.append(path)
 
+    cache_write_masks = {}
+    if args.latent_cache_write_overlays:
+        for erode_steps, label in ((0, "full visible patch"), (1, "cache erode1 write"),
+                                   (2, "cache erode2 write")):
+            supports = _latent_patch_support_masks(masks, erode_steps)
+            cache_write_masks[str(erode_steps)] = {
+                "per_target_token_counts": [int(sum(mask)) for mask in supports],
+                "per_target_latent_cell_counts": [int(sum(mask) * 4) for mask in supports],
+            }
+            stem = "full_visible_patch" if erode_steps == 0 else f"cache_erode{erode_steps}"
+            for latent_frame, decoded_frame, support in zip(
+                    TARGET_LATENT_FRAMES, TARGET_DECODED_FRAMES, supports):
+                path = args.output_dir / f"{stem}-target-block-8-frame-{decoded_frame}-overlay.png"
+                _write_overlay(
+                    frames[decoded_frame], support, path,
+                    f"{label} / target block 8 / latent ID {latent_frame}")
+                artifacts.append(path)
+
     audit = build_mask_audit(masks)
     audit["inputs"] = {
         "mask_path": str(args.mask_path),
@@ -233,6 +262,8 @@ def main():
         "reset_only_video_path": str(args.video_path),
         "reset_only_video_sha256": _sha256(args.video_path),
     }
+    if cache_write_masks:
+        audit["latent_cache_write_masks"] = cache_write_masks
     audit["overlays"] = [
         {"path": str(path), "sha256": _sha256(path)} for path in artifacts
     ]

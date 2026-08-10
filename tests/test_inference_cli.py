@@ -29,6 +29,8 @@ class InferenceCliTest(unittest.TestCase):
         self.assertIn("latent_subject_patch", result.stdout)
         self.assertIn("affine_aligned_latent_subject_patch", result.stdout)
         self.assertIn("latent_subject_patch_persistent", result.stdout)
+        self.assertIn("latent_subject_patch_persistent_cache_erode1", result.stdout)
+        self.assertIn("latent_subject_patch_persistent_cache_erode2", result.stdout)
         self.assertIn("--memory-fixed-grid-alpha", result.stdout)
         self.assertIn("--memory-fixed-grid-denoising-steps", result.stdout)
         self.assertIn("--memory-fixed-grid-clean-pass", result.stdout)

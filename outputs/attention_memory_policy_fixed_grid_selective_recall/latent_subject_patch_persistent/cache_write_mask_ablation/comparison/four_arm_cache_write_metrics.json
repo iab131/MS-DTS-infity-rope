@@ -1,0 +1,192 @@
+{
+  "frames": [
+    77,
+    81,
+    85,
+    89,
+    93,
+    97,
+    101,
+    105,
+    109,
+    113
+  ],
+  "persistent_cache_erode1": {
+    "101": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.018144892528653145,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.1853105127811432
+    },
+    "105": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.025816133245825768,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.1943250447511673
+    },
+    "109": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.02895023487508297,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.20117399096488953
+    },
+    "113": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.02865203656256199,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.20476216077804565
+    },
+    "77": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.0
+    },
+    "81": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0009833254152908921,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.13125044107437134
+    },
+    "85": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.001337963156402111,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.21637429296970367
+    },
+    "89": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.001284338184632361,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.20109258592128754
+    },
+    "93": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0029512580949813128,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.18027333915233612
+    },
+    "97": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.008607327938079834,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.1802423894405365
+    }
+  },
+  "persistent_cache_erode2": {
+    "101": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.013155827298760414,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.1509261131286621
+    },
+    "105": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.01977262645959854,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.1422862410545349
+    },
+    "109": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.024459967389702797,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.14635835587978363
+    },
+    "113": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.028023887425661087,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.15627001225948334
+    },
+    "77": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.0
+    },
+    "81": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0009833254152908921,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.13125044107437134
+    },
+    "85": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.001337963156402111,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.21637429296970367
+    },
+    "89": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.001284338184632361,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.20109258592128754
+    },
+    "93": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.002527396660298109,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.15610431134700775
+    },
+    "97": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.006930347066372633,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.14938928186893463
+    }
+  },
+  "persistent_full": {
+    "101": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.023220282047986984,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.208172008395195
+    },
+    "105": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0314791239798069,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.21865911781787872
+    },
+    "109": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.03591636195778847,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.22174756228923798
+    },
+    "113": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.03732223063707352,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.2182004600763321
+    },
+    "77": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.0
+    },
+    "81": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0009833254152908921,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.13125044107437134
+    },
+    "85": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.001337963156402111,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.21637429296970367
+    },
+    "89": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.001284338184632361,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.20109258592128754
+    },
+    "93": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.003454756224527955,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.18764041364192963
+    },
+    "97": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.011179015971720219,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.19318413734436035
+    }
+  },
+  "preclean_block8_equals_reset": {
+    "persistent_cache_erode1": true,
+    "persistent_cache_erode2": true,
+    "persistent_full": true,
+    "reset_only": true
+  },
+  "reset_only": {
+    "101": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.0
+    },
+    "105": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.0
+    },
+    "109": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.0
+    },
+    "113": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.0
+    },
+    "77": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.0
+    },
+    "81": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.0
+    },
+    "85": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.0
+    },
+    "89": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.0
+    },
+    "93": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.0
+    },
+    "97": {
+      "outside_subject_mean_abs_rgb_delta_vs_reset": 0.0,
+      "subject_mean_abs_rgb_delta_vs_reset": 0.0
+    }
+  },
+  "visible_block8_exact_vs_persistent_full": {
+    "persistent_cache_erode1": true,
+    "persistent_cache_erode2": true
+  }
+}

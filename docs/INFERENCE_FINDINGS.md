@@ -636,3 +636,41 @@ claim.
   `outputs/attention_memory_policy_fixed_grid_selective_recall/latent_subject_patch_persistent/comparison/`.
   Stop here; no further persistence, mask, blend, warp, or raw-KV experiment
   was added.
+
+## 2026-08-09: Subject-latent cache-write-mask ablation (one seed)
+
+- This is the requested cache-state-only ablation. `persistent_cache_erode1`
+  and `persistent_cache_erode2` retain the exact unaligned full subject patch
+  in visible block 8, but write only the target erode1 or erode2 core into the
+  block-8 timestep-zero clean-cache input. There is no raw KV, no later patch,
+  and no alignment, blend, tracking, or changed denoising step.
+- Both new RGB tensors are bit-identical to `persistent_full` throughout
+  decoded block-8 frames 81--92 (max difference 0); the pre-clean block-8
+  latent remains reset-equal for every arm. Policy logs independently verify
+  that output latents outside the full target mask are exactly baseline
+  (`outside_target_equal=true`, max abs 0). Thus the visible transplant is
+  controlled; only the clean-cache write differs.
+- Exact source-supported visible-mask counts are 386/386/387 30x52 tokens
+  (1,544/1,544/1,548 latent cells) for target frames 21/22/23. Cache erode1
+  writes 343/343/344 tokens (1,372/1,372/1,376 cells); erode2 writes
+  276/276/276 (1,104 cells). The preflight overlays and audit retain the
+  unchanged six-frame / 9,360-token base context.
+- Visual review of blocks 9--10: erode1 remains close to full persistence,
+  retaining the A1-like high bun/downward face and cobalt outfit; erode2 still
+  carries a bun/outfit influence but is weaker and less stable. The broad snowy
+  observatory remains recognizable in all persistent variants. Greenhouse-like
+  local structure is attenuated, not removed: at decoded frame 113, outside-
+  subject mean absolute RGB change versus reset is 0.03732 full, 0.02865
+  erode1, and 0.02802 erode2. These are perturbation proxies, not identity or
+  leakage metrics. The abrupt 8→9 transition remains.
+- Conclusion: shrinking only the cache write gives a modest local-context
+  reduction while retaining much of the qualitative subject persistence, but
+  neither core establishes clean A1 identity persistence nor removes the local
+  source-scene trace. Stop after this ablation.
+- Evidence: [mask audit](../outputs/attention_memory_policy_fixed_grid_selective_recall/latent_subject_patch_persistent/cache_write_mask_ablation/preflight/mask_audit.json),
+  [four-arm temporal sheet](../outputs/attention_memory_policy_fixed_grid_selective_recall/latent_subject_patch_persistent/cache_write_mask_ablation/comparison/four_arm_cache_write_temporal_sheet.png),
+  [subject crops](../outputs/attention_memory_policy_fixed_grid_selective_recall/latent_subject_patch_persistent/cache_write_mask_ablation/comparison/four_arm_cache_write_subject_crops.png),
+  and `four_arm_cache_write_metrics.json`. SHA-256 audit
+  `c8de4ddb0fbbe029cbea3cb9e8daf97e565d86f31e59bfb313f81cafec1ad18b`,
+  erode1 policy `df79e14978f5de9bed7ad78daf7fdba7166bd556c03c398c1735c2e667f5aa5d`,
+  erode2 policy `a964aa012b0e9d7f7c2c63860dfd23918499500fbd3abcae56ba056159e15fc1`.

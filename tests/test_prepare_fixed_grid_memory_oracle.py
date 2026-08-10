@@ -68,6 +68,7 @@ class PrepareFixedGridMemoryOracleTest(unittest.TestCase):
             preflight.main()
         self.assertEqual(raised.exception.code, 0)
         self.assertIn("--subject-ablation-overlays", output.getvalue())
+        self.assertIn("--latent-cache-write-overlays", output.getvalue())
 
 
 if __name__ == "__main__":

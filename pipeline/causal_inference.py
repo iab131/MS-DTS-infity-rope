@@ -301,9 +301,31 @@ def transplant_subject_latent_memory(baseline, memory, masks, affine_align=False
     return patched, audit
 
 
-def latent_patch_clean_cache_input(baseline, patched, persistent, block_number):
+def latent_patch_cache_write_mask(memory, masks, baseline, erode_steps):
+    """Return the source-supported target core used only for the block-8 cache write."""
+    if erode_steps not in (0, 1, 2):
+        raise ValueError("cache write erosion must be 0, 1, or 2")
+    mode = "subject_to_subject" if erode_steps == 0 else f"subject_erode{erode_steps}"
+    target = _lift_fixed_grid_mask(
+        masks.target_mask_for_mode(mode), *baseline.shape[-2:], baseline.device)
+    supports = [item["support"].to(device=baseline.device, dtype=torch.bool) & target for item in memory]
+    plans = torch.stack((supports[0], supports[0] & supports[1], supports[1]))
+    return plans, {
+        "mode": mode,
+        "token_counts": [int(plan.sum().item() // 4) for plan in plans],
+        "latent_cell_counts": [int(plan.sum().item()) for plan in plans],
+    }
+
+
+def latent_patch_clean_cache_input(baseline, patched, persistent, block_number, cache_write_mask=None):
     """Allow only the requested block-8 patch to become autoregressive cache state."""
-    return patched if persistent and block_number == 8 else baseline
+    if not persistent or block_number != 8:
+        return baseline
+    if cache_write_mask is None:
+        return patched
+    if cache_write_mask.shape != patched.shape[1:2] + patched.shape[-2:]:
+        raise ValueError("cache write mask must have shape [target_frames, latent_height, latent_width]")
+    return torch.where(cache_write_mask[None, :, None], patched, baseline)
 
 
 def pack_fixed_grid_selective_memory(memory_store, masks, mode, current_frames, num_layers, alpha=1.0):
@@ -618,12 +640,19 @@ class CausalInferencePipeline(torch.nn.Module):
         fixed_grid_config = memory_policy.get("fixed_grid")
         fixed_grid_masks = FixedGridMemoryMasks.from_json(
             fixed_grid_config["mask_path"]) if fixed_grid_config else None
+        latent_cache_erode_steps = {
+            "latent_subject_patch_persistent_cache_erode1": 1,
+            "latent_subject_patch_persistent_cache_erode2": 2,
+        }.get(fixed_grid_config["mode"] if fixed_grid_config else None, 0)
         latent_subject_patch = bool(fixed_grid_config and fixed_grid_config["mode"] in {
-            "latent_subject_patch", "affine_aligned_latent_subject_patch", "latent_subject_patch_persistent"})
+            "latent_subject_patch", "affine_aligned_latent_subject_patch", "latent_subject_patch_persistent",
+            "latent_subject_patch_persistent_cache_erode1",
+            "latent_subject_patch_persistent_cache_erode2"})
         affine_aligned_latent_subject_patch = bool(
             fixed_grid_config and fixed_grid_config["mode"] == "affine_aligned_latent_subject_patch")
         latent_subject_patch_persistent = bool(
-            fixed_grid_config and fixed_grid_config["mode"] == "latent_subject_patch_persistent")
+            fixed_grid_config and fixed_grid_config["mode"] == "latent_subject_patch_persistent") or \
+            bool(latent_cache_erode_steps)
         source_latent_memory = None
         if memory_enabled:
             memory_store = MemoryStore(
@@ -917,8 +946,14 @@ class CausalInferencePipeline(torch.nn.Module):
                 output_denoised_pred, patch_audit = transplant_subject_latent_memory(
                     baseline_denoised_pred, source_latent_memory, fixed_grid_masks,
                     affine_align=affine_aligned_latent_subject_patch)
+                cache_write_mask, cache_write_audit = (None, None)
+                if latent_cache_erode_steps:
+                    cache_write_mask, cache_write_audit = latent_patch_cache_write_mask(
+                        source_latent_memory, fixed_grid_masks, baseline_denoised_pred,
+                        latent_cache_erode_steps)
                 clean_cache_denoised_pred = latent_patch_clean_cache_input(
-                    denoised_pred, output_denoised_pred, latent_subject_patch_persistent, current_block_number)
+                    denoised_pred, output_denoised_pred, latent_subject_patch_persistent,
+                    current_block_number, cache_write_mask)
                 memory_logger.write("latent_subject_patch", {
                     "block": current_block_number,
                     "source_frame_ids": [6, 7],
@@ -927,9 +962,14 @@ class CausalInferencePipeline(torch.nn.Module):
                     "latent_shape": list(output_denoised_pred.shape),
                     "target_mask_lift": "30x52_to_60x104_exact_2x2",
                     "spatial_registration": "bbox_affine" if affine_aligned_latent_subject_patch else "none",
-                    "clean_cache_input": "patched_subject_latent" if latent_subject_patch_persistent else "baseline_denoised_pred",
+                    "clean_cache_input": (
+                        f"patched_subject_latent_cache_erode{latent_cache_erode_steps}"
+                        if latent_cache_erode_steps else
+                        "patched_subject_latent" if latent_subject_patch_persistent else
+                        "baseline_denoised_pred"),
                     "clean_cache_input_equals_baseline": torch.equal(clean_cache_denoised_pred, denoised_pred),
                     **patch_audit,
+                    **({"cache_write_mask": cache_write_audit} if cache_write_audit else {}),
                 })
             else:
                 clean_cache_denoised_pred = denoised_pred

@@ -1159,3 +1159,37 @@ records an observation.
   raw tensor `83ebcbabc8dd9d5cbb22e22c1eaffb58111cb28c3e253673953d97ee08f7ccdd`,
   sheet `3c49fa9fc620e4d836f3b2bc8dea0f238b71bf5d66b55ee9aa39b28a0353ca63`,
   crops `fa85835b3915453e3f2a5e68d2a144cf4bd34c5a5e3e3c2416ff7dff996331c3`.
+
+### 2026-08-09: Latent cache-write-mask ablation (one-seed oracle)
+
+- Question: can a smaller write into the normal AR clean cache retain the
+  positive unaligned latent-subject persistence result while avoiding local
+  source-context propagation?
+- Matched setup: same Reset → Establish schedule, seed/prompt, A IDs 6/7,
+  6-frame/9,360-token context, source-to-target 6→6, 6/7→midpoint, 7→7 map,
+  full unaligned visible block-8 patch, and all unchanged DMD calls. No raw
+  KV or later insertion is active. Controls are reused reset-only and full
+  persistent cache write; the only new arms write target erode1 or erode2 core
+  cells into block-8's clean-cache input.
+- Intervention validity: the two new block-8 RGB spans 81--92 are each
+  exactly equal to full persistent (max 0), while policy logs show the output
+  latent outside the full target mask equals baseline exactly. Visible source-
+  supported counts are 386/386/387 30x52 tokens. Cache writes are
+  343/343/344 (erode1) and 276/276/276 (erode2), with the same targets and
+  source support; block-8 saved pre-clean latents remain reset-equal.
+- Result: erode1 preserves most of the qualitative A1-like bun/face/outfit
+  persistence into blocks 9--10, while erode2 is weaker/less stable but still
+  perturbs the subject. Snow remains broadly preserved. Both reduce but do not
+  eliminate the local green greenhouse-like trace: frame-113 outside-subject
+  mean absolute RGB change vs reset is 0.03732 full, 0.02865 erode1, 0.02802
+  erode2. The fixed block-8→9 discontinuity remains. These RGB values are not
+  semantic identity or leakage scores.
+- Interpretation: writing only a core to the cache modestly reduces source-
+  context propagation without wholly losing the qualitative subject state, but
+  the result is not clean identity persistence. This closes the requested
+  cache-write-mask ablation; no further latent-mask, blend, tracking, or raw-
+  KV tuning was run.
+- Evidence: `outputs/attention_memory_policy_fixed_grid_selective_recall/latent_subject_patch_persistent/cache_write_mask_ablation/`
+  (exact overlays/audit, two policy logs, raw tensors/MP4s, and four-arm
+  temporal sheet/crops). Audit SHA-256
+  `c8de4ddb0fbbe029cbea3cb9e8daf97e565d86f31e59bfb313f81cafec1ad18b`.

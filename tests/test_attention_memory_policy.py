@@ -14,7 +14,7 @@ from pipeline.causal_inference import (
     apply_memory_transition, capture_clean_memory_block, memory_context_order,
     fixed_grid_denoising_schedule, fixed_grid_memory_active, pack_fixed_grid_selective_memory,
     capture_subject_latent_memory, transplant_subject_latent_memory,
-    latent_patch_clean_cache_input,
+    latent_patch_clean_cache_input, latent_patch_cache_write_mask,
     record_transition_sink,
     transition_attention_context,
 )
@@ -44,6 +44,37 @@ class AttentionMemoryPolicyTest(unittest.TestCase):
         self.assertIs(latent_patch_clean_cache_input(baseline, patched, True, 8), patched)
         self.assertIs(latent_patch_clean_cache_input(baseline, patched, True, 9), baseline)
         self.assertIs(latent_patch_clean_cache_input(baseline, patched, False, 8), baseline)
+
+    def test_persistent_cache_erosion_writes_only_visible_patch_core(self):
+        source = [0] * 1560
+        target = [0] * 1560
+        for row in range(5, 10):
+            for column in range(10, 15):
+                source[row * 52 + column] = target[row * 52 + column] = 1
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as handle:
+            json.dump({"height": 30, "width": 52,
+                       "source_masks": {"6": source, "7": source},
+                       "target_subject_mask": target}, handle)
+        self.addCleanup(lambda: Path(handle.name).unlink(missing_ok=True))
+        masks = FixedGridMemoryMasks.from_json(handle.name)
+        source_latents = torch.ones(1, 8, 1, 60, 104)
+        baseline = torch.zeros(1, 3, 1, 60, 104)
+        memory = capture_subject_latent_memory(source_latents, masks)
+        patched, _ = transplant_subject_latent_memory(baseline, memory, masks)
+
+        erode1, audit1 = latent_patch_cache_write_mask(memory, masks, baseline, 1)
+        erode2, audit2 = latent_patch_cache_write_mask(memory, masks, baseline, 2)
+        cache1 = latent_patch_clean_cache_input(baseline, patched, True, 8, erode1)
+        cache2 = latent_patch_clean_cache_input(baseline, patched, True, 8, erode2)
+
+        self.assertEqual(audit1["token_counts"], [9, 9, 9])
+        self.assertEqual(audit2["token_counts"], [1, 1, 1])
+        self.assertEqual(audit1["latent_cell_counts"], [36, 36, 36])
+        self.assertEqual(audit2["latent_cell_counts"], [4, 4, 4])
+        self.assertTrue(torch.equal(
+            cache1, torch.where(erode1[None, :, None], patched, baseline)))
+        self.assertTrue(torch.equal(
+            cache2, torch.where(erode2[None, :, None], patched, baseline)))
 
     def test_subject_latent_memory_transplants_only_supported_target_cells(self):
         source_6 = [0] * 1560

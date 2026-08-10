@@ -27,7 +27,9 @@ def validate_fixed_grid_options(mask_path, mode, attention_memory_policy,
     if not attention_memory_policy:
         raise ValueError("fixed-grid recall requires --attention-memory-policy")
     if mode not in {*SUBJECT_MODES, "background_to_background", "compact_entity_memory", "latent_subject_patch",
-                    "affine_aligned_latent_subject_patch", "latent_subject_patch_persistent"}:
+                    "affine_aligned_latent_subject_patch", "latent_subject_patch_persistent",
+                    "latent_subject_patch_persistent_cache_erode1",
+                    "latent_subject_patch_persistent_cache_erode2"}:
         raise ValueError("unsupported fixed-grid recall mode")
     if manual_frame_ids != [6, 7]:
         raise ValueError("fixed-grid recall requires frame IDs 6,7 via --memory-manual-frame-ids")
