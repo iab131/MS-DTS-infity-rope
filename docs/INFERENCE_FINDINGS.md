@@ -542,3 +542,20 @@ claim.
   identity-memory method; raw spatial-KV injection tuning stops here. Artifacts
   are under
   `outputs/attention_memory_policy_fixed_grid_selective_recall/compact_entity_memory/`.
+
+## 2026-08-09: Raw-KV identity branch closed; latent oracle prepared
+
+- The tested raw-KV variants establish a strong, source-specific perturbation
+  effect but not clean identity recall: spatial KV is scene-entangled, while
+  temporal-only mean pooling removes recognizable scene layout and also destroys
+  usable subject content. No more raw-KV alpha/layer/timestep/mask/pooling
+  sweeps are warranted under this oracle.
+- The next unexecuted hypothesis is subject latent memory. The live pipeline
+  keeps generated VAE latents directly as `[B,F,16,60,104]` and decodes only at
+  the end; masks map from 30x52 video tokens to those latent cells by 2x2
+  replication. The clean planned insertion point is after the final unchanged
+  DMD prediction for A2 block 8, before the output write. A later implementation
+  must keep the baseline `denoised_pred` in the timestep-zero cache pass so
+  subject-only output editing cannot contaminate the future cache/background.
+- This is preparation only: no latent-memory code, GPU run, automatic mask,
+  routing, or new method claim has been added.

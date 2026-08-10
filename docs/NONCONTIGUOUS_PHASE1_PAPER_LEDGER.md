@@ -1008,3 +1008,27 @@ records an observation.
   three-arm sheet SHA-256
   `90768fe28e7e72dbe9a13b8a48d9477722157f52c5dbc520beed62e22feaf7cb` under
   `compact_entity_memory/`.
+
+## E20260809-AMP-RAW-KV-IDENTITY-STOP (decision)
+
+- Across the verified reset→establish delayed-recall controls, raw historical
+  self-attention KV is strong and source-specific as a perturbation mechanism:
+  A-memory changes differ from B/wrong-source memory, and full subject KV can
+  restore A1-like local appearance. It is nevertheless unsuitable for clean
+  identity recall under the tested oracle variants. Spatial KV is scene-
+  entangled; erosion, alpha, layer/lifetime, and DMD-time selectivity trade
+  useful recall against local A1 scene leakage or artifacts; clean-cache-only
+  changes later state without credible identity recovery; temporal-only mean
+  pooling removes scene layout but destroys usable subject content.
+- Decision: stop raw self-attention-KV identity injection. Do not add more
+  alpha, layer, timestep, mask, pooling, routing, tracking, segmentation, or
+  automatic-memory-policy sweeps to this branch.
+- Next hypothesis is prepared but unexecuted: a manual entity-latent oracle.
+  The live pipeline already holds generated VAE latents as
+  `[B,F,16,60,104]`; its 30x52 token masks lift to 60x104 by 2x2 replication.
+  The clean isolation point is after unchanged final block-8 DMD prediction
+  and before writing `output`: source A1 subject patches can be retained from
+  latent frames 6/7, while only A2 subject latent cells are replaced/conditioned
+  and the baseline latent is retained for the timestep-zero cache pass. This
+  keeps both the DMD schedule and cache/background path unchanged. This is a
+  proposed oracle, not an implemented or evaluated method.
