@@ -174,6 +174,31 @@ def capture_clean_memory_block(memory_store, scene_index, current_start_frame, c
         scene_index, list(range(current_start_frame, current_start_frame + current_num_frames)), clean_layers)
 
 
+def fixed_grid_denoising_schedule(timesteps):
+    """Describe the actual few-step execution order without assuming step labels."""
+    values = [float(timestep) for timestep in timesteps]
+    if all(left > right for left, right in zip(values, values[1:])):
+        order = "high_to_low"
+    elif all(left < right for left, right in zip(values, values[1:])):
+        order = "low_to_high"
+    else:
+        order = "non_monotonic"
+    return {"execution_timesteps": values, "noise_order": order}
+
+
+def fixed_grid_memory_active(denoising_steps, clean_pass_enabled, index=None,
+                              total_steps=None, clean_pass=False):
+    """Keep fixed-grid history on the requested final denoising calls only."""
+    if clean_pass:
+        return clean_pass_enabled
+    if index is None or total_steps is None:
+        raise ValueError("denoising index and step count are required")
+    retained = {"all": total_steps, "latest_1": 1, "latest_2": 2}.get(denoising_steps)
+    if retained is None:
+        raise ValueError("unsupported fixed-grid denoising-step selection")
+    return index >= total_steps - retained
+
+
 def pack_fixed_grid_selective_memory(memory_store, masks, mode, current_frames, num_layers, alpha=1.0):
     """Pack raw masked K/V with original source coordinates and fixed temporal slots."""
     entries = memory_store.get_entries([6, 7])
@@ -489,6 +514,13 @@ class CausalInferencePipeline(torch.nn.Module):
                  "num_transformer_layers": self.num_transformer_blocks,
                  "local_attn_size": self.local_attn_size,
                  "sink_size": 1})
+            if fixed_grid_config:
+                memory_logger.write("fixed_grid_dmd_schedule", {
+                    **fixed_grid_denoising_schedule(self.denoising_step_list.tolist()),
+                    "clean_pass_timestep": float(self.args.context_noise),
+                    "denoising_steps": fixed_grid_config.get("denoising_steps", "all"),
+                    "clean_pass_enabled": fixed_grid_config.get("clean_pass", True),
+                })
         for current_block_index, current_num_frames in enumerate(all_num_frames):
             if profile:
                 block_start.record()
@@ -627,6 +659,21 @@ class CausalInferencePipeline(torch.nn.Module):
                                     },
                                     "base_context_unchanged": True,
                                 })
+                                memory_logger.write("fixed_grid_dmd_timestep_gate", {
+                                    **fixed_grid_denoising_schedule(self.denoising_step_list.tolist()),
+                                    "block": current_block_number,
+                                    "denoising_steps": fixed_grid_config.get("denoising_steps", "all"),
+                                    "denoising_active": [
+                                        fixed_grid_memory_active(
+                                            fixed_grid_config.get("denoising_steps", "all"),
+                                            fixed_grid_config.get("clean_pass", True), index,
+                                            len(self.denoising_step_list))
+                                        for index in range(len(self.denoising_step_list))],
+                                    "clean_pass_timestep": float(self.args.context_noise),
+                                    "clean_pass_active": fixed_grid_memory_active(
+                                        fixed_grid_config.get("denoising_steps", "all"),
+                                        fixed_grid_config.get("clean_pass", True), clean_pass=True),
+                                })
                         else:
                             retrieved_kv = memory_store.pack_kv(
                                 memory_route.entries, self.num_transformer_blocks)
@@ -683,6 +730,12 @@ class CausalInferencePipeline(torch.nn.Module):
                     [batch_size, current_num_frames],
                     device=noise.device,
                     dtype=torch.int64) * current_timestep
+                denoising_selective_memory = selective_memory
+                if fixed_grid_config is not None and selective_memory is not None:
+                    denoising_selective_memory = selective_memory if fixed_grid_memory_active(
+                        fixed_grid_config.get("denoising_steps", "all"),
+                        fixed_grid_config.get("clean_pass", True), index,
+                        len(self.denoising_step_list)) else None
 
                 if index < len(self.denoising_step_list) - 1:
                     _, denoised_pred = self.generator(
@@ -694,7 +747,7 @@ class CausalInferencePipeline(torch.nn.Module):
                         current_start=current_start_frame * self.frame_seq_length,
                         retrieved_kv=retrieved_kv,
                         memory_context_mode=memory_policy.get("context_mode", "replace_recent"),
-                        selective_memory=selective_memory,
+                        selective_memory=denoising_selective_memory,
                     )
                     next_timestep = self.denoising_step_list[index + 1]
                     noisy_input = self.scheduler.add_noise(
@@ -714,7 +767,7 @@ class CausalInferencePipeline(torch.nn.Module):
                         current_start=current_start_frame * self.frame_seq_length,
                         retrieved_kv=retrieved_kv,
                         memory_context_mode=memory_policy.get("context_mode", "replace_recent"),
-                        selective_memory=selective_memory,
+                        selective_memory=denoising_selective_memory,
                     )
 
             # Step 3.2: record the model's output
@@ -722,6 +775,11 @@ class CausalInferencePipeline(torch.nn.Module):
 
             # Step 3.3: rerun with timestep zero to update KV cache using clean context
             context_timestep = torch.ones_like(timestep) * self.args.context_noise
+            clean_selective_memory = selective_memory
+            if fixed_grid_config is not None and selective_memory is not None:
+                clean_selective_memory = selective_memory if fixed_grid_memory_active(
+                    fixed_grid_config.get("denoising_steps", "all"),
+                    fixed_grid_config.get("clean_pass", True), clean_pass=True) else None
             self.generator(
                 noisy_image_or_video=denoised_pred,
                 conditional_dict=conditional_dict,
@@ -731,7 +789,7 @@ class CausalInferencePipeline(torch.nn.Module):
                 current_start=current_start_frame * self.frame_seq_length,
                 retrieved_kv=retrieved_kv,
                 memory_context_mode=memory_policy.get("context_mode", "replace_recent"),
-                selective_memory=selective_memory,
+                selective_memory=clean_selective_memory,
                 capture_kv=(memory_enabled or (noncontiguous_enabled and current_block_number in source_blocks)),
             )
             if clean_pass_callback is not None:

@@ -12,7 +12,7 @@ import torch
 
 from pipeline.causal_inference import (
     apply_memory_transition, capture_clean_memory_block, memory_context_order,
-    pack_fixed_grid_selective_memory,
+    fixed_grid_denoising_schedule, fixed_grid_memory_active, pack_fixed_grid_selective_memory,
     record_transition_sink,
     transition_attention_context,
 )
@@ -35,6 +35,22 @@ def layer_kv(frame_values, frame_tokens=2):
 
 
 class AttentionMemoryPolicyTest(unittest.TestCase):
+    def test_fixed_grid_timestep_gate_uses_observed_execution_order(self):
+        schedule = fixed_grid_denoising_schedule([1000.0, 937.5, 833.3333129882812, 625.0])
+        self.assertEqual(schedule["execution_timesteps"], [1000.0, 937.5, 833.3333129882812, 625.0])
+        self.assertEqual(schedule["noise_order"], "high_to_low")
+        self.assertEqual(
+            [fixed_grid_memory_active("all", True, index, 4) for index in range(4)],
+            [True, True, True, True])
+        self.assertEqual(
+            [fixed_grid_memory_active("latest_1", False, index, 4) for index in range(4)],
+            [False, False, False, True])
+        self.assertEqual(
+            [fixed_grid_memory_active("latest_2", False, index, 4) for index in range(4)],
+            [False, False, True, True])
+        self.assertFalse(fixed_grid_memory_active("latest_2", False, clean_pass=True))
+        self.assertTrue(fixed_grid_memory_active("latest_2", True, clean_pass=True))
+
     def test_selective_pack_preserves_source_indices_slots_and_three_target_frames(self):
         source_6 = [0] * 1560
         source_6[1] = source_6[3] = 1
