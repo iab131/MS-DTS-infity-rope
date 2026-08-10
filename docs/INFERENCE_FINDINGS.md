@@ -502,3 +502,24 @@ claim.
   alpha values, masks, layers, routing, segmentation, or temporal schedule was
   added. Five-arm artifacts are under
   `outputs/attention_memory_policy_fixed_grid_selective_recall/subject_core_boundary_ablation/dmd_timestep_selectivity/comparison/`.
+
+## 2026-08-09: Erode2 clean-pass-only recall (one-seed result)
+
+- `clean_only` activates the same alpha-scaled, subject-to-subject erode2
+  historical branch only for timestep-zero clean-cache capture. All four
+  observed DMD calls remain baseline. The new alpha-0.50 and alpha-1.00 runs
+  retain the source IDs 6/7, all 30 layers, target block 8, six-frame context,
+  and disabled automatic policy machinery.
+- Both strengths are exactly equal to reset-only for the generated block-8
+  latent and decoded frames 81--92. Thus no mid-block greenhouse/scene flash
+  can be attributed to this cache-only intervention. Block 9 diverges after
+  the cache update, establishing cache-mediated causal influence on future
+  generation.
+- Visually, alpha 0.50 causes a modest later woman perturbation and alpha 1.00
+  causes a clearer face/cheek/brooch deformation; neither recovers the A1
+  braided-crown hair or a credible A1 face. Snow remains largely preserved and
+  no greenhouse flash appears, but the 8→9 handoff is still less smooth than
+  reset, especially at alpha 1.00.
+- The result separates visible recall-block overwrite from future cache effects
+  but does not solve identity recovery. Artifacts are under
+  `outputs/attention_memory_policy_fixed_grid_selective_recall/subject_core_boundary_ablation/clean_pass_only/comparison/`.

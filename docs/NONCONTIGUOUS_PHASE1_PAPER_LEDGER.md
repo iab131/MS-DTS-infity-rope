@@ -956,3 +956,29 @@ records an observation.
 - Evidence: five-arm sheet SHA-256
   `fd3d5fff233972c6c7e2a663effabfbe433ef7c1371cc00ec7a05c4de36070e0`
   and metrics/policy logs under `subject_core_boundary_ablation/dmd_timestep_selectivity/`.
+
+## E20260809-AMP-ERODE2-CLEAN-PASS-ONLY (executed; one seed)
+
+- Method: add `clean_only` to the existing observed-order gate. It disables
+  history at all DMD calls `[1000.0, 937.5, 833.3333129882812, 625.0]` and
+  enables it only at timestep-zero clean cache update. The historical branch,
+  erode2 masks, raw H/W positions, slots 1/2, all 30 layers, alpha, and normal
+  six-frame base remain unchanged.
+- Controls/results: reset-only and prior latest-two-plus-clean alpha-0.50 are
+  reused. New clean-only alpha-0.50/1.00 runs exit 0 in 56/53 s at
+  23,798/23,243 MiB. For both, generated block-8 latent and decoded frames
+  81--92 are exactly reset-equal before/through the clean pass; block-9 latent
+  diverges, proving a future-cache-only intervention.
+- Human conclusion: clean-only prevents the A1/local-greenhouse recall-block
+  flash and retains snow, but later causes a modest (alpha 0.50) to obvious
+  (alpha 1.00) face/cheek/brooch hybrid/deformation. A1 braided-crown hair and
+  credible A1 facial recovery are not established. The 8→9 discontinuity
+  remains and grows at full strength.
+- Claim status: clean cache writes can causally influence later rollout without
+  directly modifying the retrieval block, but this one-seed oracle is not a
+  clean identity correction or a paper-level generalization. Stop here; no
+  extra time ranges, alpha, masks, layers, routing, segmentation, or schedule.
+- Evidence: four-arm sheet SHA-256
+  `0e39cc4ee70bc8741578d5b8251519f9f158d7990bbba6b09ad076bc02e2e7b4`, companion
+  metrics, policy logs, raw tensors, and MP4s under
+  `subject_core_boundary_ablation/clean_pass_only/`.

@@ -45,6 +45,15 @@ class InferenceCliTest(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("must be provided together", result.stderr)
 
+    def test_fixed_grid_clean_only_requires_the_clean_pass(self):
+        root = Path(__file__).resolve().parents[1]
+        result = subprocess.run(
+            [sys.executable, "inference.py", "--memory-fixed-grid-denoising-steps", "clean_only",
+             "--no-memory-fixed-grid-clean-pass"],
+            cwd=root, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("clean_only requires --memory-fixed-grid-clean-pass", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

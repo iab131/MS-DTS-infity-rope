@@ -193,7 +193,7 @@ def fixed_grid_memory_active(denoising_steps, clean_pass_enabled, index=None,
         return clean_pass_enabled
     if index is None or total_steps is None:
         raise ValueError("denoising index and step count are required")
-    retained = {"all": total_steps, "latest_1": 1, "latest_2": 2}.get(denoising_steps)
+    retained = {"all": total_steps, "latest_1": 1, "latest_2": 2, "clean_only": 0}.get(denoising_steps)
     if retained is None:
         raise ValueError("unsupported fixed-grid denoising-step selection")
     return index >= total_steps - retained

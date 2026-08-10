@@ -48,8 +48,12 @@ class AttentionMemoryPolicyTest(unittest.TestCase):
         self.assertEqual(
             [fixed_grid_memory_active("latest_2", False, index, 4) for index in range(4)],
             [False, False, True, True])
+        self.assertEqual(
+            [fixed_grid_memory_active("clean_only", True, index, 4) for index in range(4)],
+            [False, False, False, False])
         self.assertFalse(fixed_grid_memory_active("latest_2", False, clean_pass=True))
         self.assertTrue(fixed_grid_memory_active("latest_2", True, clean_pass=True))
+        self.assertTrue(fixed_grid_memory_active("clean_only", True, clean_pass=True))
 
     def test_selective_pack_preserves_source_indices_slots_and_three_target_frames(self):
         source_6 = [0] * 1560

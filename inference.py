@@ -222,8 +222,8 @@ parser.add_argument("--memory-fixed-grid-mode", choices=[
                     help="Apply only the matching fixed-grid historical-memory arm.")
 parser.add_argument("--memory-fixed-grid-alpha", type=float, default=1.0,
                     help="Interpolate fixed-grid historical output from baseline (0) to full oracle (1).")
-parser.add_argument("--memory-fixed-grid-denoising-steps", choices=["all", "latest_1", "latest_2"],
-                    default="all", help="Fixed-grid history on all or only the final executed DMD calls.")
+parser.add_argument("--memory-fixed-grid-denoising-steps", choices=["all", "latest_1", "latest_2", "clean_only"],
+                    default="all", help="Fixed-grid history on DMD calls, or only on the clean cache pass.")
 parser.add_argument("--memory-fixed-grid-clean-pass", action=argparse.BooleanOptionalAction, default=True,
                     help="Apply fixed-grid history during the timestep-zero clean cache pass.")
 args = parser.parse_args()
@@ -260,6 +260,8 @@ if not 0.0 <= args.memory_fixed_grid_alpha <= 1.0:
     parser.error("--memory-fixed-grid-alpha must be between 0 and 1")
 if args.memory_fixed_grid_alpha != 1.0 and not args.memory_fixed_grid_mask_path:
     parser.error("--memory-fixed-grid-alpha requires fixed-grid recall")
+if args.memory_fixed_grid_denoising_steps == "clean_only" and not args.memory_fixed_grid_clean_pass:
+    parser.error("clean_only requires --memory-fixed-grid-clean-pass")
 
 if args.attention_memory_policy:
     if args.noncontiguous_kv:

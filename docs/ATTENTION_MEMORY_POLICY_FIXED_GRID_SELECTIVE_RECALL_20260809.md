@@ -309,3 +309,69 @@ one-seed test, clean-pass history does not cause stronger later propagation;
 it instead partially reconciles the rollout toward the A2/reset state. No
 additional timestep choices, alpha values, masks, layers, routing, automatic
 segmentation, or temporal schedule was added.
+
+## Erode2 clean-pass-only recall (one seed)
+
+This diagnostic asks a distinct cache-write question: can raw historical K/V
+alter the clean cache at A2 block 8 and then influence later autoregressive
+blocks without changing block 8 itself? It reuses seed 101, the prompt, IDs
+6/7, erode2 source counts 322/323, 276 target queries per latent frame (828
+total), alpha 0.50, all 30 layers, slots 1/2, `transition_no_sink`, and the
+unchanged six-frame / 9,360-token base. Automatic routing, archive,
+consolidation, and decay remain off. The comparison reuses reset-only and the
+prior latest-two-DMD-plus-clean alpha-0.50 control, then runs only:
+
+| Arm | DMD gate in observed high→low order | Clean cache pass | Runtime / peak VRAM |
+| --- | --- | --- | --- |
+| reset-only | none | no history | reused |
+| latest-two + clean, alpha 0.50 | `[false,false,true,true]` | history | reused |
+| clean-only, alpha 0.50 | `[false,false,false,false]` | history | 56 s / 23,798 MiB |
+| clean-only, alpha 1.00 | `[false,false,false,false]` | history | 53 s / 23,243 MiB |
+
+The logged DMD calls are again exactly `1000.0 → 937.5 →
+833.3333129882812 → 625.0`, high-noise→low-noise; the sole historical call in
+the two new arms is the separate clean-cache timestep `0.0`. Both policy logs
+confirm the same source IDs/counts, erode2 target count, alpha, preserved
+source coordinates/slots, and `base_context_unchanged=true`.
+
+**Numerical causal check.** For both clean-only strengths, saved block-7 and
+block-8 clean latents are `torch.equal` to reset-only (max and mean absolute
+error exactly zero). Decoded frames 81--92, the complete visible block-8
+interval, are likewise exactly equal to reset-only. The history-containing
+clean pass therefore does not perturb the generated block-8 output. Block-9
+clean latents then diverge (mean absolute error 0.11475 at alpha 0.50 and
+0.15039 at alpha 1.00), directly demonstrating a changed future cache/state.
+
+Visual review of the four-arm temporal sheet finds no A1 greenhouse/orchid
+flash in block 8 for either clean-only arm, because block 8 is reset-identical.
+At block 9 the alpha-0.50 arm introduces a modest woman-region disturbance;
+alpha 1.00 causes a more obvious one-frame face/cheek/brooch distortion. Both
+retain the snowy observatory outside the woman, but neither restores the A1
+high braided-crown hair or supplies credible A1 facial identity recovery.
+The effect persists as a hybrid/perturbation into block 10 rather than a clean
+A1 appearance correction. The 92→93 RGB MAE is reset/latest-two-clean/
+clean-only-0.50/clean-only-1.00 = 0.02452/0.02721/0.02759/0.03154, so cache
+write avoids the visible recall-block overwrite but does not remove the
+subsequent boundary discontinuity, especially at full strength.
+
+For supporting (nonsemantic) RGB proxies, clean-only alpha 0.50 has zero
+recall-block difference by construction; at frames 93/101/109, its
+subject-core MAE versus reset is 0.04226/0.07614/0.09035 and exterior-scene
+MAE is 0.00294/0.01460/0.03019. Alpha 1.00 raises the frame-93 core change to
+0.06205 and frame-109 exterior change to 0.03275. These are perturbation
+measures, not face or identity scores.
+
+**Conclusion:** yes, historical recall can be written solely through the
+clean cache and change blocks 9--10 while leaving the visible block-8 recall
+output exactly baseline. However, at the tested strengths it produces a
+post-boundary hybrid/deformation, not verified A1 face or hair recovery, and
+the snow scene remains substantially preserved. This does not establish an
+identity-recall mechanism; it isolates cache-mediated future influence. No
+additional timestep ranges, alpha values, masks, layers, routing, automatic
+segmentation, or temporal schedule was added.
+
+Artifacts: `subject_core_boundary_ablation/clean_pass_only/comparison/
+four_arm_clean_pass_only_temporal_sheet.png` (SHA-256
+`0e39cc4ee70bc8741578d5b8251519f9f158d7990bbba6b09ad076bc02e2e7b4`), its
+metrics JSON, and `clean_pass_only_identity_crops.png` (SHA-256
+`fae781fe9d03316ea487edd5cfcfe1760cc272d77cbde88bc980d9b9c74af36c`).
