@@ -1,0 +1,36 @@
+{
+  "frames": [
+    77,
+    81,
+    85,
+    89,
+    93
+  ],
+  "metrics_are_pixel_proxies_not_semantic_scores": true,
+  "arms": {
+    "reset_only": {
+      "mae_vs_reset_frames_81_92": 0.0,
+      "mse_vs_reset_frames_81_92": 0.0,
+      "mean_abs_adjacent_change_80_to_81": 0.025835910812020302,
+      "mean_abs_adjacent_change_92_to_93": 0.024521009996533394
+    },
+    "full_A": {
+      "mae_vs_reset_frames_81_92": 0.3852827250957489,
+      "mse_vs_reset_frames_81_92": 0.23402586579322815,
+      "mean_abs_adjacent_change_80_to_81": 0.23552340269088745,
+      "mean_abs_adjacent_change_92_to_93": 0.022385917603969574
+    },
+    "subject_to_subject": {
+      "mae_vs_reset_frames_81_92": 0.0905393436551094,
+      "mse_vs_reset_frames_81_92": 0.04295764118432999,
+      "mean_abs_adjacent_change_80_to_81": 0.06789328902959824,
+      "mean_abs_adjacent_change_92_to_93": 0.03621387854218483
+    },
+    "background_to_background": {
+      "mae_vs_reset_frames_81_92": 0.3251347243785858,
+      "mse_vs_reset_frames_81_92": 0.21394668519496918,
+      "mean_abs_adjacent_change_80_to_81": 0.23883862793445587,
+      "mean_abs_adjacent_change_92_to_93": 0.20330333709716797
+    }
+  }
+}

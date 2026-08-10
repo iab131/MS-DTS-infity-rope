@@ -1,0 +1,100 @@
+{
+  "frames": [
+    77,
+    81,
+    85,
+    89,
+    93,
+    105,
+    113
+  ],
+  "zones": "core2, original-subject boundary ring, one-token exterior halo, and distant dilated-complement background",
+  "pixel_metrics_are_proxies_not_semantic_identity_or_scene_scores": true,
+  "arms": {
+    "reset_only": {
+      "recall_block_rgb_81_92_zone_mae_vs_reset": {
+        "subject_core2": 0.0,
+        "subject_boundary_ring": 0.0,
+        "outer_one_token_halo": 0.0,
+        "distant_snow_background": 0.0
+      },
+      "post_recall_rgb_93_116_zone_mae_vs_reset": {
+        "subject_core2": 0.0,
+        "subject_boundary_ring": 0.0,
+        "outer_one_token_halo": 0.0,
+        "distant_snow_background": 0.0
+      },
+      "mean_abs_adjacent_change_80_to_81": 0.025835910812020302,
+      "mean_abs_adjacent_change_92_to_93": 0.024521009996533394,
+      "mean_abs_adjacent_change_104_to_105": 0.020731966942548752
+    },
+    "all_steps_plus_clean_reused_alpha_0.50": {
+      "recall_block_rgb_81_92_zone_mae_vs_reset": {
+        "subject_core2": 0.1898045539855957,
+        "subject_boundary_ring": 0.08384469896554947,
+        "outer_one_token_halo": 0.06378035247325897,
+        "distant_snow_background": 0.014998149126768112
+      },
+      "post_recall_rgb_93_116_zone_mae_vs_reset": {
+        "subject_core2": 0.1540229469537735,
+        "subject_boundary_ring": 0.0967300534248352,
+        "outer_one_token_halo": 0.08838219195604324,
+        "distant_snow_background": 0.04454926401376724
+      },
+      "mean_abs_adjacent_change_80_to_81": 0.04213711991906166,
+      "mean_abs_adjacent_change_92_to_93": 0.02238425612449646,
+      "mean_abs_adjacent_change_104_to_105": 0.019201362505555153
+    },
+    "latest_step_only_no_clean": {
+      "recall_block_rgb_81_92_zone_mae_vs_reset": {
+        "subject_core2": 0.07339732348918915,
+        "subject_boundary_ring": 0.006856108084321022,
+        "outer_one_token_halo": 0.0026009464636445045,
+        "distant_snow_background": 0.001412843121215701
+      },
+      "post_recall_rgb_93_116_zone_mae_vs_reset": {
+        "subject_core2": 0.0840708538889885,
+        "subject_boundary_ring": 0.0411032997071743,
+        "outer_one_token_halo": 0.031016191467642784,
+        "distant_snow_background": 0.011085579171776772
+      },
+      "mean_abs_adjacent_change_80_to_81": 0.030207522213459015,
+      "mean_abs_adjacent_change_92_to_93": 0.023385899141430855,
+      "mean_abs_adjacent_change_104_to_105": 0.019222276285290718
+    },
+    "latest_two_no_clean": {
+      "recall_block_rgb_81_92_zone_mae_vs_reset": {
+        "subject_core2": 0.11993549764156342,
+        "subject_boundary_ring": 0.0115994643419981,
+        "outer_one_token_halo": 0.005115367006510496,
+        "distant_snow_background": 0.001975169638171792
+      },
+      "post_recall_rgb_93_116_zone_mae_vs_reset": {
+        "subject_core2": 0.11889205873012543,
+        "subject_boundary_ring": 0.05897725000977516,
+        "outer_one_token_halo": 0.047247495502233505,
+        "distant_snow_background": 0.016201559454202652
+      },
+      "mean_abs_adjacent_change_80_to_81": 0.03507954999804497,
+      "mean_abs_adjacent_change_92_to_93": 0.02075473591685295,
+      "mean_abs_adjacent_change_104_to_105": 0.01836398057639599
+    },
+    "latest_two_plus_clean": {
+      "recall_block_rgb_81_92_zone_mae_vs_reset": {
+        "subject_core2": 0.11993549764156342,
+        "subject_boundary_ring": 0.0115994643419981,
+        "outer_one_token_halo": 0.005115367006510496,
+        "distant_snow_background": 0.001975169638171792
+      },
+      "post_recall_rgb_93_116_zone_mae_vs_reset": {
+        "subject_core2": 0.08623124659061432,
+        "subject_boundary_ring": 0.04413606971502304,
+        "outer_one_token_halo": 0.03369380533695221,
+        "distant_snow_background": 0.012688156217336655
+      },
+      "mean_abs_adjacent_change_80_to_81": 0.03507954999804497,
+      "mean_abs_adjacent_change_92_to_93": 0.02721443399786949,
+      "mean_abs_adjacent_change_104_to_105": 0.020563354715704918
+    }
+  }
+}

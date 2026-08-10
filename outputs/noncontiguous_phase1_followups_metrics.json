@@ -1,0 +1,645 @@
+{
+  "memory_strength": {
+    "baseline": {
+      "experiment_id": "E20260807-LG-P1",
+      "date_utc": "2026-08-08T01:41:15.186134+00:00",
+      "commit": "c0d3f9e8c81ae072000f432f7fd48f9035bc2698",
+      "mode": "baseline",
+      "manual_history_global_latent_id": null,
+      "command": [
+        "conda",
+        "run",
+        "-n",
+        "wan",
+        "python",
+        "inference.py",
+        "--config_path",
+        "configs/self_forcing_dmd.yaml",
+        "--checkpoint_path",
+        "/home/sigasia2026/models/baselines/Self-Forcing/checkpoints/self_forcing_dmd.pt",
+        "--use_ema",
+        "--data_path",
+        "docs/NONCONTIGUOUS_PHASE1_LONG_GAP_ORACLE_PROMPT.txt",
+        "--output_folder",
+        "outputs/noncontiguous_phase1_long_gap/baseline",
+        "--seed",
+        "101",
+        "--num_samples",
+        "1",
+        "--save_with_index",
+        "--output_index",
+        "0",
+        "--noncontiguous-kv",
+        "--noncontiguous-source-blocks",
+        "13,15",
+        "--noncontiguous-target-block",
+        "34",
+        "--noncontiguous-kv-mode",
+        "baseline",
+        "--noncontiguous-retrieval-count",
+        "1",
+        "--save-clean-latent-blocks",
+        "33,34,35",
+        "--save-raw-decoded"
+      ],
+      "command_shell": "conda run -n wan python inference.py --config_path configs/self_forcing_dmd.yaml --checkpoint_path /home/sigasia2026/models/baselines/Self-Forcing/checkpoints/self_forcing_dmd.pt --use_ema --data_path docs/NONCONTIGUOUS_PHASE1_LONG_GAP_ORACLE_PROMPT.txt --output_folder outputs/noncontiguous_phase1_long_gap/baseline --seed 101 --num_samples 1 --save_with_index --output_index 0 --noncontiguous-kv --noncontiguous-source-blocks 13,15 --noncontiguous-target-block 34 --noncontiguous-kv-mode baseline --noncontiguous-retrieval-count 1 --save-clean-latent-blocks 33,34,35 --save-raw-decoded",
+      "runtime_seconds": 107.5948197171092,
+      "peak_vram_mib_nvidia_smi": 69936,
+      "exit_status": 0,
+      "output_dir": "outputs/noncontiguous_phase1_long_gap/baseline",
+      "artifacts": {
+        "mp4": {
+          "path": "outputs/noncontiguous_phase1_long_gap/baseline/0-0_ema.mp4",
+          "sha256": "a4b5d9c2795dcfc57c2adaf1585fc5b4907bce0259130e5376fb5eebc0f9afa7"
+        },
+        "raw": {
+          "path": "outputs/noncontiguous_phase1_long_gap/baseline/0_raw_decoded_before_mp4.pt",
+          "sha256": "f73b3016657c04699b2f951d264465c14e36af89a53268a7764e53827c6b16cc"
+        },
+        "snapshots": [
+          {
+            "block": 33,
+            "path": "outputs/noncontiguous_phase1_long_gap/baseline/0_clean_latents_block_33.pt",
+            "sha256": "3a1db0cbcc5793aeee164dce5a73e336e4a4f29c53989eed30086cbdbd7bf171"
+          },
+          {
+            "block": 34,
+            "path": "outputs/noncontiguous_phase1_long_gap/baseline/0_clean_latents_block_34.pt",
+            "sha256": "b459e0dd4c642b66c38b2e0044fa526fe3bfc4b0a1b7499ab073a0704d2f6a84"
+          },
+          {
+            "block": 35,
+            "path": "outputs/noncontiguous_phase1_long_gap/baseline/0_clean_latents_block_35.pt",
+            "sha256": "df216d46332d2648c4bedf0391a1595449ddb636e81096692d59a2e9ecc8568a"
+          }
+        ],
+        "log": "outputs/noncontiguous_phase1_long_gap/baseline/run.log"
+      }
+    },
+    "same_entity_history": {
+      "experiment_id": "E20260807-LG-P1",
+      "date_utc": "2026-08-08T01:42:51.694202+00:00",
+      "commit": "c0d3f9e8c81ae072000f432f7fd48f9035bc2698",
+      "mode": "same_entity_history",
+      "manual_history_global_latent_id": 38,
+      "command": [
+        "conda",
+        "run",
+        "-n",
+        "wan",
+        "python",
+        "inference.py",
+        "--config_path",
+        "configs/self_forcing_dmd.yaml",
+        "--checkpoint_path",
+        "/home/sigasia2026/models/baselines/Self-Forcing/checkpoints/self_forcing_dmd.pt",
+        "--use_ema",
+        "--data_path",
+        "docs/NONCONTIGUOUS_PHASE1_LONG_GAP_ORACLE_PROMPT.txt",
+        "--output_folder",
+        "outputs/noncontiguous_phase1_long_gap/same_entity_history",
+        "--seed",
+        "101",
+        "--num_samples",
+        "1",
+        "--save_with_index",
+        "--output_index",
+        "0",
+        "--noncontiguous-kv",
+        "--noncontiguous-source-blocks",
+        "13,15",
+        "--noncontiguous-target-block",
+        "34",
+        "--noncontiguous-kv-mode",
+        "same_entity_history",
+        "--noncontiguous-retrieval-count",
+        "1",
+        "--save-clean-latent-blocks",
+        "33,34,35",
+        "--save-raw-decoded",
+        "--noncontiguous-history-frame-id",
+        "38"
+      ],
+      "command_shell": "conda run -n wan python inference.py --config_path configs/self_forcing_dmd.yaml --checkpoint_path /home/sigasia2026/models/baselines/Self-Forcing/checkpoints/self_forcing_dmd.pt --use_ema --data_path docs/NONCONTIGUOUS_PHASE1_LONG_GAP_ORACLE_PROMPT.txt --output_folder outputs/noncontiguous_phase1_long_gap/same_entity_history --seed 101 --num_samples 1 --save_with_index --output_index 0 --noncontiguous-kv --noncontiguous-source-blocks 13,15 --noncontiguous-target-block 34 --noncontiguous-kv-mode same_entity_history --noncontiguous-retrieval-count 1 --save-clean-latent-blocks 33,34,35 --save-raw-decoded --noncontiguous-history-frame-id 38",
+      "runtime_seconds": 91.10041675204411,
+      "peak_vram_mib_nvidia_smi": 49671,
+      "exit_status": 0,
+      "output_dir": "outputs/noncontiguous_phase1_long_gap/same_entity_history",
+      "artifacts": {
+        "mp4": {
+          "path": "outputs/noncontiguous_phase1_long_gap/same_entity_history/0-0_ema.mp4",
+          "sha256": "08b1c3e51d840da0f7a83697563e15d5fe155da2b0ed7d6959969556ce6a44bc"
+        },
+        "raw": {
+          "path": "outputs/noncontiguous_phase1_long_gap/same_entity_history/0_raw_decoded_before_mp4.pt",
+          "sha256": "e8d993d0d0719f0b012ea3c3acedb796591a929a9439446928022db7368810cd"
+        },
+        "snapshots": [
+          {
+            "block": 33,
+            "path": "outputs/noncontiguous_phase1_long_gap/same_entity_history/0_clean_latents_block_33.pt",
+            "sha256": "3a1db0cbcc5793aeee164dce5a73e336e4a4f29c53989eed30086cbdbd7bf171"
+          },
+          {
+            "block": 34,
+            "path": "outputs/noncontiguous_phase1_long_gap/same_entity_history/0_clean_latents_block_34.pt",
+            "sha256": "f322863d1752c3e73aefa970e5f8ce619b9bede974430c2a8ebc110f81ba8fc0"
+          },
+          {
+            "block": 35,
+            "path": "outputs/noncontiguous_phase1_long_gap/same_entity_history/0_clean_latents_block_35.pt",
+            "sha256": "d74afe6058e77ba99051ecef215ae922a2f933d7eaa17986274337706ff9c694"
+          }
+        ],
+        "log": "outputs/noncontiguous_phase1_long_gap/same_entity_history/run.log"
+      },
+      "comparison_vs_baseline": {
+        "target_adjacent_clean_latents": [
+          {
+            "block": 33,
+            "per_latent_max_abs": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "max_abs": 0.0
+          },
+          {
+            "block": 34,
+            "per_latent_max_abs": [
+              2.1953125,
+              3.234375,
+              3.703125
+            ],
+            "max_abs": 3.703125
+          },
+          {
+            "block": 35,
+            "per_latent_max_abs": [
+              3.96875,
+              4.0234375,
+              4.203125
+            ],
+            "max_abs": 4.203125
+          }
+        ],
+        "first_divergent_clean_latent": {
+          "block": 34,
+          "latent_index_in_block": 0,
+          "global_latent_id": 99,
+          "max_abs": 3.703125
+        },
+        "raw_decoded": {
+          "first_divergent_decoded_frame": 393,
+          "pre_target_max_abs": 0.0,
+          "max_abs": 1.0,
+          "mean_absolute_error_unit_interval": 0.07515813584377606
+        }
+      }
+    },
+    "same_entity_history_r2": {
+      "experiment_id": "E20260807-LG-P1",
+      "date_utc": "2026-08-08T02:01:40.434127+00:00",
+      "commit": "5d0eda3a6a0efc7e1520a151d9c0ec28d47cb4a1",
+      "mode": "same_entity_history",
+      "manual_history_global_latent_id": [
+        37,
+        38
+      ],
+      "command": [
+        "conda",
+        "run",
+        "-n",
+        "wan",
+        "python",
+        "inference.py",
+        "--config_path",
+        "configs/self_forcing_dmd.yaml",
+        "--checkpoint_path",
+        "/home/sigasia2026/models/baselines/Self-Forcing/checkpoints/self_forcing_dmd.pt",
+        "--use_ema",
+        "--data_path",
+        "docs/NONCONTIGUOUS_PHASE1_LONG_GAP_ORACLE_PROMPT.txt",
+        "--output_folder",
+        "outputs/noncontiguous_phase1_long_gap/same_entity_history_r2",
+        "--seed",
+        "101",
+        "--num_samples",
+        "1",
+        "--save_with_index",
+        "--output_index",
+        "0",
+        "--noncontiguous-kv",
+        "--noncontiguous-source-blocks",
+        "13,15",
+        "--noncontiguous-target-block",
+        "34",
+        "--noncontiguous-kv-mode",
+        "same_entity_history",
+        "--noncontiguous-retrieval-count",
+        "2",
+        "--save-clean-latent-blocks",
+        "33,34,35",
+        "--save-raw-decoded",
+        "--noncontiguous-history-frame-ids",
+        "37,38"
+      ],
+      "command_shell": "conda run -n wan python inference.py --config_path configs/self_forcing_dmd.yaml --checkpoint_path /home/sigasia2026/models/baselines/Self-Forcing/checkpoints/self_forcing_dmd.pt --use_ema --data_path docs/NONCONTIGUOUS_PHASE1_LONG_GAP_ORACLE_PROMPT.txt --output_folder outputs/noncontiguous_phase1_long_gap/same_entity_history_r2 --seed 101 --num_samples 1 --save_with_index --output_index 0 --noncontiguous-kv --noncontiguous-source-blocks 13,15 --noncontiguous-target-block 34 --noncontiguous-kv-mode same_entity_history --noncontiguous-retrieval-count 2 --save-clean-latent-blocks 33,34,35 --save-raw-decoded --noncontiguous-history-frame-ids 37,38",
+      "runtime_seconds": 90.12921711080708,
+      "peak_vram_mib_nvidia_smi": 49671,
+      "exit_status": 0,
+      "output_dir": "outputs/noncontiguous_phase1_long_gap/same_entity_history_r2",
+      "artifacts": {
+        "mp4": {
+          "path": "outputs/noncontiguous_phase1_long_gap/same_entity_history_r2/0-0_ema.mp4",
+          "sha256": "74a9b14721e18dbc70ffa9a1b751a43ab86b9c3706ccec7cee52888b5d7d6dbd"
+        },
+        "raw": {
+          "path": "outputs/noncontiguous_phase1_long_gap/same_entity_history_r2/0_raw_decoded_before_mp4.pt",
+          "sha256": "3ca0d9724940e102ed2256d5a875242029c2f64d9ab182ec018c7a386c814a21"
+        },
+        "snapshots": [
+          {
+            "block": 33,
+            "path": "outputs/noncontiguous_phase1_long_gap/same_entity_history_r2/0_clean_latents_block_33.pt",
+            "sha256": "3a1db0cbcc5793aeee164dce5a73e336e4a4f29c53989eed30086cbdbd7bf171"
+          },
+          {
+            "block": 34,
+            "path": "outputs/noncontiguous_phase1_long_gap/same_entity_history_r2/0_clean_latents_block_34.pt",
+            "sha256": "6186a59c1320f45428dc39478216d1d70940d23a72a857c082d07301af11732a"
+          },
+          {
+            "block": 35,
+            "path": "outputs/noncontiguous_phase1_long_gap/same_entity_history_r2/0_clean_latents_block_35.pt",
+            "sha256": "65bcbffd53a87aa0ed201ad916346b5e1456130eba5270261a1d3881268d429e"
+          }
+        ],
+        "log": "outputs/noncontiguous_phase1_long_gap/same_entity_history_r2/run.log"
+      },
+      "comparison_vs_baseline": {
+        "target_adjacent_clean_latents": [
+          {
+            "block": 33,
+            "per_latent_max_abs": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "max_abs": 0.0
+          },
+          {
+            "block": 34,
+            "per_latent_max_abs": [
+              2.3671875,
+              3.453125,
+              4.1640625
+            ],
+            "max_abs": 4.1640625
+          },
+          {
+            "block": 35,
+            "per_latent_max_abs": [
+              4.46875,
+              5.046875,
+              4.375
+            ],
+            "max_abs": 5.046875
+          }
+        ],
+        "first_divergent_clean_latent": {
+          "block": 34,
+          "latent_index_in_block": 0,
+          "global_latent_id": 99,
+          "max_abs": 4.1640625
+        },
+        "raw_decoded": {
+          "first_divergent_decoded_frame": 393,
+          "pre_target_max_abs": 0.0,
+          "max_abs": 1.0,
+          "mean_absolute_error_unit_interval": 0.06583513377605893
+        }
+      }
+    }
+  },
+  "true_wrong_memory": {
+    "baseline": {
+      "experiment_id": "E20260807-TRUE-WRONG-P1",
+      "commit": "5d0eda3a6a0efc7e1520a151d9c0ec28d47cb4a1",
+      "date_utc": "2026-08-08T02:03:00.901977+00:00",
+      "mode": "baseline",
+      "manual_history_global_latent_id": null,
+      "command": [
+        "conda",
+        "run",
+        "-n",
+        "wan",
+        "python",
+        "inference.py",
+        "--config_path",
+        "configs/self_forcing_dmd.yaml",
+        "--checkpoint_path",
+        "/home/sigasia2026/models/baselines/Self-Forcing/checkpoints/self_forcing_dmd.pt",
+        "--use_ema",
+        "--data_path",
+        "docs/NONCONTIGUOUS_PHASE1_TRUE_WRONG_MEMORY_PROMPT.txt",
+        "--output_folder",
+        "outputs/noncontiguous_phase1_true_wrong/baseline",
+        "--seed",
+        "101",
+        "--num_samples",
+        "1",
+        "--save_with_index",
+        "--output_index",
+        "0",
+        "--noncontiguous-kv",
+        "--noncontiguous-source-blocks",
+        "3,6",
+        "--noncontiguous-target-block",
+        "8",
+        "--noncontiguous-kv-mode",
+        "baseline",
+        "--noncontiguous-retrieval-count",
+        "1",
+        "--save-clean-latent-blocks",
+        "7,8,9",
+        "--save-raw-decoded"
+      ],
+      "command_shell": "conda run -n wan python inference.py --config_path configs/self_forcing_dmd.yaml --checkpoint_path /home/sigasia2026/models/baselines/Self-Forcing/checkpoints/self_forcing_dmd.pt --use_ema --data_path docs/NONCONTIGUOUS_PHASE1_TRUE_WRONG_MEMORY_PROMPT.txt --output_folder outputs/noncontiguous_phase1_true_wrong/baseline --seed 101 --num_samples 1 --save_with_index --output_index 0 --noncontiguous-kv --noncontiguous-source-blocks 3,6 --noncontiguous-target-block 8 --noncontiguous-kv-mode baseline --noncontiguous-retrieval-count 1 --save-clean-latent-blocks 7,8,9 --save-raw-decoded",
+      "runtime_seconds": 48.06536548305303,
+      "peak_vram_mib_nvidia_smi": 23025,
+      "exit_status": 0,
+      "output_dir": "outputs/noncontiguous_phase1_true_wrong/baseline",
+      "artifacts": {
+        "mp4": {
+          "path": "outputs/noncontiguous_phase1_true_wrong/baseline/0-0_ema.mp4",
+          "sha256": "c5b4f2e7ed7c40f9f68ce8c61e2d6bda172c63225a56ee2203f21a54a6fd09a5"
+        },
+        "raw": {
+          "path": "outputs/noncontiguous_phase1_true_wrong/baseline/0_raw_decoded_before_mp4.pt",
+          "sha256": "3996069c408677c0e96eb89573b5b57bd544ca549b0b4b9177aaeebbf0b224db"
+        },
+        "snapshots": [
+          {
+            "block": 7,
+            "path": "outputs/noncontiguous_phase1_true_wrong/baseline/0_clean_latents_block_07.pt",
+            "sha256": "1b21a7b23f210e4c1cbf86f36934abae057a859ae2ebc789c7b06b7c497e7af2"
+          },
+          {
+            "block": 8,
+            "path": "outputs/noncontiguous_phase1_true_wrong/baseline/0_clean_latents_block_08.pt",
+            "sha256": "8fb170f23d6b55fe23ffe66084333d5dda2b907bf48b794d71e9d673fde0ac38"
+          },
+          {
+            "block": 9,
+            "path": "outputs/noncontiguous_phase1_true_wrong/baseline/0_clean_latents_block_09.pt",
+            "sha256": "b0ca2eb901a0f28cac48401dc5957948cab69a2b3820ec131197138f5c81be0d"
+          }
+        ],
+        "log": "outputs/noncontiguous_phase1_true_wrong/baseline/run.log"
+      }
+    },
+    "same_entity_history": {
+      "experiment_id": "E20260807-TRUE-WRONG-P1",
+      "commit": "5d0eda3a6a0efc7e1520a151d9c0ec28d47cb4a1",
+      "date_utc": "2026-08-08T02:04:28.259236+00:00",
+      "mode": "same_entity_history",
+      "manual_history_global_latent_id": 8,
+      "command": [
+        "conda",
+        "run",
+        "-n",
+        "wan",
+        "python",
+        "inference.py",
+        "--config_path",
+        "configs/self_forcing_dmd.yaml",
+        "--checkpoint_path",
+        "/home/sigasia2026/models/baselines/Self-Forcing/checkpoints/self_forcing_dmd.pt",
+        "--use_ema",
+        "--data_path",
+        "docs/NONCONTIGUOUS_PHASE1_TRUE_WRONG_MEMORY_PROMPT.txt",
+        "--output_folder",
+        "outputs/noncontiguous_phase1_true_wrong/same_entity_history",
+        "--seed",
+        "101",
+        "--num_samples",
+        "1",
+        "--save_with_index",
+        "--output_index",
+        "0",
+        "--noncontiguous-kv",
+        "--noncontiguous-source-blocks",
+        "3,6",
+        "--noncontiguous-target-block",
+        "8",
+        "--noncontiguous-kv-mode",
+        "same_entity_history",
+        "--noncontiguous-retrieval-count",
+        "1",
+        "--save-clean-latent-blocks",
+        "7,8,9",
+        "--save-raw-decoded",
+        "--noncontiguous-history-frame-id",
+        "8"
+      ],
+      "command_shell": "conda run -n wan python inference.py --config_path configs/self_forcing_dmd.yaml --checkpoint_path /home/sigasia2026/models/baselines/Self-Forcing/checkpoints/self_forcing_dmd.pt --use_ema --data_path docs/NONCONTIGUOUS_PHASE1_TRUE_WRONG_MEMORY_PROMPT.txt --output_folder outputs/noncontiguous_phase1_true_wrong/same_entity_history --seed 101 --num_samples 1 --save_with_index --output_index 0 --noncontiguous-kv --noncontiguous-source-blocks 3,6 --noncontiguous-target-block 8 --noncontiguous-kv-mode same_entity_history --noncontiguous-retrieval-count 1 --save-clean-latent-blocks 7,8,9 --save-raw-decoded --noncontiguous-history-frame-id 8",
+      "runtime_seconds": 49.27002259204164,
+      "peak_vram_mib_nvidia_smi": 23025,
+      "exit_status": 0,
+      "output_dir": "outputs/noncontiguous_phase1_true_wrong/same_entity_history",
+      "artifacts": {
+        "mp4": {
+          "path": "outputs/noncontiguous_phase1_true_wrong/same_entity_history/0-0_ema.mp4",
+          "sha256": "843fdfa1fc6c96047e772b986c95e33dc588c2e865fa45ae35428b74346964ab"
+        },
+        "raw": {
+          "path": "outputs/noncontiguous_phase1_true_wrong/same_entity_history/0_raw_decoded_before_mp4.pt",
+          "sha256": "3cbe62ddf327479e1704b58d26b0e733e1f8d6039ce0c60d2fac5acd2310724f"
+        },
+        "snapshots": [
+          {
+            "block": 7,
+            "path": "outputs/noncontiguous_phase1_true_wrong/same_entity_history/0_clean_latents_block_07.pt",
+            "sha256": "1b21a7b23f210e4c1cbf86f36934abae057a859ae2ebc789c7b06b7c497e7af2"
+          },
+          {
+            "block": 8,
+            "path": "outputs/noncontiguous_phase1_true_wrong/same_entity_history/0_clean_latents_block_08.pt",
+            "sha256": "5e7093b652de43365c371caf4bd73d42cf690f2dc2fda69b14ab2870a53bb174"
+          },
+          {
+            "block": 9,
+            "path": "outputs/noncontiguous_phase1_true_wrong/same_entity_history/0_clean_latents_block_09.pt",
+            "sha256": "b639306230b3751a74c98ea2f61ca19b9a0bd048b832f4e050b8f9bb57a7423d"
+          }
+        ],
+        "log": "outputs/noncontiguous_phase1_true_wrong/same_entity_history/run.log"
+      },
+      "comparison_vs_baseline": {
+        "target_adjacent_clean_latents": [
+          {
+            "block": 7,
+            "per_latent_max_abs": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "max_abs": 0.0
+          },
+          {
+            "block": 8,
+            "per_latent_max_abs": [
+              2.64453125,
+              2.5234375,
+              2.609375
+            ],
+            "max_abs": 2.64453125
+          },
+          {
+            "block": 9,
+            "per_latent_max_abs": [
+              3.6328125,
+              2.96484375,
+              2.96484375
+            ],
+            "max_abs": 3.6328125
+          }
+        ],
+        "first_divergent_clean_latent": {
+          "block": 8,
+          "latent_index_in_block": 0,
+          "global_latent_id": 21,
+          "max_abs": 2.64453125
+        },
+        "raw_decoded": {
+          "first_divergent_decoded_frame": 81,
+          "pre_target_max_abs": 0.0,
+          "max_abs": 1.0,
+          "mean_absolute_error_unit_interval": 0.021559966031119877
+        }
+      }
+    },
+    "wrong_entity_history": {
+      "experiment_id": "E20260807-TRUE-WRONG-P1",
+      "commit": "5d0eda3a6a0efc7e1520a151d9c0ec28d47cb4a1",
+      "date_utc": "2026-08-08T02:05:21.559028+00:00",
+      "mode": "wrong_entity_history",
+      "manual_history_global_latent_id": 17,
+      "command": [
+        "conda",
+        "run",
+        "-n",
+        "wan",
+        "python",
+        "inference.py",
+        "--config_path",
+        "configs/self_forcing_dmd.yaml",
+        "--checkpoint_path",
+        "/home/sigasia2026/models/baselines/Self-Forcing/checkpoints/self_forcing_dmd.pt",
+        "--use_ema",
+        "--data_path",
+        "docs/NONCONTIGUOUS_PHASE1_TRUE_WRONG_MEMORY_PROMPT.txt",
+        "--output_folder",
+        "outputs/noncontiguous_phase1_true_wrong/wrong_entity_history",
+        "--seed",
+        "101",
+        "--num_samples",
+        "1",
+        "--save_with_index",
+        "--output_index",
+        "0",
+        "--noncontiguous-kv",
+        "--noncontiguous-source-blocks",
+        "3,6",
+        "--noncontiguous-target-block",
+        "8",
+        "--noncontiguous-kv-mode",
+        "wrong_entity_history",
+        "--noncontiguous-retrieval-count",
+        "1",
+        "--save-clean-latent-blocks",
+        "7,8,9",
+        "--save-raw-decoded",
+        "--noncontiguous-history-frame-id",
+        "17"
+      ],
+      "command_shell": "conda run -n wan python inference.py --config_path configs/self_forcing_dmd.yaml --checkpoint_path /home/sigasia2026/models/baselines/Self-Forcing/checkpoints/self_forcing_dmd.pt --use_ema --data_path docs/NONCONTIGUOUS_PHASE1_TRUE_WRONG_MEMORY_PROMPT.txt --output_folder outputs/noncontiguous_phase1_true_wrong/wrong_entity_history --seed 101 --num_samples 1 --save_with_index --output_index 0 --noncontiguous-kv --noncontiguous-source-blocks 3,6 --noncontiguous-target-block 8 --noncontiguous-kv-mode wrong_entity_history --noncontiguous-retrieval-count 1 --save-clean-latent-blocks 7,8,9 --save-raw-decoded --noncontiguous-history-frame-id 17",
+      "runtime_seconds": 48.5206348230131,
+      "peak_vram_mib_nvidia_smi": 23025,
+      "exit_status": 0,
+      "output_dir": "outputs/noncontiguous_phase1_true_wrong/wrong_entity_history",
+      "artifacts": {
+        "mp4": {
+          "path": "outputs/noncontiguous_phase1_true_wrong/wrong_entity_history/0-0_ema.mp4",
+          "sha256": "f970b87880e8086ca2a0a10a4ddb6fbeeab80ebec8068d4ee55f25d13b971941"
+        },
+        "raw": {
+          "path": "outputs/noncontiguous_phase1_true_wrong/wrong_entity_history/0_raw_decoded_before_mp4.pt",
+          "sha256": "9f370f399a75e2e222caf5c4313a422c0c04cfb1b4575dded670623b53568cb3"
+        },
+        "snapshots": [
+          {
+            "block": 7,
+            "path": "outputs/noncontiguous_phase1_true_wrong/wrong_entity_history/0_clean_latents_block_07.pt",
+            "sha256": "1b21a7b23f210e4c1cbf86f36934abae057a859ae2ebc789c7b06b7c497e7af2"
+          },
+          {
+            "block": 8,
+            "path": "outputs/noncontiguous_phase1_true_wrong/wrong_entity_history/0_clean_latents_block_08.pt",
+            "sha256": "7ec7abe34561f574ff37380388510d286264eb296df127a330492783624ef512"
+          },
+          {
+            "block": 9,
+            "path": "outputs/noncontiguous_phase1_true_wrong/wrong_entity_history/0_clean_latents_block_09.pt",
+            "sha256": "2563211d84f835a7b5bea7e8189fe552814ab9bd78ee8d0a0736ee336294a01e"
+          }
+        ],
+        "log": "outputs/noncontiguous_phase1_true_wrong/wrong_entity_history/run.log"
+      },
+      "comparison_vs_baseline": {
+        "target_adjacent_clean_latents": [
+          {
+            "block": 7,
+            "per_latent_max_abs": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "max_abs": 0.0
+          },
+          {
+            "block": 8,
+            "per_latent_max_abs": [
+              2.482421875,
+              2.197265625,
+              2.2265625
+            ],
+            "max_abs": 2.482421875
+          },
+          {
+            "block": 9,
+            "per_latent_max_abs": [
+              3.34375,
+              3.40625,
+              3.5
+            ],
+            "max_abs": 3.5
+          }
+        ],
+        "first_divergent_clean_latent": {
+          "block": 8,
+          "latent_index_in_block": 0,
+          "global_latent_id": 21,
+          "max_abs": 2.482421875
+        },
+        "raw_decoded": {
+          "first_divergent_decoded_frame": 81,
+          "pre_target_max_abs": 0.0,
+          "max_abs": 1.0,
+          "mean_absolute_error_unit_interval": 0.042432882819063204
+        }
+      }
+    }
+  }
+}

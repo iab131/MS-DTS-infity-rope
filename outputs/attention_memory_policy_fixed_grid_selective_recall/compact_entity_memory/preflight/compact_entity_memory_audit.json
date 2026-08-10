@@ -1,0 +1,32 @@
+{
+  "representation": "mean_pooled_entity_raw_kv",
+  "source_frame_ids": [
+    6,
+    7
+  ],
+  "source_subject_token_counts": {
+    "6": 541,
+    "7": 542
+  },
+  "pooled_memory_tokens_per_source_frame_per_layer": 1,
+  "pooled_memory_tokens_per_layer": 2,
+  "pooling": "mean over only raw K or V subject-mask tokens, independently per frame/layer/head/channel",
+  "historical_temporal_slots": {
+    "6": 1,
+    "7": 2
+  },
+  "historical_position_mode": "temporal_only_neutral_spatial",
+  "spatial_position_treatment": "no source H/W coordinate; height and width RoPE complex multipliers are identity",
+  "target_subject_queries_per_latent_frame": 467,
+  "target_subject_queries_three_latent_frames": 1401,
+  "base_context": [
+    "sink:18",
+    "local:19",
+    "local:20",
+    "current:21",
+    "current:22",
+    "current:23"
+  ],
+  "base_context_token_count": 9360,
+  "normal_local_current_rope": "unchanged"
+}

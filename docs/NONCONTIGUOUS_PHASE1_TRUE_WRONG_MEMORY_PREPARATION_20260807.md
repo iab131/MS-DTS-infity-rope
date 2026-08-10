@@ -49,3 +49,16 @@ conda run -n wan python inference.py --config_path configs/self_forcing_dmd.yaml
 
 No descriptor routing, MemoryStore, or retrieval-count-2 run belongs to this
 study.
+
+## Execution addendum (2026-08-07 local; append-only)
+
+- Commit `5d0eda3a6a0efc7e1520a151d9c0ec28d47cb4a1`; all three runs exit 0.
+  Per-run commands, runtime, sampled VRAM, hashes, and logs are in `run.json`
+  and `outputs/noncontiguous_phase1_followups_metrics.json`.
+- Before wrong-history execution, the required source gate was completed:
+  `outputs/noncontiguous_phase1_true_wrong/baseline/b_source_id17_frames65_68.png`
+  visibly shows the yellow car and no woman/humanoid. Greenhouse-like
+  background leakage means B is car/no-person valid but not a fully isolated
+  desert environment.
+- Raw outputs equal baseline through clean block 7 / frame 80; both histories
+  first differ at block 8, ID 21, frame 81. This is target causality only.

@@ -1,0 +1,68 @@
+{
+  "frames": [
+    77,
+    81,
+    85,
+    89,
+    93
+  ],
+  "pixel_metrics_are_proxies_not_semantic_or_halo_scores": true,
+  "zones_follow_the_original_target_subject_grid_mask": true,
+  "arms": {
+    "reset_only": {
+      "mae_vs_reset_frames_81_92": 0.0,
+      "mean_abs_adjacent_change_80_to_81": 0.025835910812020302,
+      "mean_abs_adjacent_change_92_to_93": 0.024521009996533394,
+      "zone_mae_vs_reset_frames_81_92": {
+        "subject_full": 0.0,
+        "subject_core2": 0.0,
+        "subject_boundary_ring": 0.0,
+        "outside_subject": 0.0
+      }
+    },
+    "subject_full": {
+      "mae_vs_reset_frames_81_92": 0.0905393436551094,
+      "mean_abs_adjacent_change_80_to_81": 0.06789328902959824,
+      "mean_abs_adjacent_change_92_to_93": 0.03621387854218483,
+      "zone_mae_vs_reset_frames_81_92": {
+        "subject_full": 0.23495928943157196,
+        "subject_core2": 0.2352280169725418,
+        "subject_boundary_ring": 0.2080233246088028,
+        "outside_subject": 0.028833849355578423
+      }
+    },
+    "subject_erode1": {
+      "mae_vs_reset_frames_81_92": 0.07707749307155609,
+      "mean_abs_adjacent_change_80_to_81": 0.05775153636932373,
+      "mean_abs_adjacent_change_92_to_93": 0.034840263426303864,
+      "zone_mae_vs_reset_frames_81_92": {
+        "subject_full": 0.19847558438777924,
+        "subject_core2": 0.22942028939723969,
+        "subject_boundary_ring": 0.10494405776262283,
+        "outside_subject": 0.025208408012986183
+      }
+    },
+    "subject_erode2": {
+      "mae_vs_reset_frames_81_92": 0.06836185604333878,
+      "mean_abs_adjacent_change_80_to_81": 0.048928067088127136,
+      "mean_abs_adjacent_change_92_to_93": 0.03171520307660103,
+      "zone_mae_vs_reset_frames_81_92": {
+        "subject_full": 0.17504537105560303,
+        "subject_core2": 0.2216106653213501,
+        "subject_boundary_ring": 0.0873083844780922,
+        "outside_subject": 0.022779781371355057
+      }
+    },
+    "subject_boundary_only": {
+      "mae_vs_reset_frames_81_92": 0.0321149006485939,
+      "mean_abs_adjacent_change_80_to_81": 0.03180643171072006,
+      "mean_abs_adjacent_change_92_to_93": 0.03215930238366127,
+      "zone_mae_vs_reset_frames_81_92": {
+        "subject_full": 0.08377285301685333,
+        "subject_core2": 0.05371744930744171,
+        "subject_boundary_ring": 0.18675707280635834,
+        "outside_subject": 0.010043293237686157
+      }
+    }
+  }
+}

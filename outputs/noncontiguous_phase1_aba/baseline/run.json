@@ -1,0 +1,67 @@
+{
+  "mode": "baseline",
+  "manual_global_frame_id": null,
+  "runtime_seconds": 11.5805793129839,
+  "peak_vram_mib_nvidia_smi": 23025,
+  "peak_vram_mib_torch_allocated": 19890.193359375,
+  "raw_decoded_before_mp4": {
+    "path": "outputs/noncontiguous_phase1_aba/baseline/raw_decoded_before_mp4.pt",
+    "sha256": "cd334157d2f34a5a833b68ab5624d5d9819df3586e7f6b4767b09f039624e0c4"
+  },
+  "mp4": {
+    "path": "outputs/noncontiguous_phase1_aba/baseline/0-0_ema.mp4",
+    "sha256": "339249f17b99dd1e9c62abb0696bd0da8c14b35cc6c2b1f666a4b1b3cb15b392"
+  },
+  "clean_latents": [
+    {
+      "block": 1,
+      "sha256": "70e2ce7e754a1f9232a74173014a81935d2f9e0f35d21a16920464d3f24ebd6d",
+      "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_01.pt"
+    },
+    {
+      "block": 2,
+      "sha256": "2a7419c76170e9ba64e32cf5cea6b3be14cfa57b8319d699138e6651a134b5de",
+      "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_02.pt"
+    },
+    {
+      "block": 3,
+      "sha256": "1ffdf4aabe1fddd0606ef596b009def5e3d867f5472c48aae8a8ec6af0f71ab3",
+      "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_03.pt"
+    },
+    {
+      "block": 4,
+      "sha256": "3039ee2531752b80a546faf17c8ec2183829af99b1594c03bacac36edb42f51d",
+      "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_04.pt"
+    },
+    {
+      "block": 5,
+      "sha256": "ef8febac343855ac3a193c2f399caf1f92cd6b97ca6d48e5095712f052ced1a0",
+      "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_05.pt"
+    },
+    {
+      "block": 6,
+      "sha256": "26bee68447c760624b514d7ffc8d78f4342cec5a6302dd9e39561ee7ca4ad988",
+      "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_06.pt"
+    },
+    {
+      "block": 7,
+      "sha256": "a692f981b7bff4535a85ce8b9fcd655e2bbd2c3e906d3479a55fcfdf9409704a",
+      "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_07.pt"
+    },
+    {
+      "block": 8,
+      "sha256": "e7be39b00bf5c082cd05af100dd0a5ad2af0d0e59b1ecb22a8c6cfb4d385ca6c",
+      "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_08.pt"
+    },
+    {
+      "block": 9,
+      "sha256": "0f05ce535df53562b90e7d654a8eef73b6e7baa6ed2a023c10bba529f7a1662a",
+      "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_09.pt"
+    },
+    {
+      "block": 10,
+      "sha256": "7d16e5f818eb627976b205491f81f4f5486d00f01e851911534f027156659b2a",
+      "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_10.pt"
+    }
+  ]
+}

@@ -1,0 +1,409 @@
+[
+  {
+    "mode": "baseline",
+    "manual_global_frame_id": null,
+    "runtime_seconds": 11.5805793129839,
+    "peak_vram_mib_nvidia_smi": 23025,
+    "peak_vram_mib_torch_allocated": 19890.193359375,
+    "raw_decoded_before_mp4": {
+      "path": "outputs/noncontiguous_phase1_aba/baseline/raw_decoded_before_mp4.pt",
+      "sha256": "cd334157d2f34a5a833b68ab5624d5d9819df3586e7f6b4767b09f039624e0c4"
+    },
+    "mp4": {
+      "path": "outputs/noncontiguous_phase1_aba/baseline/0-0_ema.mp4",
+      "sha256": "339249f17b99dd1e9c62abb0696bd0da8c14b35cc6c2b1f666a4b1b3cb15b392"
+    },
+    "clean_latents": [
+      {
+        "block": 1,
+        "sha256": "70e2ce7e754a1f9232a74173014a81935d2f9e0f35d21a16920464d3f24ebd6d",
+        "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_01.pt"
+      },
+      {
+        "block": 2,
+        "sha256": "2a7419c76170e9ba64e32cf5cea6b3be14cfa57b8319d699138e6651a134b5de",
+        "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_02.pt"
+      },
+      {
+        "block": 3,
+        "sha256": "1ffdf4aabe1fddd0606ef596b009def5e3d867f5472c48aae8a8ec6af0f71ab3",
+        "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_03.pt"
+      },
+      {
+        "block": 4,
+        "sha256": "3039ee2531752b80a546faf17c8ec2183829af99b1594c03bacac36edb42f51d",
+        "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_04.pt"
+      },
+      {
+        "block": 5,
+        "sha256": "ef8febac343855ac3a193c2f399caf1f92cd6b97ca6d48e5095712f052ced1a0",
+        "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_05.pt"
+      },
+      {
+        "block": 6,
+        "sha256": "26bee68447c760624b514d7ffc8d78f4342cec5a6302dd9e39561ee7ca4ad988",
+        "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_06.pt"
+      },
+      {
+        "block": 7,
+        "sha256": "a692f981b7bff4535a85ce8b9fcd655e2bbd2c3e906d3479a55fcfdf9409704a",
+        "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_07.pt"
+      },
+      {
+        "block": 8,
+        "sha256": "e7be39b00bf5c082cd05af100dd0a5ad2af0d0e59b1ecb22a8c6cfb4d385ca6c",
+        "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_08.pt"
+      },
+      {
+        "block": 9,
+        "sha256": "0f05ce535df53562b90e7d654a8eef73b6e7baa6ed2a023c10bba529f7a1662a",
+        "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_09.pt"
+      },
+      {
+        "block": 10,
+        "sha256": "7d16e5f818eb627976b205491f81f4f5486d00f01e851911534f027156659b2a",
+        "path": "outputs/noncontiguous_phase1_aba/baseline/clean_latents_block_10.pt"
+      }
+    ]
+  },
+  {
+    "mode": "same_entity_history",
+    "manual_global_frame_id": 8,
+    "runtime_seconds": 11.566791969002225,
+    "peak_vram_mib_nvidia_smi": 23025,
+    "peak_vram_mib_torch_allocated": 19890.193359375,
+    "raw_decoded_before_mp4": {
+      "path": "outputs/noncontiguous_phase1_aba/same_entity_history/raw_decoded_before_mp4.pt",
+      "sha256": "28ca0132bb61c3c083b4367fd718116676b1c4a1a100264f5e0b10e325091d78"
+    },
+    "mp4": {
+      "path": "outputs/noncontiguous_phase1_aba/same_entity_history/0-0_ema.mp4",
+      "sha256": "123dec46044ee8ae455a14e56cfd157e168678c9bcdc083e37d4da31a6a32a2b"
+    },
+    "clean_latents": [
+      {
+        "block": 1,
+        "sha256": "70e2ce7e754a1f9232a74173014a81935d2f9e0f35d21a16920464d3f24ebd6d",
+        "path": "outputs/noncontiguous_phase1_aba/same_entity_history/clean_latents_block_01.pt"
+      },
+      {
+        "block": 2,
+        "sha256": "2a7419c76170e9ba64e32cf5cea6b3be14cfa57b8319d699138e6651a134b5de",
+        "path": "outputs/noncontiguous_phase1_aba/same_entity_history/clean_latents_block_02.pt"
+      },
+      {
+        "block": 3,
+        "sha256": "1ffdf4aabe1fddd0606ef596b009def5e3d867f5472c48aae8a8ec6af0f71ab3",
+        "path": "outputs/noncontiguous_phase1_aba/same_entity_history/clean_latents_block_03.pt"
+      },
+      {
+        "block": 4,
+        "sha256": "3039ee2531752b80a546faf17c8ec2183829af99b1594c03bacac36edb42f51d",
+        "path": "outputs/noncontiguous_phase1_aba/same_entity_history/clean_latents_block_04.pt"
+      },
+      {
+        "block": 5,
+        "sha256": "ef8febac343855ac3a193c2f399caf1f92cd6b97ca6d48e5095712f052ced1a0",
+        "path": "outputs/noncontiguous_phase1_aba/same_entity_history/clean_latents_block_05.pt"
+      },
+      {
+        "block": 6,
+        "sha256": "26bee68447c760624b514d7ffc8d78f4342cec5a6302dd9e39561ee7ca4ad988",
+        "path": "outputs/noncontiguous_phase1_aba/same_entity_history/clean_latents_block_06.pt"
+      },
+      {
+        "block": 7,
+        "sha256": "a692f981b7bff4535a85ce8b9fcd655e2bbd2c3e906d3479a55fcfdf9409704a",
+        "path": "outputs/noncontiguous_phase1_aba/same_entity_history/clean_latents_block_07.pt"
+      },
+      {
+        "block": 8,
+        "sha256": "b2091f7e9be065c18b908e567c7c0c50bef1e8242ca636e119a87b25451c3fa6",
+        "path": "outputs/noncontiguous_phase1_aba/same_entity_history/clean_latents_block_08.pt"
+      },
+      {
+        "block": 9,
+        "sha256": "7df82ba7bc064c6bc524901b9249b763e460b11a9dff500eb993c09fe5987d2f",
+        "path": "outputs/noncontiguous_phase1_aba/same_entity_history/clean_latents_block_09.pt"
+      },
+      {
+        "block": 10,
+        "sha256": "f9f7fd06dc2fcf64a747dff70ee47c8c5869ec90594fabeec18b4b78e2dac2b5",
+        "path": "outputs/noncontiguous_phase1_aba/same_entity_history/clean_latents_block_10.pt"
+      }
+    ],
+    "comparison_vs_baseline": {
+      "clean_latents": [
+        {
+          "block": 1,
+          "max_abs": 0.0,
+          "per_latent_max_abs": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "block": 2,
+          "max_abs": 0.0,
+          "per_latent_max_abs": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "block": 3,
+          "max_abs": 0.0,
+          "per_latent_max_abs": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "block": 4,
+          "max_abs": 0.0,
+          "per_latent_max_abs": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "block": 5,
+          "max_abs": 0.0,
+          "per_latent_max_abs": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "block": 6,
+          "max_abs": 0.0,
+          "per_latent_max_abs": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "block": 7,
+          "max_abs": 0.0,
+          "per_latent_max_abs": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "block": 8,
+          "max_abs": 4.078125,
+          "per_latent_max_abs": [
+            3.65625,
+            3.94140625,
+            4.078125
+          ]
+        },
+        {
+          "block": 9,
+          "max_abs": 4.15625,
+          "per_latent_max_abs": [
+            3.515625,
+            4.15625,
+            3.90625
+          ]
+        },
+        {
+          "block": 10,
+          "max_abs": 3.453125,
+          "per_latent_max_abs": [
+            3.1484375,
+            3.15625,
+            3.453125
+          ]
+        }
+      ],
+      "first_divergent_clean_latent": {
+        "block": 8,
+        "latent_index_in_block": 0,
+        "global_latent_id": 21,
+        "max_abs": 4.078125
+      },
+      "first_divergent_decoded_frame": 81,
+      "raw_decoded_pre_block8_max_abs": 0.0,
+      "raw_decoded_max_abs": 1.0
+    }
+  },
+  {
+    "mode": "wrong_entity_history",
+    "manual_global_frame_id": 17,
+    "runtime_seconds": 11.611058725975454,
+    "peak_vram_mib_nvidia_smi": 23025,
+    "peak_vram_mib_torch_allocated": 19890.193359375,
+    "raw_decoded_before_mp4": {
+      "path": "outputs/noncontiguous_phase1_aba/wrong_entity_history/raw_decoded_before_mp4.pt",
+      "sha256": "b8d166803229291a0efb9cc3d0a45cadd2d933d703e4075659a84cf1f256da43"
+    },
+    "mp4": {
+      "path": "outputs/noncontiguous_phase1_aba/wrong_entity_history/0-0_ema.mp4",
+      "sha256": "e2bdc5623d54a5b7b3e99582b6252e50788b20f76e24f265325c86db11a1521b"
+    },
+    "clean_latents": [
+      {
+        "block": 1,
+        "sha256": "70e2ce7e754a1f9232a74173014a81935d2f9e0f35d21a16920464d3f24ebd6d",
+        "path": "outputs/noncontiguous_phase1_aba/wrong_entity_history/clean_latents_block_01.pt"
+      },
+      {
+        "block": 2,
+        "sha256": "2a7419c76170e9ba64e32cf5cea6b3be14cfa57b8319d699138e6651a134b5de",
+        "path": "outputs/noncontiguous_phase1_aba/wrong_entity_history/clean_latents_block_02.pt"
+      },
+      {
+        "block": 3,
+        "sha256": "1ffdf4aabe1fddd0606ef596b009def5e3d867f5472c48aae8a8ec6af0f71ab3",
+        "path": "outputs/noncontiguous_phase1_aba/wrong_entity_history/clean_latents_block_03.pt"
+      },
+      {
+        "block": 4,
+        "sha256": "3039ee2531752b80a546faf17c8ec2183829af99b1594c03bacac36edb42f51d",
+        "path": "outputs/noncontiguous_phase1_aba/wrong_entity_history/clean_latents_block_04.pt"
+      },
+      {
+        "block": 5,
+        "sha256": "ef8febac343855ac3a193c2f399caf1f92cd6b97ca6d48e5095712f052ced1a0",
+        "path": "outputs/noncontiguous_phase1_aba/wrong_entity_history/clean_latents_block_05.pt"
+      },
+      {
+        "block": 6,
+        "sha256": "26bee68447c760624b514d7ffc8d78f4342cec5a6302dd9e39561ee7ca4ad988",
+        "path": "outputs/noncontiguous_phase1_aba/wrong_entity_history/clean_latents_block_06.pt"
+      },
+      {
+        "block": 7,
+        "sha256": "a692f981b7bff4535a85ce8b9fcd655e2bbd2c3e906d3479a55fcfdf9409704a",
+        "path": "outputs/noncontiguous_phase1_aba/wrong_entity_history/clean_latents_block_07.pt"
+      },
+      {
+        "block": 8,
+        "sha256": "c6babeab29b21ae0646b0a29ad5856234e2c4ba7bbfef771a2ccf8ac1d4d2481",
+        "path": "outputs/noncontiguous_phase1_aba/wrong_entity_history/clean_latents_block_08.pt"
+      },
+      {
+        "block": 9,
+        "sha256": "c2ccb99c7bed33d3d2cea6e5c9827e7a0c594d122b7e04e5abd4937e4ec4cd70",
+        "path": "outputs/noncontiguous_phase1_aba/wrong_entity_history/clean_latents_block_09.pt"
+      },
+      {
+        "block": 10,
+        "sha256": "222624e5985dd78c4d707aaeb52ef54a07a9d680010b4a79c5a6e4b3862f837f",
+        "path": "outputs/noncontiguous_phase1_aba/wrong_entity_history/clean_latents_block_10.pt"
+      }
+    ],
+    "comparison_vs_baseline": {
+      "clean_latents": [
+        {
+          "block": 1,
+          "max_abs": 0.0,
+          "per_latent_max_abs": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "block": 2,
+          "max_abs": 0.0,
+          "per_latent_max_abs": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "block": 3,
+          "max_abs": 0.0,
+          "per_latent_max_abs": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "block": 4,
+          "max_abs": 0.0,
+          "per_latent_max_abs": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "block": 5,
+          "max_abs": 0.0,
+          "per_latent_max_abs": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "block": 6,
+          "max_abs": 0.0,
+          "per_latent_max_abs": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "block": 7,
+          "max_abs": 0.0,
+          "per_latent_max_abs": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "block": 8,
+          "max_abs": 3.6171875,
+          "per_latent_max_abs": [
+            2.6484375,
+            3.6171875,
+            3.42578125
+          ]
+        },
+        {
+          "block": 9,
+          "max_abs": 4.3828125,
+          "per_latent_max_abs": [
+            3.578125,
+            3.765625,
+            4.3828125
+          ]
+        },
+        {
+          "block": 10,
+          "max_abs": 4.703125,
+          "per_latent_max_abs": [
+            4.3125,
+            3.6953125,
+            4.703125
+          ]
+        }
+      ],
+      "first_divergent_clean_latent": {
+        "block": 8,
+        "latent_index_in_block": 0,
+        "global_latent_id": 21,
+        "max_abs": 3.6171875
+      },
+      "first_divergent_decoded_frame": 81,
+      "raw_decoded_pre_block8_max_abs": 0.0,
+      "raw_decoded_max_abs": 1.0
+    }
+  }
+]

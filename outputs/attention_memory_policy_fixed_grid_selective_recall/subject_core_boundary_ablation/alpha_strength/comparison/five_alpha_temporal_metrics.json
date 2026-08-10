@@ -1,0 +1,100 @@
+{
+  "frames": [
+    77,
+    81,
+    85,
+    89,
+    93,
+    105,
+    113
+  ],
+  "zones": "core2, original-subject boundary ring, one-token exterior halo, and distant dilated-complement background",
+  "pixel_metrics_are_proxies_not_semantic_identity_or_scene_scores": true,
+  "arms": {
+    "alpha_0.00_reused_reset": {
+      "recall_block_rgb_81_92_zone_mae_vs_reset": {
+        "subject_core2": 0.0,
+        "subject_boundary_ring": 0.0,
+        "outer_one_token_halo": 0.0,
+        "distant_snow_background": 0.0
+      },
+      "post_recall_rgb_93_116_zone_mae_vs_reset": {
+        "subject_core2": 0.0,
+        "subject_boundary_ring": 0.0,
+        "outer_one_token_halo": 0.0,
+        "distant_snow_background": 0.0
+      },
+      "mean_abs_adjacent_change_80_to_81": 0.025835910812020302,
+      "mean_abs_adjacent_change_92_to_93": 0.024521009996533394,
+      "mean_abs_adjacent_change_104_to_105": 0.020731966942548752
+    },
+    "alpha_0.10": {
+      "recall_block_rgb_81_92_zone_mae_vs_reset": {
+        "subject_core2": 0.07135452330112457,
+        "subject_boundary_ring": 0.026856794953346252,
+        "outer_one_token_halo": 0.019278906285762787,
+        "distant_snow_background": 0.0059271687641739845
+      },
+      "post_recall_rgb_93_116_zone_mae_vs_reset": {
+        "subject_core2": 0.08647388219833374,
+        "subject_boundary_ring": 0.04542149603366852,
+        "outer_one_token_halo": 0.041843611747026443,
+        "distant_snow_background": 0.01882125809788704
+      },
+      "mean_abs_adjacent_change_80_to_81": 0.026863466948270798,
+      "mean_abs_adjacent_change_92_to_93": 0.02263135090470314,
+      "mean_abs_adjacent_change_104_to_105": 0.02034928649663925
+    },
+    "alpha_0.25": {
+      "recall_block_rgb_81_92_zone_mae_vs_reset": {
+        "subject_core2": 0.09957897663116455,
+        "subject_boundary_ring": 0.04431968182325363,
+        "outer_one_token_halo": 0.03603891655802727,
+        "distant_snow_background": 0.010339089669287205
+      },
+      "post_recall_rgb_93_116_zone_mae_vs_reset": {
+        "subject_core2": 0.097197525203228,
+        "subject_boundary_ring": 0.057692788541316986,
+        "outer_one_token_halo": 0.06048830971121788,
+        "distant_snow_background": 0.03262082487344742
+      },
+      "mean_abs_adjacent_change_80_to_81": 0.03072488307952881,
+      "mean_abs_adjacent_change_92_to_93": 0.021715309470891953,
+      "mean_abs_adjacent_change_104_to_105": 0.021739747375249863
+    },
+    "alpha_0.50": {
+      "recall_block_rgb_81_92_zone_mae_vs_reset": {
+        "subject_core2": 0.1898045539855957,
+        "subject_boundary_ring": 0.08384469896554947,
+        "outer_one_token_halo": 0.06378035247325897,
+        "distant_snow_background": 0.014998149126768112
+      },
+      "post_recall_rgb_93_116_zone_mae_vs_reset": {
+        "subject_core2": 0.1540229469537735,
+        "subject_boundary_ring": 0.0967300534248352,
+        "outer_one_token_halo": 0.08838219195604324,
+        "distant_snow_background": 0.04454926401376724
+      },
+      "mean_abs_adjacent_change_80_to_81": 0.04213711991906166,
+      "mean_abs_adjacent_change_92_to_93": 0.02238425612449646,
+      "mean_abs_adjacent_change_104_to_105": 0.019201362505555153
+    },
+    "alpha_1.00_reused_erode2": {
+      "recall_block_rgb_81_92_zone_mae_vs_reset": {
+        "subject_core2": 0.2216106653213501,
+        "subject_boundary_ring": 0.0873083844780922,
+        "outer_one_token_halo": 0.07508485019207001,
+        "distant_snow_background": 0.018537435680627823
+      },
+      "post_recall_rgb_93_116_zone_mae_vs_reset": {
+        "subject_core2": 0.139900803565979,
+        "subject_boundary_ring": 0.10783690959215164,
+        "outer_one_token_halo": 0.10337573289871216,
+        "distant_snow_background": 0.051831282675266266
+      },
+      "mean_abs_adjacent_change_80_to_81": 0.048928067088127136,
+      "mean_abs_adjacent_change_92_to_93": 0.03171520307660103,
+      "mean_abs_adjacent_change_104_to_105": 0.01731729321181774
+    }
+  }
+}
