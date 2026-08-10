@@ -1075,3 +1075,42 @@ records an observation.
   and three-arm review sheet
   `latent_subject_patch/comparison/three_arm_latent_subject_patch_temporal_sheet.png`
   SHA-256 `dbeb89a20f474582708aa4b30261e934655ad97c60ffd39df100d990c2776188`.
+
+## E20260809-AMP-AFFINE-ALIGNED-SUBJECT-LATENT-PATCH (executed; one seed)
+
+- Method: one spatial-registration oracle extending the direct latent-patch
+  representation test only; no raw KV is used. For each source frame, its
+  exact 2x2-lifted 60x104 mask bbox `[14,2]–[75,59]` is independently scaled
+  and translated onto the fixed target bbox `[40,0]–[79,59]` (scale x/y
+  `0.639344/1.035088`, translation x/y `31.049180/-2.070175`). Source and
+  target centroids are recorded in the policy log. All 16 latent channels use
+  this same FP32-grid affine warp; masks use the same nearest warp.
+- Validity/isolation: source 6, the source-6/7 midpoint, and source 7 each
+  write only 1,301 valid warped latent cells (325 whole-token equivalents),
+  inside the target mask. The patched output has
+  `outside_target_equal=true`, max difference 0.0; clean-cache input and saved
+  clean blocks 7/8/9 are exactly reset-equal. Thus DMD, cache update, and
+  outside-mask output latents remain baseline. An initial BF16-coordinate
+  attempt was retained under `attempt1_bf16_grid/` but excluded because it
+  reduced valid support to 1,296 cells; the recorded result uses FP32 geometry.
+- Human result: source face/bun/blue clothing remains recognizable, but bbox
+  registration does **not** turn the transplant into a better-aligned subject
+  transfer. It produces a conspicuous split/duplicate A1/A2 face-and-crown
+  composite and hard seams across all three target frames. It also restores
+  visible local green greenhouse tiles/orange flowers *inside* the patch,
+  though the snowy scene outside the target latent mask remains unchanged.
+  The post-block ghost remains. Temporal assignment is stable as a repeated
+  artifact, not as smooth subject motion.
+- Interpretation: simple bbox affine registration neither resolves the hard
+  paste nor suppresses source-local context; it increases the source content
+  admitted by the patch. This one-seed result does not justify an alignment
+  claim. Stop for review; no feathering, blending, tracking, flow, automatic
+  mask, or additional registration variant was run.
+- Evidence: registration audit SHA-256
+  `a5d4fbbd4724772ff8fb324f0b8603260b5bd98fa1caf37d2d74bd0ec1c1e8d8`,
+  temporal sheet SHA-256
+  `ef7560dd04211f6b80bef487dc67d860c2cabf08e10d5f157eff293e2680132a`,
+  crops SHA-256 `ec6a09dc1ac85e526f97476a63d961e39ccbbab69b7ce73d390f215f49c15902`,
+  and raw tensor SHA-256
+  `ca3b7b04440a980bed783746d2f23a1ecd7a4c7eb27776dd27996e6b38cdaada` under
+  `outputs/attention_memory_policy_fixed_grid_selective_recall/affine_aligned_latent_subject_patch/`.

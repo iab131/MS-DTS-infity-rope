@@ -65,6 +65,54 @@ class AttentionMemoryPolicyTest(unittest.TestCase):
         self.assertTrue(audit["outside_target_equal"])
         self.assertEqual(audit["supported_token_counts"], [1, 1, 1])
 
+    def test_affine_subject_latent_memory_aligns_scaled_source_bbox_to_target(self):
+        source_6 = [0] * 1560
+        source_6[1 * 52 + 1] = 1
+        source_7 = [0] * 1560
+        source_7[1 * 52 + 1] = 1
+        target = [0] * 1560
+        target[5 * 52 + 8] = target[5 * 52 + 9] = 1
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as handle:
+            json.dump({"height": 30, "width": 52,
+                       "source_masks": {"6": source_6, "7": source_7},
+                       "target_subject_mask": target}, handle)
+        self.addCleanup(lambda: Path(handle.name).unlink(missing_ok=True))
+        masks = FixedGridMemoryMasks.from_json(handle.name)
+        source_latents = torch.zeros(1, 8, 1, 60, 104)
+        source_latents[:, 6].fill_(10)
+        source_latents[:, 7].fill_(20)
+        baseline = torch.ones(1, 3, 1, 60, 104)
+
+        memory = capture_subject_latent_memory(source_latents, masks)
+        patched, audit = transplant_subject_latent_memory(
+            baseline, memory, masks, affine_align=True)
+
+        target_pixels = (slice(None), slice(None), slice(None), slice(10, 12), slice(16, 20))
+        torch.testing.assert_close(
+            patched[:, 0][target_pixels[0], target_pixels[2], target_pixels[3], target_pixels[4]],
+            torch.full((1, 1, 2, 4), 10.0), atol=1e-4, rtol=0)
+        torch.testing.assert_close(
+            patched[:, 1][target_pixels[0], target_pixels[2], target_pixels[3], target_pixels[4]],
+            torch.full((1, 1, 2, 4), 15.0), atol=1e-4, rtol=0)
+        torch.testing.assert_close(
+            patched[:, 2][target_pixels[0], target_pixels[2], target_pixels[3], target_pixels[4]],
+            torch.full((1, 1, 2, 4), 20.0), atol=1e-4, rtol=0)
+        self.assertTrue(audit["outside_target_equal"])
+        self.assertEqual(audit["supported_token_counts"], [2, 2, 2])
+        self.assertEqual(audit["source_to_target_affines"]["6"]["scale_xy"], [3.0, 1.0])
+
+    def test_affine_subject_latent_memory_uses_fp32_geometry_for_bfloat16_latents(self):
+        masks = FixedGridMemoryMasks.from_json(
+            Path(__file__).resolve().parents[1] /
+            "docs/attention_memory_policy_fixed_grid_masks_20260809.json")
+        source_latents = torch.zeros(1, 8, 1, 60, 104, dtype=torch.bfloat16)
+        baseline = torch.zeros(1, 3, 1, 60, 104, dtype=torch.bfloat16)
+
+        _, audit = transplant_subject_latent_memory(
+            baseline, capture_subject_latent_memory(source_latents, masks), masks, affine_align=True)
+
+        self.assertEqual(audit["supported_latent_cell_counts"], [1301, 1301, 1301])
+
     def test_fixed_grid_timestep_gate_uses_observed_execution_order(self):
         schedule = fixed_grid_denoising_schedule([1000.0, 937.5, 833.3333129882812, 625.0])
         self.assertEqual(schedule["execution_timesteps"], [1000.0, 937.5, 833.3333129882812, 625.0])

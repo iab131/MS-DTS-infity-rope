@@ -586,3 +586,27 @@ claim.
   `outputs/attention_memory_policy_fixed_grid_selective_recall/latent_subject_patch/comparison/three_arm_latent_subject_patch_temporal_sheet.png`.
   No blending, warping, tracking, automatic mask, or additional sweep was
   added.
+
+## 2026-08-09: Affine-aligned subject latent-patch oracle (one seed)
+
+- The registration arm keeps the same unchanged DMD and clean-cache path, but
+  uses a per-source 2D bbox affine warp at the existing output-latent write.
+  Both A1 masks map from latent bbox `[14,2]–[75,59]` to target
+  `[40,0]–[79,59]` with x/y scale `0.639344/1.035088`; source/target centroids
+  and transforms are logged. The 16 channels use one FP32 sampling grid and
+  the source mask uses the matching nearest warp. Target 2 averages separately
+  warped sources only where both warped masks are valid.
+- Exact checks pass: 1,301 valid latent cells per target frame, no output
+  latent change outside target (`max_abs=0.0`), baseline clean-cache input,
+  and exact reset equality for saved clean blocks 7--9. The snow outside the
+  target latent mask is therefore preserved by construction.
+- Visual result is negative for simple registration. The A1 face/bun/outfit
+  remains visible, but affine alignment creates a split A1/A2 face-and-crown
+  composite, hard seams, and a post-block ghost. Unlike the unaligned patch,
+  it also makes local green/orange A1 greenhouse content visible within the
+  admitted target patch. The three target frames repeat the same artifact; no
+  smooth geometry/pose transfer is established.
+- This stops after one registered arm. The comparison sheet and crops are in
+  `outputs/attention_memory_policy_fixed_grid_selective_recall/affine_aligned_latent_subject_patch/comparison/`;
+  no blending, feathering, tracking, optical flow, or further registration
+  variant was added.

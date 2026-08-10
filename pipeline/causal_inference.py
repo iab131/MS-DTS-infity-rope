@@ -1,6 +1,7 @@
 from typing import List, Optional, Tuple
 from random import Random
 import torch
+import torch.nn.functional as F
 import re
 
 from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
@@ -218,13 +219,70 @@ def capture_subject_latent_memory(latents, masks):
     return memory
 
 
-def transplant_subject_latent_memory(baseline, memory, masks):
+def _mask_geometry(mask):
+    coordinates = mask.nonzero(as_tuple=False)
+    if not len(coordinates):
+        raise ValueError("subject mask must contain at least one latent cell")
+    ymin, xmin = coordinates.min(dim=0).values.tolist()
+    ymax, xmax = coordinates.max(dim=0).values.tolist()
+    centroid_yx = coordinates.float().mean(dim=0).tolist()
+    return {
+        "bbox_xyxy": [int(xmin), int(ymin), int(xmax), int(ymax)],
+        "centroid_xy": [float(centroid_yx[1]), float(centroid_yx[0])],
+    }
+
+
+def _warp_subject_latent(content, source_support, target_support):
+    """Warp one masked source tensor so its bbox matches the target bbox."""
+    source = _mask_geometry(source_support)
+    target = _mask_geometry(target_support)
+    sx0, sy0, sx1, sy1 = source["bbox_xyxy"]
+    tx0, ty0, tx1, ty1 = target["bbox_xyxy"]
+    source_size_xy = [sx1 - sx0, sy1 - sy0]
+    target_size_xy = [tx1 - tx0, ty1 - ty0]
+    if 0 in source_size_xy:
+        raise ValueError("subject source bbox must span both latent axes")
+    scale_xy = [target_size_xy[0] / source_size_xy[0], target_size_xy[1] / source_size_xy[1]]
+    source_center_xy = [(sx0 + sx1) / 2, (sy0 + sy1) / 2]
+    target_center_xy = [(tx0 + tx1) / 2, (ty0 + ty1) / 2]
+    height, width = source_support.shape
+    yy, xx = torch.meshgrid(
+        torch.arange(height, device=content.device, dtype=torch.float32),
+        torch.arange(width, device=content.device, dtype=torch.float32), indexing="ij")
+    source_x = (xx - target_center_xy[0]) / scale_xy[0] + source_center_xy[0]
+    source_y = (yy - target_center_xy[1]) / scale_xy[1] + source_center_xy[1]
+    grid = torch.stack((source_x * 2 / (width - 1) - 1, source_y * 2 / (height - 1) - 1), dim=-1)
+    grid = grid.unsqueeze(0).expand(content.shape[0], -1, -1, -1)
+    warped_content = F.grid_sample(
+        content.float(), grid, mode="bilinear", padding_mode="zeros", align_corners=True).to(content.dtype)
+    warped_support = F.grid_sample(
+        source_support.float()[None, None], grid[:1], mode="nearest",
+        padding_mode="zeros", align_corners=True)[0, 0].bool()
+    return warped_content, warped_support, {
+        "source": source,
+        "target": target,
+        "scale_xy": scale_xy,
+        "translation_xy": [
+            target_center_xy[0] - scale_xy[0] * source_center_xy[0],
+            target_center_xy[1] - scale_xy[1] * source_center_xy[1],
+        ],
+    }
+
+
+def transplant_subject_latent_memory(baseline, memory, masks, affine_align=False):
     """Apply the fixed 6 -> 6/7 -> 7 patch map only where source masks support it."""
     if baseline.ndim != 5 or baseline.shape[1] != 3 or len(memory) != 2:
         raise ValueError("latent subject patch requires three targets and two source patches")
     target = _lift_fixed_grid_mask(masks.target_subject_mask, *baseline.shape[-2:], baseline.device)
     content = [item["content"].to(device=baseline.device, dtype=baseline.dtype) for item in memory]
     supports = [item["support"].to(device=baseline.device, dtype=torch.bool) & target for item in memory]
+    affine_audit = None
+    if affine_align:
+        warped = [_warp_subject_latent(value, item["support"].to(device=baseline.device, dtype=torch.bool), target)
+                  for value, item in zip(content, memory)]
+        content = [item[0] for item in warped]
+        supports = [item[1] & target for item in warped]
+        affine_audit = {str(frame_id): item[2] for frame_id, item in zip((6, 7), warped)}
     plans = [(supports[0], content[0]),
              (supports[0] & supports[1], (content[0] + content[1]) * 0.5),
              (supports[1], content[1])]
@@ -232,11 +290,15 @@ def transplant_subject_latent_memory(baseline, memory, masks):
     for index, (support, values) in enumerate(plans):
         patched[:, index] = torch.where(support[None, None], values, baseline[:, index])
     outside = ~target
-    return patched, {
+    audit = {
         "outside_target_equal": torch.equal(patched[:, :, :, outside], baseline[:, :, :, outside]),
         "outside_target_max_abs": float((patched[:, :, :, outside] - baseline[:, :, :, outside]).abs().max()),
         "supported_token_counts": [int(support.sum().item() // 4) for support, _ in plans],
+        "supported_latent_cell_counts": [int(support.sum().item()) for support, _ in plans],
     }
+    if affine_audit is not None:
+        audit["source_to_target_affines"] = affine_audit
+    return patched, audit
 
 
 def pack_fixed_grid_selective_memory(memory_store, masks, mode, current_frames, num_layers, alpha=1.0):
@@ -551,7 +613,10 @@ class CausalInferencePipeline(torch.nn.Module):
         fixed_grid_config = memory_policy.get("fixed_grid")
         fixed_grid_masks = FixedGridMemoryMasks.from_json(
             fixed_grid_config["mask_path"]) if fixed_grid_config else None
-        latent_subject_patch = bool(fixed_grid_config and fixed_grid_config["mode"] == "latent_subject_patch")
+        latent_subject_patch = bool(fixed_grid_config and fixed_grid_config["mode"] in {
+            "latent_subject_patch", "affine_aligned_latent_subject_patch"})
+        affine_aligned_latent_subject_patch = bool(
+            fixed_grid_config and fixed_grid_config["mode"] == "affine_aligned_latent_subject_patch")
         source_latent_memory = None
         if memory_enabled:
             memory_store = MemoryStore(
@@ -843,7 +908,8 @@ class CausalInferencePipeline(torch.nn.Module):
                 if source_latent_memory is None:
                     raise RuntimeError("latent subject source frames were not captured before block 8")
                 output_denoised_pred, patch_audit = transplant_subject_latent_memory(
-                    baseline_denoised_pred, source_latent_memory, fixed_grid_masks)
+                    baseline_denoised_pred, source_latent_memory, fixed_grid_masks,
+                    affine_align=affine_aligned_latent_subject_patch)
                 memory_logger.write("latent_subject_patch", {
                     "block": current_block_number,
                     "source_frame_ids": [6, 7],
@@ -851,6 +917,7 @@ class CausalInferencePipeline(torch.nn.Module):
                     "temporal_mapping": ["source_6", "0.5_source_6+0.5_source_7", "source_7"],
                     "latent_shape": list(output_denoised_pred.shape),
                     "target_mask_lift": "30x52_to_60x104_exact_2x2",
+                    "spatial_registration": "bbox_affine" if affine_aligned_latent_subject_patch else "none",
                     "clean_cache_input_equals_baseline": torch.equal(baseline_denoised_pred, denoised_pred),
                     **patch_audit,
                 })
