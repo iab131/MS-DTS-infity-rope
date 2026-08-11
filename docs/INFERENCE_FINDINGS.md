@@ -747,6 +747,48 @@ change; no cache, routing, memory, or prompt-control mechanism should change.
   visual benefit nor a contribution claim; it only keeps the 8-run comparison
   eligible. No GPU generation or Phase-2 implementation was performed.
 
+## 2026-08-10: Phase 2B coherent scene-local RoPE epoch (8 GPU runs)
+
+### OBSERVED
+
+- Added one opt-in self-attention coordinate flag, restricted to an `#`
+  hard-cut `transition_no_sink` transition. It gives B temporal phases
+  `[0,1,2]`, then `[3,4,5]`, `[6,7,8]`, …; B raw non-sink K uses that same
+  epoch and the clean pass stores its transformed B sink at phase 0. Global
+  frame/output accounting and all non-self-attention behavior remain live.
+  CPU checks cover first-B equivalence, phase-zero sink storage, later coherent
+  Q/K, hard-cut-only activation, global accounting, and flag-off baseline
+  preservation.
+- Completed the preregistered greenhouse→pickup and aquarium→locomotive
+  matrix at seeds 101/202: **8/8** completed, zero failures, 44.393--48.224
+  s/run, 23,176 MiB direct-process peak VRAM. The run ledger is
+  `outputs/hard_cut_scene_local_rope_epoch_phase2b_20260810/runs.json`.
+- A RGB frames are exactly equal across arms. In every pair×seed, raw decoded
+  divergence first occurs at frame 34 (the second RGB frame of B); frame 33
+  remains equal. Later B max/mean RGB differences increase, so the experiment
+  is numerically active rather than a no-op.
+
+### HUMAN VISUAL REVIEW
+
+- The first B dissolve is visually the same in both arms. Both variants reach
+  the requested pickup/desert or locomotive/snow scene after it, without a
+  reviewed sustained greenhouse/aquarium carry-over.
+- In all four pair×seed comparisons, later B2/B3+ samples show no consistent
+  improvement or degradation in B-prompt adherence, subject/entity quality,
+  spatial coherence, temporal coherence, or obvious artifacts. Small raw
+  differences manifest as non-systematic local appearance/motion variation,
+  not a stable quality change.
+- Evidence: four synchronized two-arm videos and sheets plus one all-case
+  summary in `outputs/hard_cut_scene_local_rope_epoch_phase2b_20260810/comparison/`.
+
+### INTERPRETATION
+
+- This is a **neutral** result. The scene-local temporal epoch is distinct
+  from current `transition_no_sink` and reaches later B generation, but it
+  does not produce a useful visible gain in this controlled 4-case review.
+  Do not build a Scene-Time contribution around this coordinate-only rule or
+  infer that scene-local time is beneficial. No Phase 3 is authorized here.
+
 ## 2026-08-09: Subject-latent cache-write-mask ablation (one seed)
 
 - This is the requested cache-state-only ablation. `persistent_cache_erode1`

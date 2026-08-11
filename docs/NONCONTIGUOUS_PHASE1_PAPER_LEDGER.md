@@ -1248,3 +1248,38 @@ records an observation.
   make it genuinely distinct. This is an eligibility result for the smallest
   future 8-run comparison, not a Phase-2 implementation, visual result, or
   novelty claim.
+
+## E20260810-SCENE-LOCAL-ROPE-EPOCH (executed; 2 pairs × 2 seeds × 2 arms)
+
+- **Scope:** one minimal representation of a coherent post-hard-cut temporal
+  epoch. `--scene-local-rope-epoch` is opt-in and only activates for
+  `transition_no_sink` at an `#` scene cut. It changes self-attention temporal
+  positions only: B1 `[0,1,2]`, B2 `[3,4,5]`, B3 `[6,7,8]`, including raw
+  non-sink cache K re-RoPE and the first B clean-pass transformed sink at phase
+  0. It does not alter the reset, capacity, cross-attention, prompt schedule,
+  DMD schedule, output indexing, seed, weights, or memory features.
+- **Preflight:** deterministic CPU tests prove first-B attention equivalence to
+  `transition_no_sink` within tolerance, phase-zero transformed-sink storage,
+  coherent later local Q/K, unchanged global frame/output bookkeeping,
+  hard-cut-only activation, and exact flag-off preservation.
+- **Execution:** greenhouse woman→desert pickup and aquarium fish→snowy
+  locomotive, seeds 101/202, control plus epoch arm: **8/8 exit-zero** runs.
+  Runtime was 44.393--48.224 s/run and direct-process peak VRAM was 23,176
+  MiB. Commands, configuration, output paths, and status are recorded in
+  `outputs/hard_cut_scene_local_rope_epoch_phase2b_20260810/runs.json`.
+- **Raw divergence:** A is bit-identical across arms. Every case first differs
+  at decoded RGB frame 34 (frame 33 equal), and later B differences grow;
+  this confirms the coordinate rule reaches actual generation despite its
+  first-B attention equivalence.
+- **Human result:** visual comparison after the common first-block dissolve
+  finds clean requested B scenes in both arms, with no sustained old
+  greenhouse/aquarium leakage. There is no consistent epoch advantage or
+  degradation in B adherence, pickup/locomotive quality, spatial/motion
+  coherence, or artifacts across the four pair×seed cases. Two-arm temporal
+  sheets/videos and a summary are in
+  `outputs/hard_cut_scene_local_rope_epoch_phase2b_20260810/comparison/`.
+- **Decision:** **NEUTRAL.** This coordinate-only scene-local epoch is distinct
+  but not behaviorally useful in the registered matrix. It is negative
+  evidence for this simple RoPE-origin branch, not evidence against every
+  possible scene-local AR-state design. Stop here: no Scene-Time Field, new
+  cache ownership mechanism, memory/routing/steering, or Phase 3 was added.

@@ -49,6 +49,23 @@ def block_relative_positions(start_frame, num_frames, prefix_frames=0, device=No
     return torch.arange(start_frame + prefix_frames, start_frame + prefix_frames + num_frames, device=device)
 
 
+def scene_local_key_positions(scene_local_current_start, current_frames, context_frames, device=None):
+    """Return one epoch-consistent sink-plus-local temporal layout."""
+    if current_frames <= 0 or context_frames < current_frames:
+        raise ValueError("scene-local cache must include all current frames")
+    non_sink_frames = context_frames - 1
+    if non_sink_frames < 0:
+        raise ValueError("scene-local cache requires a sink slot")
+    end = scene_local_current_start + current_frames
+    start = end - non_sink_frames
+    if start < 1:
+        raise ValueError("scene-local non-sink positions must begin after sink phase 0")
+    return torch.cat([
+        torch.zeros(1, dtype=torch.long, device=device),
+        torch.arange(start, end, dtype=torch.long, device=device),
+    ])
+
+
 def sparse_historical_rope(key, grid_sizes, freqs, original_token_indices, temporal_slots):
     """RoPE sparse historical keys using their original row-major H/W coordinates."""
     if key.ndim != 4:
@@ -257,7 +274,8 @@ def materialize_selective_memory(selective_memory, device):
     } for group in selective_memory]
 
 
-def block_relativistic_rope(x, grid_sizes, freqs, start_frame=0, scene_cut=False, prefix_frames=0):
+def block_relativistic_rope(x, grid_sizes, freqs, start_frame=0, scene_cut=False, prefix_frames=0,
+                            temporal_positions=None):
     n, c = x.size(2), x.size(3) // 2
 
     # split freqs
@@ -273,7 +291,14 @@ def block_relativistic_rope(x, grid_sizes, freqs, start_frame=0, scene_cut=False
         x_i = torch.view_as_complex(x[i, :seq_len].to(torch.float64).reshape(
             seq_len, n, -1, 2)) # @hidir: becomes 4680 x 12 x 32
         
-        if scene_cut:
+        if temporal_positions is not None:
+            positions = torch.as_tensor(temporal_positions, device=x.device, dtype=torch.long)
+            if positions.ndim == 2:
+                positions = positions[i]
+            if positions.ndim != 1 or positions.numel() != f:
+                raise ValueError("temporal_positions must provide one position per frame")
+            temporal_freqs = freqs[0].index_select(0, positions)
+        elif scene_cut:
             temporal_freqs = rope_cut(freqs, start_frame + prefix_frames, f)
         elif prefix_frames:
             temporal_freqs = freqs[0].index_select(
@@ -484,12 +509,21 @@ class CausalWanSelfAttention(nn.Module):
                 grid_sizes_full[0][0] = max_attention_frames
                 # ------------------------------------------------------------ #
                 scene_cut = kv_cache.get("scene_cut", False)
+                scene_local_epoch = bool(kv_cache.get("scene_local_rope_epoch", False))
                 relative_start_frame = max_attention_frames-num_new_frames
-                roped_query = block_relativistic_rope(
-                    q, grid_sizes, freqs, start_frame=relative_start_frame, scene_cut=scene_cut).type_as(v)
-                # ------------------------------------------------------------ #
-                roped_key = block_relativistic_rope(
-                    k_for_rope, grid_sizes_full, freqs, start_frame=0, scene_cut=scene_cut).type_as(v)
+                if scene_local_epoch:
+                    relative_start_frame = current_start_frame - kv_cache["scene_local_rope_epoch_start_frame"]
+                    roped_query = block_relativistic_rope(
+                        q, grid_sizes, freqs, start_frame=relative_start_frame).type_as(v)
+                    roped_key = block_relativistic_rope(
+                        k_for_rope, grid_sizes_full, freqs,
+                        temporal_positions=scene_local_key_positions(
+                            relative_start_frame, num_new_frames, grid_sizes_full[0][0].item(), q.device)).type_as(v)
+                else:
+                    roped_query = block_relativistic_rope(
+                        q, grid_sizes, freqs, start_frame=relative_start_frame, scene_cut=scene_cut).type_as(v)
+                    roped_key = block_relativistic_rope(
+                        k_for_rope, grid_sizes_full, freqs, start_frame=0, scene_cut=scene_cut).type_as(v)
                 roped_key[:, :frame_seqlen] = k_for_rope[:, :frame_seqlen]
                 # ------------------------------------------------------------ #
             else: # first 21 frame happens here
@@ -504,12 +538,21 @@ class CausalWanSelfAttention(nn.Module):
                 grid_sizes_full[0][0] = min(local_end_index // frame_seqlen, max_attention_frames)
                 # ------------------------------------------------------------ #
                 scene_cut = kv_cache.get("scene_cut", False)
+                scene_local_epoch = bool(kv_cache.get("scene_local_rope_epoch", False))
                 relative_start_frame = current_start_frame if current_start_frame < max_attention_frames else max_attention_frames - num_new_frames
-                roped_query = block_relativistic_rope(
-                    q, grid_sizes, freqs, start_frame=relative_start_frame, scene_cut=scene_cut).type_as(v)
-                # ------------------------------------------------------------ #
-                roped_key = block_relativistic_rope(
-                        k_for_rope, grid_sizes_full, freqs, start_frame=0, scene_cut=scene_cut).type_as(v)
+                if scene_local_epoch:
+                    relative_start_frame = current_start_frame - kv_cache["scene_local_rope_epoch_start_frame"]
+                    roped_query = block_relativistic_rope(
+                        q, grid_sizes, freqs, start_frame=relative_start_frame).type_as(v)
+                    roped_key = block_relativistic_rope(
+                        k_for_rope, grid_sizes_full, freqs,
+                        temporal_positions=scene_local_key_positions(
+                            relative_start_frame, num_new_frames, grid_sizes_full[0][0].item(), q.device)).type_as(v)
+                else:
+                    roped_query = block_relativistic_rope(
+                        q, grid_sizes, freqs, start_frame=relative_start_frame, scene_cut=scene_cut).type_as(v)
+                    roped_key = block_relativistic_rope(
+                            k_for_rope, grid_sizes_full, freqs, start_frame=0, scene_cut=scene_cut).type_as(v)
                 # ------------------------------------------------------------ #
                 if local_start_index == 0:
                     kv_cache["k"][:, :frame_seqlen] = roped_key[:, :frame_seqlen]

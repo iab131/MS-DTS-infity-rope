@@ -55,6 +55,18 @@ class HardCutTransitionBenchmarkTest(unittest.TestCase):
                    return_value=SimpleNamespace(returncode=0, stdout="999, 123\n")):
             self.assertIsNone(_gpu_memory_for_pid(1234))
 
+    def test_phase2b_manifest_expands_the_eight_matched_epoch_runs(self):
+        manifest = load_manifest(
+            Path(__file__).resolve().parents[1] /
+            "docs/HARD_CUT_SCENE_LOCAL_ROPE_EPOCH_PHASE2B_20260810.json")
+        rows = build_run_rows(manifest)
+
+        self.assertEqual(len(rows), 8)
+        epoch = next(row for row in rows if row["arm_id"] == "transition_no_sink_scene_local_rope_epoch")
+        control = next(row for row in rows if row["arm_id"] == "transition_no_sink")
+        self.assertIn("--scene-local-rope-epoch", epoch["command"])
+        self.assertNotIn("--scene-local-rope-epoch", control["command"])
+
     def test_execution_keeps_a_sampled_peak_after_the_process_exits(self):
         row = build_run_rows(load_manifest(
             Path(__file__).resolve().parents[1] / "docs/HARD_CUT_BENCHMARK_PHASE0_20260810.json"))[0]

@@ -14,7 +14,8 @@ from demo_utils.memory import gpu, get_cuda_free_memory_gb, DynamicSwapInstaller
 
 
 def apply_memory_transition(kv_caches, crossattn_caches, frame_tokens, retention,
-                            decay, decay_beta, scene_cut, device, cross_attention_reset=True):
+                            decay, decay_beta, scene_cut, device, cross_attention_reset=True,
+                            scene_local_rope_epoch=False, current_start_frame=None):
     """Apply an opt-in scene-boundary local policy."""
     persistent_sink_excluded = retention == "transition_no_sink"
     retained = {"sink_only": 0, "sink+1": 1, "sink+2": 2, "transition_no_sink": 0}.get(retention)
@@ -23,6 +24,9 @@ def apply_memory_transition(kv_caches, crossattn_caches, frame_tokens, retention
     if not 0.0 <= decay_beta <= 1.0:
         raise ValueError("memory decay beta must be in [0, 1]")
     actual_retained = 0
+    epoch_active = bool(scene_local_rope_epoch and scene_cut and retention == "transition_no_sink")
+    if epoch_active and current_start_frame is None:
+        raise ValueError("scene-local RoPE epoch requires the current start frame")
     for cache, cross_cache in zip(kv_caches, crossattn_caches):
         local_end = cache["local_end_index"].item()
         available = max(0, local_end // frame_tokens - 1)
@@ -38,6 +42,11 @@ def apply_memory_transition(kv_caches, crossattn_caches, frame_tokens, retention
         cache["local_end_index"] = torch.tensor(
             [0 if persistent_sink_excluded else retained_end], dtype=torch.long, device=device)
         cache["scene_cut"] = scene_cut
+        cache["scene_local_rope_epoch"] = epoch_active
+        if epoch_active:
+            cache["scene_local_rope_epoch_start_frame"] = int(current_start_frame)
+        else:
+            cache.pop("scene_local_rope_epoch_start_frame", None)
         if cross_attention_reset:
             cross_cache["is_init"] = False
     return {
@@ -48,11 +57,13 @@ def apply_memory_transition(kv_caches, crossattn_caches, frame_tokens, retention
         "scene_cut": scene_cut,
         "cross_attention_reset": cross_attention_reset,
         "persistent_sink_excluded": persistent_sink_excluded,
+        "scene_local_rope_epoch": epoch_active,
+        "scene_local_rope_epoch_start_frame": int(current_start_frame) if epoch_active else None,
     }
 
 
 def transition_attention_context(current_start_frame, current_num_frames, retention, scene_cut, frame_tokens=1,
-                                 sink_frame_id=0):
+                                 sink_frame_id=0, scene_local_rope_epoch=False):
     """Describe the actual first-block context after an opt-in transition policy."""
     retained = {"sink_only": 0, "sink+1": 1, "sink+2": 2, "transition_no_sink": 0}.get(retention)
     if retained is None:
@@ -60,8 +71,10 @@ def transition_attention_context(current_start_frame, current_num_frames, retent
     ordering = ([] if retention == "transition_no_sink" else [f"sink:{sink_frame_id}"]) + \
         [f"local:{frame_id}" for frame_id in range(current_start_frame - retained, current_start_frame)] + \
         [f"current:{frame_id}" for frame_id in range(current_start_frame, current_start_frame + current_num_frames)]
-    current_positions = list(range(45, 45 + current_num_frames)) if scene_cut else \
+    current_positions = list(range(current_num_frames)) if scene_local_rope_epoch else \
+        (list(range(45, 45 + current_num_frames)) if scene_cut else \
         list(range(len(ordering) - current_num_frames, len(ordering)))
+        )
     positions = list(range(len(ordering) - current_num_frames)) + current_positions
     return {
         "ordering": ordering,
@@ -704,7 +717,8 @@ class CausalInferencePipeline(torch.nn.Module):
                         self.kv_cache1, self.crossattn_cache, self.frame_seq_length,
                         memory_policy["local_retention"], memory_policy["decay"],
                         memory_policy["decay_beta"], scene_cut_needed, noise.device,
-                        memory_policy["cross_attention_reset"])
+                        memory_policy["cross_attention_reset"],
+                        memory_policy.get("scene_local_rope_epoch", False), current_start_frame)
                     last_query_descriptors = pre_transition_query or last_query_descriptors
                     memory_logger.write("transition", {
                         "from_scene_id": previous_scene_id, "to_scene_id": scene_index,
@@ -746,7 +760,8 @@ class CausalInferencePipeline(torch.nn.Module):
                     **transition_attention_context(
                         current_start_frame, current_num_frames, memory_policy["local_retention"],
                         scene_cut_needed, self.frame_seq_length,
-                        self.kv_cache1[0].get("persistent_sink_frame_id", 0)),
+                        self.kv_cache1[0].get("persistent_sink_frame_id", 0),
+                        transition["scene_local_rope_epoch"]),
                 })
             retrieval_allowed_now, retrieval_reason = retrieval_allowed(
                 memory_policy.get("retrieval", False), is_transition_block,

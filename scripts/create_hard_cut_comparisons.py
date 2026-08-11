@@ -15,6 +15,14 @@ ROOT = Path(__file__).resolve().parents[1]
 ARMS = ("live_kv_flush", "sink_plus1", "sink_only", "transition_no_sink")
 
 
+def arms_for_manifest(manifest):
+    """Use the checked-in arm order for a matched comparison manifest."""
+    arms = tuple(arm["id"] for arm in manifest["arms"])
+    if not arms:
+        raise ValueError("comparison manifest has no arms")
+    return arms
+
+
 def transition_frame_indices(frame_count):
     """Zero-based RGB samples: two pre-cut, B block 4, then B blocks 5--6."""
     if frame_count < 69:
@@ -54,9 +62,9 @@ def _vstack(images):
     return canvas
 
 
-def _load_case(root, pair_id, seed):
+def _load_case(root, pair_id, seed, arms=ARMS):
     videos = {}
-    for arm in ARMS:
+    for arm in arms:
         path = root / pair_id / f"seed_{seed}" / arm / "0_raw_decoded_before_mp4.pt"
         if not path.is_file():
             raise FileNotFoundError(path)
@@ -67,26 +75,26 @@ def _load_case(root, pair_id, seed):
     return videos
 
 
-def _case_sheet(videos, pair_id, seed):
+def _case_sheet(videos, pair_id, seed, arms=ARMS):
     indices = transition_frame_indices(min(video.shape[1] for video in videos.values()))
     rows = []
-    for arm in ARMS:
+    for arm in arms:
         frames = [_label(_rgb_frame(videos[arm], index, 0.28), f"f{index + 1}") for index in indices]
         rows.append(_label(_hstack(frames), arm))
     return _label(_vstack(rows), f"{pair_id}  seed {seed}  |  pre-cut: f25,f32  |  B: f33--f68")
 
 
-def _case_video(videos, pair_id, seed, output):
+def _case_video(videos, pair_id, seed, output, arms=ARMS):
     with imageio.get_writer(output, fps=16, codec="libx264", quality=8) as writer:
         for index in range(24, 69):
             rows = [_label(_rgb_frame(videos[arm], index, 0.45), f"{arm} | RGB frame {index + 1}")
-                    for arm in ARMS]
+                    for arm in arms]
             writer.append_data(np.asarray(_label(_vstack(rows), f"{pair_id}  seed {seed}")))
 
 
-def _summary_case(videos, pair_id, seed):
+def _summary_case(videos, pair_id, seed, arms=ARMS):
     rows = []
-    for arm in ARMS:
+    for arm in arms:
         frames = [_label(_rgb_frame(videos[arm], index, 0.20), f"f{index + 1}")
                   for index in (31, 35, 55, 67)]
         rows.append(_label(_hstack(frames), arm))
@@ -96,18 +104,19 @@ def _summary_case(videos, pair_id, seed):
 def create_comparisons(root, manifest_path, output):
     """Generate eight case videos/sheets plus a single all-case summary sheet."""
     manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+    arms = arms_for_manifest(manifest)
     output.mkdir(parents=True, exist_ok=True)
     summaries = []
     for pair in manifest["pairs"]:
         for seed in manifest["seeds"]:
-            videos = _load_case(root, pair["id"], seed)
-            stem = f'{pair["id"]}_seed_{seed}_four_arm'
-            _case_sheet(videos, pair["id"], seed).save(output / f"{stem}_temporal_sheet.png")
-            _case_video(videos, pair["id"], seed, output / f"{stem}_transition.mp4")
-            summaries.append(_summary_case(videos, pair["id"], seed))
+            videos = _load_case(root, pair["id"], seed, arms)
+            stem = f'{pair["id"]}_seed_{seed}_{len(arms)}_arm'
+            _case_sheet(videos, pair["id"], seed, arms).save(output / f"{stem}_temporal_sheet.png")
+            _case_video(videos, pair["id"], seed, output / f"{stem}_transition.mp4", arms)
+            summaries.append(_summary_case(videos, pair["id"], seed, arms))
     summary_rows = [_hstack(summaries[index:index + 2]) for index in range(0, len(summaries), 2)]
-    _label(_vstack(summary_rows), "Hard-cut basic-effect matrix | f32 pre-cut, f36 first B block, f56/f68 later B") \
-        .save(output / "hard_cut_phase1_all_8_cases_summary.png")
+    _label(_vstack(summary_rows), "Hard-cut comparison | f32 pre-cut, f36 first B block, f56/f68 later B") \
+        .save(output / "hard_cut_all_cases_summary.png")
 
 
 def main():

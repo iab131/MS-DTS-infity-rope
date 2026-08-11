@@ -199,3 +199,43 @@ references: [Infinity-RoPE](https://arxiv.org/abs/2511.20649),
 [CineWeaver](https://arxiv.org/abs/2607.26529),
 [Prompt Relay](https://arxiv.org/abs/2604.10030), and
 [SwitchCraft](https://arxiv.org/abs/2602.23956).
+
+## Phase 2B: minimal scene-local RoPE epoch (executed)
+
+This was a deliberately narrow opt-in coordinate test, not a general
+Scene-Epoch framework. It activates only for an `#` hard cut with the live
+`transition_no_sink` policy. Global frame/block/output bookkeeping, prompt
+switching, cache capacity, cross-attention reset, DMD calls, seed, and model
+weights remain unchanged. The first B block uses self-attention temporal
+phases `[0,1,2]`; later B blocks continue `[3,4,5]`, `[6,7,8]`, …, including
+re-RoPE of raw non-sink K and phase-zero storage of the new B transformed
+sink. With the flag off, the existing transition path is unchanged.
+
+The registered 2 pairs × 2 seeds × 2 arms matrix completed 8/8 GPU runs:
+greenhouse-woman→desert-pickup and aquarium-fish→snowy-locomotive, seeds
+101/202. Each run used the same no-old-state reset and differed only in this
+self-attention coordinate rule. The exact commands, provenance, runtime
+(44.393--48.224 s/run), and 23,176 MiB direct-process peak VRAM are in
+`outputs/hard_cut_scene_local_rope_epoch_phase2b_20260810/runs.json`.
+
+**Observed:** A outputs are bit-identical. Raw decoded tensors first differ at
+RGB frame 34 in all four cases (frame 33 is equal), and the differences grow
+in later B blocks; therefore this is a behaviorally exercised positional
+intervention, not an inactive flag. The deterministic attention tests already
+showed first-B coordinate equivalence within numerical tolerance and confirmed
+the phase-zero B sink and coherent later local Q/K coordinates.
+
+**Human visual review:** The shared first-B dissolve is visually unchanged.
+In all four pair×seed cases, both arms reach the requested pickup/desert or
+locomotive/snow scene with no reviewed sustained A-background leakage. Across
+B2/B3 and later samples, neither arm shows a consistent advantage in prompt
+adherence, entity quality, spatial coherence, temporal coherence, or obvious
+artifacts. The raw divergence is visually minor and directionally inconsistent.
+Synchronized two-arm videos, temporal sheets, and the four-case summary are
+under `outputs/hard_cut_scene_local_rope_epoch_phase2b_20260810/comparison/`.
+
+**Decision — NEUTRAL:** the coherent local epoch is mathematically/numerically
+distinct from live `transition_no_sink`, but is not behaviorally useful in
+this small controlled matrix. Do not promote local RoPE-origin reset to an
+independent contribution or build Scene-Time around it. This does not rule out
+all scene-local state designs; it closes this isolated coordinate-only branch.

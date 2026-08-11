@@ -190,6 +190,8 @@ parser.add_argument("--memory-transition-auto-retrieval", action=argparse.Boolea
                     help="Allow automatic descriptor routing on the first block after a scene transition.")
 parser.add_argument("--memory-local-retention", choices=["sink_only", "sink+1", "sink+2", "transition_no_sink"], default="sink_only",
                     help="Local cache retained at policy-managed scene transitions.")
+parser.add_argument("--scene-local-rope-epoch", action=argparse.BooleanOptionalAction, default=False,
+                    help="Opt-in hard-cut no-sink self-attention temporal epoch experiment.")
 parser.add_argument("--memory-decay", action=argparse.BooleanOptionalAction, default=True,
                     help="Apply fixed beta decay to retained non-sink local K/V at policy transitions.")
 parser.add_argument("--memory-decay-beta", type=float, default=0.3,
@@ -266,10 +268,16 @@ if args.memory_fixed_grid_alpha != 1.0 and not args.memory_fixed_grid_mask_path:
     parser.error("--memory-fixed-grid-alpha requires fixed-grid recall")
 if args.memory_fixed_grid_denoising_steps == "clean_only" and not args.memory_fixed_grid_clean_pass:
     parser.error("clean_only requires --memory-fixed-grid-clean-pass")
+if args.scene_local_rope_epoch and not args.attention_memory_policy:
+    parser.error("--scene-local-rope-epoch requires --attention-memory-policy")
 
 if args.attention_memory_policy:
     if args.noncontiguous_kv:
         parser.error("--attention-memory-policy and --noncontiguous-kv are separate experiments and cannot be combined")
+    if args.scene_local_rope_epoch and (
+            args.memory_local_retention != "transition_no_sink" or args.memory_retrieval or
+            args.memory_fixed_grid_mask_path):
+        parser.error("--scene-local-rope-epoch requires transition_no_sink with no retrieval or fixed-grid memory")
     try:
         memory_descriptor_layers = sorted({
             int(layer.strip()) for layer in args.memory_descriptor_layers.split(",") if layer.strip()
@@ -321,6 +329,7 @@ if args.attention_memory_policy:
         "retrieval_lifetime": args.memory_retrieval_lifetime,
         "transition_auto_retrieval": args.memory_transition_auto_retrieval,
         "local_retention": args.memory_local_retention,
+        "scene_local_rope_epoch": args.scene_local_rope_epoch,
         "decay": args.memory_decay,
         "decay_beta": args.memory_decay_beta,
         "cross_attention_reset": args.memory_crossattn_reset,

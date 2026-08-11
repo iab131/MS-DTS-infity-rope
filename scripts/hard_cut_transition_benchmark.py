@@ -15,11 +15,18 @@ def load_manifest(path):
     """Load the checked-in declarative benchmark manifest."""
     with Path(path).open(encoding="utf-8") as handle:
         manifest = json.load(handle)
-    if len(manifest.get("pairs", [])) != 4 or len(manifest.get("seeds", [])) != 2:
-        raise ValueError("Phase-0 benchmark requires exactly four pairs and two seeds")
-    if {arm["id"] for arm in manifest.get("arms", [])} != {
-            "live_kv_flush", "sink_plus1", "sink_only", "transition_no_sink"}:
-        raise ValueError("Phase-0 benchmark must use the four live transition arms")
+    phase0_arms = {"live_kv_flush", "sink_plus1", "sink_only", "transition_no_sink"}
+    phase2b_arms = {"transition_no_sink", "transition_no_sink_scene_local_rope_epoch"}
+    if manifest.get("benchmark_id") == "hard_cut_transition_phase0_20260810":
+        if len(manifest.get("pairs", [])) != 4 or len(manifest.get("seeds", [])) != 2 or \
+                {arm["id"] for arm in manifest.get("arms", [])} != phase0_arms:
+            raise ValueError("Phase-0 benchmark requires four pairs, two seeds, and four live arms")
+    elif manifest.get("benchmark_id") == "hard_cut_scene_local_rope_epoch_phase2b_20260810":
+        if len(manifest.get("pairs", [])) != 2 or len(manifest.get("seeds", [])) != 2 or \
+                {arm["id"] for arm in manifest.get("arms", [])} != phase2b_arms:
+            raise ValueError("Phase-2B benchmark requires two pairs, two seeds, and two no-sink arms")
+    else:
+        raise ValueError("unsupported hard-cut benchmark manifest")
     if any("#" in pair["a"] or "|" in pair["a"] or "#" in pair["b"] or "|" in pair["b"]
            for pair in manifest["pairs"]):
         raise ValueError("pair prompts must not include scheduling syntax")
@@ -63,6 +70,8 @@ def _command(manifest, pair, seed, arm):
                 command.append(flag)
         command.append("--memory-crossattn-reset" if settings["memory_crossattn_reset"]
                        else "--no-memory-crossattn-reset")
+        if arm.get("scene_local_rope_epoch", False):
+            command.append("--scene-local-rope-epoch")
     return prompt, output, command
 
 
