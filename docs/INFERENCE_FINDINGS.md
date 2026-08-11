@@ -657,9 +657,69 @@ claim.
   first B attention call, then DMD and clean writes replace physical slot zero
   with B state. The no-policy `kv_flush` path in this checkout keeps slot zero
   plus two latest frames, not the paper-level one-last-frame description.
-- **Next evidence gate:** the planned CPU-validated 4-pair × 2-seed × 4-arm
-  matrix is documented in `RESEARCH_DIRECTION_AR_SCENE_TIME_20260810.md`; it
-  has not been run and no Scene-Epoch/Scene-Time method exists yet.
+- **Replication status:** the CPU-validated 4-pair × 2-seed × 4-arm matrix is
+  now executed and recorded immediately below. No Scene-Epoch/Scene-Time method
+  exists yet.
+
+## 2026-08-10: Hard-cut AR-state Phase-1 replication (32 GPU runs)
+
+### OBSERVED
+
+- Ran the CPU-validated manifest unchanged: four A→B prompt pairs, seeds
+  101/202, and `live_kv_flush` / `sink_plus1` / `sink_only` /
+  `transition_no_sink` for **32/32 completed** runs. Every run exited zero,
+  wrote its raw decoded tensor, block-3/4/5 latents, and MP4. The execution
+  ledger records the exact prompt, seed, arm, command, first B block/frame
+  (4/33), runtime, PID-scoped peak VRAM, and output path:
+  `outputs/hard_cut_transition_phase1_20260810/runs.json`.
+- Runtime was 42.308--48.726 s/run (1,446.497 s total); direct-process peak
+  VRAM was 22,964 MiB for `live_kv_flush` and 23,176 MiB for every policy arm.
+  These are execution metadata, not quality metrics.
+
+### HUMAN VISUAL REVIEW
+
+All review is non-blinded visual inspection of the synchronized four-arm
+videos and temporal sheets. In every case, B's requested entity appears in all
+arms, but only `transition_no_sink` reaches a clean B scene after the brief
+first-B dissolve. The three retained-sink arms remain source/B composites.
+
+| A→B cases (both seeds) | `live_kv_flush`, `sink_plus1`, `sink_only` | `transition_no_sink` | Artifact / review fields |
+| --- | --- | --- | --- |
+| greenhouse woman → desert pickup | Pickup is recognizable, but greenhouse structure persists through f44--f68; the woman is a cut-boundary ghost rather than a sustained later subject. | Desert/pickup is clean by f44 and remains so. | New-prompt adherence: mixed vs clean; old subject: transition-only; old background: retained vs absent; artifact: f33--f36 dissolve. |
+| aquarium fish → snowy locomotive | Locomotive is recognizable but coral, water, and foreground fish remain visible later. | Snowy viaduct/locomotive is clean by f44. | New-prompt adherence: mixed vs clean; old entity/background: sustained fish/aquarium vs absent; artifact: first-B dissolve. |
+| kitchen chef → storm sailboat | Boat is recognizable but counter, lights, and food remain around it later; chef is not a sustained later subject. | Ocean/boat is clean by f44. | New-prompt adherence: mixed vs clean; old subject: transition-only; old background: sustained vs absent; artifact: first-B dissolve. |
+| moon observatory → autumn fox | Fox is recognizable but circular windows/telescope observatory structure remains around it later; astronaut is not sustained later. | Forest/fox is clean by f44. | New-prompt adherence: mixed vs clean; old subject: transition-only; old background: sustained vs absent; artifact: first-B dissolve. |
+
+The eight synchronized videos, eight temporal sheets, and one all-case summary
+are in `outputs/hard_cut_transition_phase1_20260810/comparison/`.
+
+### INTERPRETATION
+
+- **Recent-KV effect:** reducing old non-sink retention from the live
+  sink+two path to sink+one or sink-only produced **0/8 unambiguous sustained
+  source-entity reductions**. This matrix therefore does *not* replicate the
+  earlier woman→car claim as a clean monotonic recent-KV/entity effect; most
+  source subjects vanish after the boundary blend in all arms, while aquarium
+  fish persist even with sink-only.
+- **Sink effect:** retaining the old sink is sufficient for sustained old
+  scene/background semantics in **8/8 cases**. This is the reproducible basic
+  effect in this matrix.
+- **Clean cut:** `transition_no_sink` is the cleanest hard semantic cut in
+  **8/8 cases**, with no reviewed later-block counterexample where it harms B
+  quality relative to the retained composite. All arms have a brief f33--f36
+  dissolve; the reset arm intentionally sacrifices source-scene continuity and
+  does not remove that one-block transition artifact.
+- The original woman→car result is representative for source-scene retention
+  and no-sink cleanup, but exceptional/insufficient as evidence for a general
+  recent-KV-only entity-leakage separation. These are controlled visual
+  observations, not automated semantic scores or a Scene-Epoch result.
+
+**Smallest proposed Phase 2 (not implemented or run):** compare the existing
+`transition_no_sink` arm against the same previous-scene reset plus an explicit
+scene-local temporal/RoPE epoch, first on greenhouse→pickup and
+aquarium→locomotive at seeds 101/202 (**2 pairs × 2 seeds × 2 arms = 8 runs**).
+It needs preflight invariants proving that only post-cut temporal coordinates
+change; no cache, routing, memory, or prompt-control mechanism should change.
 
 ## 2026-08-09: Subject-latent cache-write-mask ablation (one seed)
 

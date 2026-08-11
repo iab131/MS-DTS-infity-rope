@@ -1194,3 +1194,34 @@ records an observation.
   (exact overlays/audit, two policy logs, raw tensors/MP4s, and four-arm
   temporal sheet/crops). Audit SHA-256
   `c8de4ddb0fbbe029cbea3cb9e8daf97e565d86f31e59bfb313f81cafec1ad18b`.
+
+## E20260810-HARD-CUT-AR-STATE-REPLICATION (executed; 4 pairs × 2 seeds)
+
+- **Scope:** the pre-registered hard-cut basic-effect matrix only. No
+  Scene-Epoch/Scene-Time code, RoPE change, memory, latent recall, routing, or
+  steering was added. The live arms are `live_kv_flush` (sink + two recent),
+  `sink_plus1`, `sink_only`, and `transition_no_sink`; they are defined by the
+  current manifest/code rather than legacy labels.
+- **Execution:** all 32 runs completed with exit code zero. Exact commands,
+  prompt pairs, seeds, arm IDs, first B block/frame (4/33), runtime,
+  PID-scoped peak VRAM, and output paths are in
+  `outputs/hard_cut_transition_phase1_20260810/runs.json`. Runtime is
+  42.308--48.726 s/run (1,446.497 s total); peak VRAM is 22,964--23,176 MiB.
+- **Human-review evidence:** each pair×seed has a synchronized four-arm
+  f25--f69 video and nine-frame temporal sheet; an eight-case summary is in
+  `outputs/hard_cut_transition_phase1_20260810/comparison/`. The review fields
+  were B prompt adherence, source subject/entity leakage, source
+  background/scene leakage, cut cleanliness, and obvious artifacts.
+- **Result:** old scene/background semantics persist with every retained sink
+  in 8/8 cases (greenhouse, aquarium/fish, kitchen, and observatory). The
+  `transition_no_sink` arm is the cleanest B scene in 8/8 cases after the
+  common first-block dissolve. Reducing recent non-sink retention yielded 0/8
+  unambiguous sustained source-entity reductions; therefore this replication
+  supports stale AR scene state/sink leakage but not a general isolated
+  recent-KV entity claim. These are non-blinded qualitative findings, not
+  automated semantic metrics.
+- **Decision:** the effect justifies a small future *comparison* of
+  `transition_no_sink` against the same reset plus a scene-local temporal/RoPE
+  epoch (greenhouse→pickup and aquarium→locomotive, seeds 101/202, 8 runs),
+  after a positional/isolation audit. It is proposed only; no Phase-2 code or
+  run is authorized by this record.

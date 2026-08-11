@@ -107,14 +107,14 @@ evaluation description.
 | Interpretation | Recent non-sink state is a strong candidate contributor to old-entity carry-over; retaining the sink is compatible with old-background persistence; a one-block no-old-context reset is the cleanest tested semantic cut. |
 | Replication required | Four strongly different A→B pairs × two seeds × four live arms, fixed configuration, per-run metadata, frame-level review, and failure reporting. This is sufficient for a Phase-1 benchmark decision, not a method paper claim. |
 
-## Prepared Phase-1 benchmark (not run)
+## Phase-1 hard-cut benchmark (executed; no new method)
 
-`docs/HARD_CUT_BENCHMARK_PHASE0_20260810.json` specifies four strongly
-different A→B pairs and seeds 101/202. Its CPU-only harness expands the exact
-matrix below by default; no `--execute` invocation was made in Phase 0. A
-future explicitly authorized `--execute` run is serial and records each direct
-inference process's runtime, PID-scoped VRAM (or unavailable telemetry), exit
-status, and output-folder existence in the same run rows.
+`docs/HARD_CUT_BENCHMARK_PHASE0_20260810.json` specified four strongly
+different A→B pairs and seeds 101/202. The explicitly authorized serial
+`--execute` run completed the exact matrix below with no model-code change.
+Its ledger contains every command/configuration, prompt, seed, arm, transition
+block/frame, runtime, PID-scoped VRAM, exit status, and output path:
+`outputs/hard_cut_transition_phase1_20260810/runs.json`.
 
 | Arm | Live path isolated |
 | --- | --- |
@@ -123,12 +123,31 @@ status, and output-folder existence in the same run rows.
 | `sink_only` | Policy transition: old sink only. |
 | `transition_no_sink` | Policy transition: no accessible old state in first B block; B establishes slot-zero state through normal writes. |
 
-The matrix is **4 pairs × 2 seeds × 4 arms = 32 GPU runs**. Each planned row
-records new-prompt adherence, old-subject leakage, old-background leakage,
-transition quality, first divergence block/frame, runtime, peak VRAM, output
-metadata, and failure/OOM status. Based on the prior 45--51 second runs, a
-rough serial estimate is 24--28 GPU minutes plus encoding/telemetry overhead;
-this is an estimate, not execution evidence.
+The matrix is **4 pairs × 2 seeds × 4 arms = 32 GPU runs**. It completed
+32/32 with return code zero: 42.308--48.726 s/run, 22,964--23,176 MiB direct
+process peak VRAM, and no missing output folders. The visual endpoint is the
+four-arm synchronized transition evidence, not an automated semantic metric.
+Artifacts are eight videos, eight sheets, and an all-case summary under
+`outputs/hard_cut_transition_phase1_20260810/comparison/`.
+
+### Phase-1 result and Phase-2 gate
+
+**Observed:** every retained-sink arm preserves old scene/background semantics
+into later B blocks in all 8 pair×seed cases; `transition_no_sink` has the
+cleanest B scene in all 8. **Human review:** all arms briefly dissolve at the
+boundary, but only retained-sink arms stabilize into an old/new composite.
+**Interpretation:** this supports stale previous-scene AR state as a
+reproducible hard-cut failure mode. It does *not* establish a clean monotonic
+recent-KV-only entity effect: reducing recent retention gave 0/8 unambiguous
+sustained entity-leakage reductions, and sink-only still retained aquarium fish
+and all four source environments.
+
+The smallest justified next test is **not run**: `transition_no_sink` versus
+that same reset plus a scene-local temporal/RoPE epoch, for greenhouse→pickup
+and aquarium→locomotive at seeds 101/202 (8 runs). It requires an invariant
+audit that global accounting, cache ownership, prompt conditioning, and all
+other behavior are unchanged; only the post-cut temporal coordinate rule may
+differ. Phase 1 does not justify calling this a novel Scene-Epoch method.
 
 ## Prior-art guard
 
