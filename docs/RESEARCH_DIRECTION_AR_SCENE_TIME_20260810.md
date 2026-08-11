@@ -44,10 +44,12 @@ implementing any Shot-Time Field analogue.
 
 ### Interpretation, not a result claim
 
-The strongest live evidence is now the hard-boundary AR-state effect: recent
-state is implicated in old-entity carry-over, while the retained sink is
-compatible with old-scene/background persistence. That motivates treating a
-semantic cut as an explicit state/time boundary rather than trying to recover
+The replicated core effect is now narrower and stronger: a retained sink is
+linked to stale previous-scene/background retention (8/8 cases), while
+`transition_no_sink` gives the cleanest new-scene establishment (8/8). The
+matrix gives 0/8 unambiguous sustained recent-KV-only entity reductions. This
+motivates treating a semantic cut as an explicit state/time boundary rather
+than claiming monotonic recent-KV entity retention or trying to recover
 identity from contextualized historical representations.
 
 ## Live transition audit (code authoritative on 2026-08-10)
@@ -148,6 +150,43 @@ and aquarium→locomotive at seeds 101/202 (8 runs). It requires an invariant
 audit that global accounting, cache ownership, prompt conditioning, and all
 other behavior are unchanged; only the post-cut temporal coordinate rule may
 differ. Phase 1 does not justify calling this a novel Scene-Epoch method.
+
+## Phase 2A: scene-local RoPE equivalence audit (CPU-only; no GPU run)
+
+The proposed scene-local epoch is **not mathematically redundant** with live
+`transition_no_sink`. This conclusion comes from the exact live cache path and
+the deterministic float64 probe at
+`outputs/hard_cut_transition_phase2a_20260810/scene_local_rope_probe.json`;
+it is not a visual or model-quality result.
+
+| Live no-sink stage | Current temporal phases | Hypothetical scene-local phases | Consequence |
+| --- | --- | --- | --- |
+| First B DMD calls | Q and current raw K use RoPE Cut `[45,46,47]` | Q and K `[0,1,2]` | A common temporal translation: standard RoPE relative logits are invariant. |
+| First B clean cache pass | Same `[45,46,47]`; raw K/V are re-written, then cache slot zero retains only first-frame **transformed K** at 45, V raw | Same write but transformed sink K at 0 | The persisted sink differs even though first-block attention is invariant. |
+| Second B | `scene_cut=False`; Q `[12,13,14]`; K `[45,1,2,3,4,5]` (special sink, then compact raw local K) | Q `[3,4,5]`; K `[0,1,2,3,4,5]` | This is not one common offset over the attended Q/K pairs. |
+| Third B | Q `[15,16,17]`; K `[45,1,2,3,4,5,6,7,8]` | Q `[6,7,8]`; K `[0,1,2,3,4,5,6,7,8]` | The mismatch continues as B grows. |
+
+The probe holds raw Q/K/V/cache tensors identical and changes only these
+coordinates. It reports the following max/mean absolute errors (synthetic
+float64 RoPE/attention; every live layer shares this same positional/cache
+path, but these are not 30 learned-layer output measurements):
+
+| Path | Logit max / mean | Attention-output max / mean |
+| --- | --- | --- |
+| First B DMD | 4.44e-16 / 7.63e-17 | 2.22e-16 / 3.61e-17 |
+| First B clean pass | 4.44e-16 / 7.63e-17 | 2.22e-16 / 3.61e-17 |
+| Clean-pass transformed sink K | 1.45866 / 0.21141 | n/a |
+| Second B, full context | 2.36073 / 0.54294 | 0.94993 / 0.19853 |
+| Second B, raw non-sink K only | 2.36073 / 0.58578 | 1.02461 / 0.20711 |
+| Third B, full context | 2.95903 / 0.72675 | 1.21477 / 0.26518 |
+
+Thus special transformed-sink handling breaks a common phase translation into
+future blocks, and the raw non-sink-only row proves it is not the sole cause:
+later live queries remain globally indexed while raw cached K is compactly
+re-RoPEd. A literal common temporal translation of *every* attended Q and K
+would preserve RoPE logits, but that is not the live no-sink implementation or
+the proposed `[0,1,2]`, `[3,4,5]`, … scene epoch. The previously proposed
+8-run comparison remains a real, smallest GPU comparison; it is not run here.
 
 ## Prior-art guard
 

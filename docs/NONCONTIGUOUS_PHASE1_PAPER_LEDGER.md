@@ -1225,3 +1225,26 @@ records an observation.
   epoch (greenhouse→pickup and aquarium→locomotive, seeds 101/202, 8 runs),
   after a positional/isolation audit. It is proposed only; no Phase-2 code or
   run is authorized by this record.
+
+## E20260810-SCENE-LOCAL-ROPE-EQUIVALENCE (CPU-only; no GPU run)
+
+- **Question:** is an epoch reset with B phases `[0,1,2]`, `[3,4,5]`, … merely
+  a redundant origin shift of live `transition_no_sink`?
+- **Live path:** at first B, RoPE Cut uses Q/current-K `[45,46,47]` for all DMD
+  calls and the clean pass. That clean pass re-writes raw B K/V and retains
+  only the first B K already transformed at phase 45 in slot zero. `scene_cut`
+  is then cleared: B2 Q is `[12,13,14]` with K `[45,1,2,3,4,5]`; B3 Q is
+  `[15,16,17]` with K `[45,1,2,3,4,5,6,7,8]`.
+- **Probe/result:** deterministic float64 RoPE attention with identical raw
+  Q/K/V/cache tensors is first-block invariant (logit/output maxima
+  4.44e-16/2.22e-16), but phase-45 versus phase-0 stored sink K differs by
+  max 1.45866. B2 full-context logit/output maxima are 2.36073/0.94993, and
+  even omitting the sink gives 2.36073/1.02461; B3 full-context values are
+  2.95903/1.21477. See
+  `outputs/hard_cut_transition_phase2a_20260810/scene_local_rope_probe.json`.
+- **Conclusion:** a literal common Q/K shift would be RoPE-invariant, but the
+  proposed scene epoch is not a common shift in this live path. Special
+  transformed-sink storage and globally indexed future Q versus compact raw K
+  make it genuinely distinct. This is an eligibility result for the smallest
+  future 8-run comparison, not a Phase-2 implementation, visual result, or
+  novelty claim.

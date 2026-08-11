@@ -1,0 +1,117 @@
+{
+  "probe": "synthetic float64 RoPE/attention with identical raw Q/K/V and no model weights",
+  "trace": {
+    "first_B": {
+      "scene_cut": true,
+      "current_qk_positions": [
+        45,
+        46,
+        47
+      ],
+      "scene_local_qk_positions": [
+        0,
+        1,
+        2
+      ],
+      "cache_write": "raw K/V written; clean pass preserves transformed K frame 9 at phase 45"
+    },
+    "second_B": {
+      "scene_cut": false,
+      "current_query_positions": [
+        12,
+        13,
+        14
+      ],
+      "scene_local_query_positions": [
+        3,
+        4,
+        5
+      ],
+      "current_key_positions": [
+        45,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "scene_local_key_positions": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    "third_B": {
+      "scene_cut": false,
+      "current_query_positions": [
+        15,
+        16,
+        17
+      ],
+      "scene_local_query_positions": [
+        6,
+        7,
+        8
+      ],
+      "current_key_positions": [
+        45,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "scene_local_key_positions": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    }
+  },
+  "first_B_denoise": {
+    "attention_logits_max_abs": 4.440892098500626e-16,
+    "attention_logits_mean_abs": 7.632783294297951e-17,
+    "attention_output_max_abs": 2.220446049250313e-16,
+    "attention_output_mean_abs": 3.6091885652961906e-17
+  },
+  "first_B_clean_pass": {
+    "attention_logits_max_abs": 4.440892098500626e-16,
+    "attention_logits_mean_abs": 7.632783294297951e-17,
+    "attention_output_max_abs": 2.220446049250313e-16,
+    "attention_output_mean_abs": 3.6091885652961906e-17
+  },
+  "clean_pass_sink_key": {
+    "max_abs": 1.4586632263793806,
+    "mean_abs": 0.21140766647753517
+  },
+  "second_B_full_context": {
+    "attention_logits_max_abs": 2.3607312687038133,
+    "attention_logits_mean_abs": 0.5429422377976709,
+    "attention_output_max_abs": 0.9499328566069019,
+    "attention_output_mean_abs": 0.19853367327085797
+  },
+  "second_B_raw_non_sink_only": {
+    "attention_logits_max_abs": 2.3607312687038133,
+    "attention_logits_mean_abs": 0.5857794649426801,
+    "attention_output_max_abs": 1.024605039956723,
+    "attention_output_mean_abs": 0.20710547821181988
+  },
+  "third_B_full_context": {
+    "attention_logits_max_abs": 2.9590304719541987,
+    "attention_logits_mean_abs": 0.7267542034825638,
+    "attention_output_max_abs": 1.214770009380378,
+    "attention_output_mean_abs": 0.2651806601595894
+  }
+}

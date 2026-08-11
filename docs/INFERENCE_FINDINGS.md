@@ -721,6 +721,32 @@ aquarium→locomotive at seeds 101/202 (**2 pairs × 2 seeds × 2 arms = 8 runs*
 It needs preflight invariants proving that only post-cut temporal coordinates
 change; no cache, routing, memory, or prompt-control mechanism should change.
 
+## 2026-08-10: Phase 2A scene-local RoPE equivalence audit (CPU only)
+
+- **OBSERVED (live trace):** `transition_no_sink` sets local cache end to zero
+  at B block 4. During all four DMD calls and timestep-zero clean pass, RoPE
+  Cut gives current B Q/K `[45,46,47]`; the clean pass writes B raw K/V then
+  preserves only B frame 9's K already transformed at 45 in cache slot zero
+  (V is raw). At B block 5 `scene_cut` is false: Q is `[12,13,14]`, while K is
+  `[45,1,2,3,4,5]`; at B block 6 Q is `[15,16,17]`, K is
+  `[45,1,2,3,4,5,6,7,8]`.
+- **Deterministic probe:** identical synthetic float64 raw Q/K/V/cache tensors
+  show first-B current `[45,46,47]` versus local `[0,1,2]` is numerically
+  invariant (logit max 4.44e-16; attention-output max 2.22e-16). The clean
+  sink K differs max/mean 1.45866/0.21141. At B block 5, current versus local
+  `[3,4,5]` gives full-context logit/output max 2.36073/0.94993 and raw
+  non-sink-only logit/output max 2.36073/1.02461; B block 6 full-context
+  maxes are 2.95903/1.21477. Evidence:
+  `outputs/hard_cut_transition_phase2a_20260810/scene_local_rope_probe.json`.
+- **INTERPRETATION:** standard RoPE translation invariance applies only if the
+  same phase offset reaches every attended Q and K. The proposed scene-local
+  epoch is genuinely distinct from live no-sink because the clean pass leaves
+  a special phase-45 transformed sink while later raw K is compactly re-RoPEd
+  and later Q remains global. The raw-non-sink-only probe isolates a second
+  non-invariance, independent of the special sink. This establishes neither
+  visual benefit nor a contribution claim; it only keeps the 8-run comparison
+  eligible. No GPU generation or Phase-2 implementation was performed.
+
 ## 2026-08-09: Subject-latent cache-write-mask ablation (one seed)
 
 - This is the requested cache-state-only ablation. `persistent_cache_erode1`
