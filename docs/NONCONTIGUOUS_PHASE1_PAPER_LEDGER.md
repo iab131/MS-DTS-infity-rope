@@ -610,9 +610,10 @@ records an observation.
 - `--memory-local-retention transition_no_sink` is an opt-in experimental
   local-retention setting. On only the first block after a detected cut it
   excludes both the transformed persistent sink and preceding local frames by
-  setting the usable local cache end to zero. It neither mutates nor re-rotates
-  the sink. Standard write/rolling behavior then writes the first new-scene
-  block at the first cache slot, allowing following blocks to use the new scene.
+  setting the usable local cache end to zero. The first new-scene DMD and clean
+  writes then begin at slot zero, replacing the old physical sink; the clean
+  pass stores the new first-frame K in its cut-phase RoPE form and V raw.
+  Standard write/rolling behavior then lets following blocks use the new scene.
 - Transition JSONL `attention_context` records every ordering, global frame ID,
   position, frame count, and token count. Because this ablation removes local
   frames, frame/token counts intentionally vary 6/5/4/3 and should never be

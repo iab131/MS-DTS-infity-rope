@@ -322,9 +322,9 @@ claim.
   `sink+1` five/7,800; `sink_only` four/6,240; and `transition_no_sink`
   three/4,680. Their current positions are respectively preceded by
   `[0,1,2]`, `[0,1]`, `[0]`, and no retained positions, with current positions
-  `[45,46,47]` in all cases. The old transformed sink was excluded, never
-  re-rotated or mutated, in the experimental arm; ordinary cache writes resume
-  after its one transition block.
+  `[45,46,47]` in all cases. In the experimental arm, old state is excluded
+  from the first B attention call, then normal DMD/clean writes begin at slot
+  zero and replace the old physical sink with B state.
 - All four outputs are bit-identical through clean block 3 and first diverge at
   B block 4/raw RGB frame 33. This supports a causal local-attention effect at
   the intended cut but remains one prompt/seed, qualitative evidence. Full
@@ -636,6 +636,30 @@ claim.
   `outputs/attention_memory_policy_fixed_grid_selective_recall/latent_subject_patch_persistent/comparison/`.
   Stop here; no further persistence, mask, blend, warp, or raw-KV experiment
   was added.
+
+## 2026-08-10: Hard-cut AR-state basic effect (consolidated)
+
+- **Observed:** the executed woman-greenhouse → blue-pickup-desert ablation at
+  seed 101 is equal through clean block 3 and first diverges at B block 4/raw
+  frame 33. Its first-B contexts are 6/5/4/3 frames for `sink+2`, `sink+1`,
+  `sink_only`, and `transition_no_sink`; this intentionally changes attention
+  context size.
+- **Human observation:** `sink+2`/`sink+1` retain woman and greenhouse cues;
+  `sink_only` removes persistent woman after its blended first B frame but
+  retains greenhouse; `transition_no_sink` is truck/desert-only in reviewed
+  samples from frame 34. This is non-blinded one-prompt/one-seed review.
+- **Interpretation:** retained recent non-sink AR state is a strong candidate
+  contributor to old-entity carry-over; a retained sink is compatible with
+  old-background persistence; the one-block no-old-context arm is the cleanest
+  tested semantic cut. This does not establish a general policy or sink-only
+  causality.
+- **Code correction:** `transition_no_sink` makes old K/V inaccessible for the
+  first B attention call, then DMD and clean writes replace physical slot zero
+  with B state. The no-policy `kv_flush` path in this checkout keeps slot zero
+  plus two latest frames, not the paper-level one-last-frame description.
+- **Next evidence gate:** the planned CPU-validated 4-pair × 2-seed × 4-arm
+  matrix is documented in `RESEARCH_DIRECTION_AR_SCENE_TIME_20260810.md`; it
+  has not been run and no Scene-Epoch/Scene-Time method exists yet.
 
 ## 2026-08-09: Subject-latent cache-write-mask ablation (one seed)
 

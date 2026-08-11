@@ -44,10 +44,11 @@ retention switch; no historical K/V was injected.
 
 `transition_no_sink` sets the first new-scene block's usable local-cache end
 to zero: it excludes the transformed sink and all previous-scene local K/V
-only for that block. The ordinary persistent cache write then stores the new
-B block starting at slot zero, so following B blocks resume normal cache
-behavior. The transformed old sink is not rotated or mutated; it is simply
-not offered to that one attention call.
+for the first B attention call. The ordinary DMD and clean-cache writes then
+start at slot zero and overwrite the old physical sink with B state; the clean
+pass leaves the first B K RoPE-transformed at the cut phase and its V raw. The
+following B blocks resume normal cache behavior. This replaces the earlier,
+incorrect statement that the old sink was left unmutated.
 
 ## Exact commands
 
