@@ -101,6 +101,22 @@ class HardCutTransitionBenchmarkTest(unittest.TestCase):
         self.assertEqual(recent["command"][recent["command"].index("--memory-local-retention") + 1],
                          "recent_only_no_sink")
 
+    def test_phase3c_mixed_boundaries_use_only_the_opt_in_policy_arm(self):
+        manifest = load_manifest(
+            Path(__file__).resolve().parents[1] /
+            "docs/MIXED_BOUNDARY_STATE_LIFETIME_PHASE3C_20260812.json")
+        rows = build_run_rows(manifest)
+
+        self.assertEqual(len(rows), 12)
+        self.assertEqual({row["arm_id"] for row in rows}, {
+            "live_kv_flush", "always_reset", "boundary_conditioned"})
+        conditioned = next(row for row in rows if row["arm_id"] == "boundary_conditioned")
+        self.assertIn("--boundary-conditioned-ar-state", conditioned["command"])
+        self.assertNotIn("--attention-memory-policy", conditioned["command"])
+        self.assertIn("[2.25s] |", conditioned["prompt"])
+        self.assertIn("[2.25s#] |", conditioned["prompt"])
+        self.assertEqual(conditioned["transition_blocks"], [4, 7, 10])
+
     def test_execution_keeps_a_sampled_peak_after_the_process_exits(self):
         row = build_run_rows(load_manifest(
             Path(__file__).resolve().parents[1] / "docs/HARD_CUT_BENCHMARK_PHASE0_20260810.json"))[0]

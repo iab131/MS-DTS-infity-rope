@@ -30,6 +30,13 @@ def transition_frame_indices(frame_count):
     return [24, 31, 32, 35, 43, 47, 55, 59, 67]
 
 
+def mixed_boundary_frame_indices(frame_count):
+    """Samples around A1|A2, A2#B1, and B1|B2 in a four-scene rollout."""
+    if frame_count < 141:
+        raise ValueError("mixed-boundary review expects at least 141 RGB frames")
+    return [24, 31, 32, 35, 43, 60, 67, 68, 71, 79, 96, 103, 104, 107, 115]
+
+
 def _rgb_frame(video, index, scale):
     frame = video[0, index].permute(1, 2, 0).clamp(0, 1).mul(255).byte().numpy()
     image = Image.fromarray(frame).resize((round(frame.shape[1] * scale), round(frame.shape[0] * scale)),
@@ -76,28 +83,27 @@ def _load_case(root, pair_id, seed, arms=ARMS, arm_roots=None):
     return videos
 
 
-def _case_sheet(videos, pair_id, seed, arms=ARMS):
-    indices = transition_frame_indices(min(video.shape[1] for video in videos.values()))
+def _case_sheet(videos, pair_id, seed, arms=ARMS, indices=None, title=None):
+    indices = indices or transition_frame_indices(min(video.shape[1] for video in videos.values()))
     rows = []
     for arm in arms:
         frames = [_label(_rgb_frame(videos[arm], index, 0.28), f"f{index + 1}") for index in indices]
         rows.append(_label(_hstack(frames), arm))
-    return _label(_vstack(rows), f"{pair_id}  seed {seed}  |  pre-cut: f25,f32  |  B: f33--f68")
+    return _label(_vstack(rows), title or f"{pair_id}  seed {seed}  |  pre-cut: f25,f32  |  B: f33--f68")
 
 
-def _case_video(videos, pair_id, seed, output, arms=ARMS):
+def _case_video(videos, pair_id, seed, output, arms=ARMS, frame_stop=69, title=None):
     with imageio.get_writer(output, fps=16, codec="libx264", quality=8) as writer:
-        for index in range(24, 69):
+        for index in range(24, frame_stop):
             rows = [_label(_rgb_frame(videos[arm], index, 0.45), f"{arm} | RGB frame {index + 1}")
                     for arm in arms]
-            writer.append_data(np.asarray(_label(_vstack(rows), f"{pair_id}  seed {seed}")))
+            writer.append_data(np.asarray(_label(_vstack(rows), title or f"{pair_id}  seed {seed}")))
 
 
-def _summary_case(videos, pair_id, seed, arms=ARMS):
+def _summary_case(videos, pair_id, seed, arms=ARMS, indices=(31, 35, 55, 67)):
     rows = []
     for arm in arms:
-        frames = [_label(_rgb_frame(videos[arm], index, 0.20), f"f{index + 1}")
-                  for index in (31, 35, 55, 67)]
+        frames = [_label(_rgb_frame(videos[arm], index, 0.20), f"f{index + 1}") for index in indices]
         rows.append(_label(_hstack(frames), arm))
     return _label(_vstack(rows), f"{pair_id} / seed {seed}")
 
@@ -110,16 +116,24 @@ def create_comparisons(root, manifest_path, output):
                  for arm in manifest["arms"] if "reuse_output_root" in arm}
     output.mkdir(parents=True, exist_ok=True)
     summaries = []
+    mixed = any("segments" in pair for pair in manifest["pairs"])
     for pair in manifest["pairs"]:
         for seed in manifest["seeds"]:
             videos = _load_case(root, pair["id"], seed, arms, arm_roots)
+            frame_count = min(video.shape[1] for video in videos.values())
+            indices = mixed_boundary_frame_indices(frame_count) if mixed else transition_frame_indices(frame_count)
+            title = (f"{pair['id']}  seed {seed}  |  A1|A2 f33  |  A2#B1 f69  |  B1|B2 f105"
+                     if mixed else None)
             stem = f'{pair["id"]}_seed_{seed}_{len(arms)}_arm'
-            _case_sheet(videos, pair["id"], seed, arms).save(output / f"{stem}_temporal_sheet.png")
-            _case_video(videos, pair["id"], seed, output / f"{stem}_transition.mp4", arms)
-            summaries.append(_summary_case(videos, pair["id"], seed, arms))
+            _case_sheet(videos, pair["id"], seed, arms, indices, title).save(output / f"{stem}_temporal_sheet.png")
+            _case_video(videos, pair["id"], seed, output / f"{stem}_transition.mp4", arms, frame_count, title)
+            summary_indices = (31, 35, 67, 71, 103, 107) if mixed else (31, 35, 55, 67)
+            summaries.append(_summary_case(videos, pair["id"], seed, arms, summary_indices))
     summary_rows = [_hstack(summaries[index:index + 2]) for index in range(0, len(summaries), 2)]
-    _label(_vstack(summary_rows), "Hard-cut comparison | f32 pre-cut, f36 first B block, f56/f68 later B") \
-        .save(output / "hard_cut_all_cases_summary.png")
+    summary_name = "mixed_boundary_all_cases_summary.png" if mixed else "hard_cut_all_cases_summary.png"
+    summary_title = ("Mixed-boundary comparison | A1|A2 f32/f36; A2#B1 f68/f72; B1|B2 f104/f108"
+                     if mixed else "Hard-cut comparison | f32 pre-cut, f36 first B block, f56/f68 later B")
+    _label(_vstack(summary_rows), summary_title).save(output / summary_name)
 
 
 def main():

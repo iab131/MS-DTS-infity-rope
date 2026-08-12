@@ -328,3 +328,76 @@ but is unsafe at same-scene action boundaries. The data support a
 boundary-conditioned state-lifetime *effect* and reject universal
 sink-specific causality. Stop after Phase 3B; no automatic policy, classifier,
 memory, routing, decay, or additional phase is implemented.
+
+## Phase 3B user-review supersession and Phase 3C integrated policy (executed)
+
+### Superseding user review of the factorial
+
+This user review supersedes the weaker earlier wording that sink-only and
+recent-only are usable continuity solutions. On hard cuts, fish→train retains
+fish/aquarium-rock content for live and sink-only; recent-only reduces/loses
+the fish but is blurry and flashes; no-sink is the clean stable train. For
+girl→pickup, only no-sink clearly removes the greenhouse; live, sink-only, and
+recent-only remain contaminated to different degrees. On same-scene actions,
+live is best/stable, no-sink catastrophically rainbow/noise-recomposes, and
+both partial arms reset/flash; in the woman case they also ghost/malform hands
+and appearance.
+
+The current interpretation is therefore: full retained AR state is the best
+tested same-scene continuity condition; full state removal is the best tested
+hard semantic cut; partial retention is an unstable compromise. It can keep
+enough old semantics to contaminate a cut while losing enough state to flash,
+reset, ghost, or deform. There is no evidence for a useful sink-only or
+recent-only operating point, and component-retention sweeps are closed.
+
+### Minimal opt-in policy
+
+`--boundary-conditioned-ar-state` only connects existing transition paths. At
+a normal `|`, it calls the live `kv_flush` exactly (transformed sink plus the
+two latest local frames, normal RoPE, cross-attention reset). At a hard `#`, it
+calls the verified `transition_no_sink` path (zero old self-attention K/V,
+RoPE Cut, cross-attention reset). The first hard-cut clean pass establishes
+the new scene state normally. No classifier, new RoPE coordinates, memory,
+routing, decay, latent intervention, or changed generation setting is added.
+
+CPU checks prove the `|` helper is exactly equal to live `kv_flush`, the `#`
+helper is exactly equal to `transition_no_sink` with RoPE Cut, and the disabled
+path remains the existing live path. The per-run policy logs confirm 6-frame /
+9,360-token live contexts at blocks 4 and 10, and a current-only 3-frame /
+4,680-token RoPE-Cut context at block 7.
+
+### Mixed-boundary evaluation: A1 | A2 # B1 | B2
+
+The preregistered 2 scenarios × 2 seeds × 3 arms matrix completed **12/12**
+GPU runs: greenhouse woman→desert pickup and autumn fox→snowy locomotive;
+seeds 101/202; arms live `kv_flush`, `always_reset`, and
+`boundary_conditioned`. All runs exit zero (48.556--56.905 s/run; 615.081 s
+total). Direct-process peak VRAM is 22,964 MiB for live/conditioned and
+23,176 MiB for always-reset. Commands, prompt schedules, output paths, and
+metadata are in
+`outputs/mixed_boundary_state_lifetime_phase3c_20260812/runs.json`.
+
+**Observed:** `always_reset` first diverges from live at RGB frame 34 in all
+four cases, immediately after the first normal boundary. The conditioned arm
+is bit-identical to live through frame 69 and first diverges at frame 70,
+immediately after the `#` boundary, in all four cases. Thus the policy is
+inactive through A1→A2 and active precisely at A2→B1.
+
+**Human visual review:** at the first `|`, conditioned preserves the stable
+woman/greenhouse or fox/forest action transition seen in live; always-reset
+instead shows the known colored-noise/recomposition collapse. At `#`, live
+shows a source/new-scene composite (woman/greenhouse with pickup or
+fox/forest with locomotive), while conditioned reaches the clean desert pickup
+or snowy locomotive after the shared first-block dissolve. At B1→B2,
+conditioned retains a stable B subject and B scene; always-reset again flashes
+or recomposes. Synchronized three-arm videos, four temporal sheets, and an
+all-case sheet are under
+`outputs/mixed_boundary_state_lifetime_phase3c_20260812/comparison/`.
+
+**Interpretation — positive integrated demonstration:** in these two
+mixed-boundary scenarios, the explicit boundary label selects the empirically
+preferred existing state lifetime: live retention where continuity is
+requested, and no-old-state reset where a semantic cut is requested. This is
+not an automatic semantic-boundary method, general policy claim, causal proof
+of a particular cache component, or novelty claim. No Phase 3D/classifier or
+additional mechanism is authorized by this result.

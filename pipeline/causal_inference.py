@@ -13,6 +13,28 @@ from wan.modules.causal_model import memory_context_layout, memory_context_rope_
 from demo_utils.memory import gpu, get_cuda_free_memory_gb, DynamicSwapInstaller, move_model_to_device_with_memory_preservation
 
 
+def live_kv_flush(kv_caches, crossattn_caches, frame_tokens, device, scene_cut):
+    """The unmodified live boundary flush: sink plus two latest local frames."""
+    for cache, cross_cache in zip(kv_caches, crossattn_caches):
+        cross_cache["is_init"] = False
+        cache["k"][:, frame_tokens:3 * frame_tokens] = cache["k"][:, -2 * frame_tokens:].clone()
+        cache["v"][:, frame_tokens:3 * frame_tokens] = cache["v"][:, -2 * frame_tokens:].clone()
+        cache["local_end_index"] = torch.tensor([3 * frame_tokens], dtype=torch.long, device=device)
+        cache["scene_cut"] = scene_cut
+
+
+def apply_boundary_conditioned_transition(kv_caches, crossattn_caches, frame_tokens, scene_cut, device):
+    """Keep live state at `|`; use the established no-old-state path only at `#`."""
+    if not scene_cut:
+        live_kv_flush(kv_caches, crossattn_caches, frame_tokens, device, scene_cut=False)
+        return {"transition_kind": "live_kv_flush", "retention": "sink+2",
+                "scene_cut": False, "cross_attention_reset": True}
+    event = apply_memory_transition(
+        kv_caches, crossattn_caches, frame_tokens, "transition_no_sink", False, 0.0,
+        True, device, cross_attention_reset=True)
+    return event | {"transition_kind": "transition_no_sink"}
+
+
 def apply_memory_transition(kv_caches, crossattn_caches, frame_tokens, retention,
                             decay, decay_beta, scene_cut, device, cross_attention_reset=True,
                             scene_local_rope_epoch=False, current_start_frame=None):
@@ -500,6 +522,7 @@ class CausalInferencePipeline(torch.nn.Module):
         noncontiguous_enabled = bool(source_blocks or noncontiguous_target_block is not None)
         memory_policy = memory_policy_config or {}
         memory_enabled = bool(memory_policy.get("enabled", False))
+        boundary_conditioned_ar_state = bool(memory_policy.get("boundary_conditioned_ar_state", False))
         if memory_enabled and noncontiguous_enabled:
             raise ValueError("attention-memory policy and Phase 1 non-contiguous KV are separate experiments")
         if memory_enabled and memory_policy["context_mode"] == "replace_recent" and memory_policy["k"] > 2:
@@ -646,17 +669,14 @@ class CausalInferencePipeline(torch.nn.Module):
         # ------------------------------------------------------------ #
         def kv_flush(scene_cut_needed, device):
             """Flush KV cache at scene boundaries by rolling cache and resetting cross-attention."""
-            n_layers = len(self.crossattn_cache)
-            for i in range(n_layers):
-                self.crossattn_cache[i]['is_init'] = False
-                self.kv_cache1[i]['k'][:, 1560:4680] = self.kv_cache1[i]['k'][:, -3120:]
-                self.kv_cache1[i]['v'][:, 1560:4680] = self.kv_cache1[i]['v'][:, -3120:]
-                self.kv_cache1[i]['local_end_index'] = torch.tensor([4680], dtype=torch.long, device=device)
-                self.kv_cache1[i]['scene_cut'] = scene_cut_needed
+            live_kv_flush(
+                self.kv_cache1, self.crossattn_cache, self.frame_seq_length, device, scene_cut_needed)
         # ------------------------------------------------------------ #
         captured_source_kv = {}
         memory_store = None
         memory_logger = MemoryPolicyEventLogger(None)
+        boundary_logger = MemoryPolicyEventLogger(memory_policy.get("log_path")) \
+            if boundary_conditioned_ar_state else MemoryPolicyEventLogger(None)
         last_query_descriptors = {}
         fixed_grid_config = memory_policy.get("fixed_grid")
         fixed_grid_masks = FixedGridMemoryMasks.from_json(
@@ -697,6 +717,14 @@ class CausalInferencePipeline(torch.nn.Module):
                     "denoising_steps": fixed_grid_config.get("denoising_steps", "all"),
                     "clean_pass_enabled": fixed_grid_config.get("clean_pass", True),
                 })
+        elif boundary_conditioned_ar_state:
+            boundary_logger.write("config", {
+                "policy": "boundary_conditioned_ar_state",
+                "normal_boundary": "live_kv_flush_sink_plus_two",
+                "hard_boundary": "transition_no_sink_with_rope_cut",
+                "frame_tokens": self.frame_seq_length,
+                "num_transformer_layers": self.num_transformer_blocks,
+            })
         for current_block_index, current_num_frames in enumerate(all_num_frames):
             if profile:
                 block_start.record()
@@ -712,7 +740,15 @@ class CausalInferencePipeline(torch.nn.Module):
             # Flush when we transition to a new scene (except at the start)
             scene_cut_needed = current_block_index in scene_cut_boundaries
             if current_block_index in scene_block_boundaries:
-                if memory_enabled:
+                if boundary_conditioned_ar_state:
+                    transition = apply_boundary_conditioned_transition(
+                        self.kv_cache1, self.crossattn_cache, self.frame_seq_length,
+                        scene_cut_needed, noise.device)
+                    boundary_logger.write("transition", {
+                        "from_scene_id": scene_index - 1, "to_scene_id": scene_index,
+                        "boundary_type": "#" if scene_cut_needed else "|", **transition,
+                    })
+                elif memory_enabled:
                     pre_transition_query = local_query_descriptors(
                         self.kv_cache1, memory_policy["descriptor_layers"], self.frame_seq_length)
                     previous_scene_id = scene_index - 1
@@ -761,15 +797,17 @@ class CausalInferencePipeline(torch.nn.Module):
             local_frame_ids = list(range(max(1, current_start_frame - local_non_sink_frames), current_start_frame))
             context_local_frame_ids = local_frame_ids[-context_non_sink_frames:]
             is_transition_block = current_block_index in scene_block_boundaries
-            if memory_enabled and is_transition_block:
-                memory_logger.write("attention_context", {
+            if (memory_enabled or boundary_conditioned_ar_state) and is_transition_block:
+                transition_logger = memory_logger if memory_enabled else boundary_logger
+                transition_retention = memory_policy["local_retention"] if memory_enabled else transition["retention"]
+                transition_logger.write("attention_context", {
                     "block": current_block_number, "scene_id": scene_index,
-                    "retention": memory_policy["local_retention"],
+                    "retention": transition_retention,
                     **transition_attention_context(
-                        current_start_frame, current_num_frames, memory_policy["local_retention"],
+                        current_start_frame, current_num_frames, transition_retention,
                         scene_cut_needed, self.frame_seq_length,
                         self.kv_cache1[0].get("persistent_sink_frame_id", 0),
-                        transition["scene_local_rope_epoch"]),
+                        transition.get("scene_local_rope_epoch", False)),
                 })
             retrieval_allowed_now, retrieval_reason = retrieval_allowed(
                 memory_policy.get("retrieval", False), is_transition_block,
@@ -1039,6 +1077,8 @@ class CausalInferencePipeline(torch.nn.Module):
             if memory_enabled and is_transition_block:
                 record_transition_sink(
                     self.kv_cache1, current_start_frame, memory_policy["local_retention"])
+            elif boundary_conditioned_ar_state and is_transition_block and scene_cut_needed:
+                record_transition_sink(self.kv_cache1, current_start_frame, "transition_no_sink")
 
             if noncontiguous_enabled and current_block_number in source_blocks:
                 captured_source_kv[current_block_number] = {

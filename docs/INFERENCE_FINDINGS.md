@@ -876,6 +876,61 @@ change; no cache, routing, memory, or prompt-control mechanism should change.
   automatic policy, sink-only mechanism, novelty claim, or general causal law.
   Stop after Phase 3B.
 
+## 2026-08-12: Phase 3B manual-review correction and Phase 3C mixed-boundary policy (12 GPU runs)
+
+### OBSERVED
+
+- **User review supersession:** partial-state conclusions above are superseded.
+  On hard cuts, fish→train has old fish/aquarium rocks in live and sink-only;
+  recent-only reduces old fish but is blurry/flashing; no-sink is the cleanest
+  stable train. Girl→pickup is clearly greenhouse-free only with no-sink. On
+  same-scene actions, live is best/stable; no-sink catastrophically
+  rainbow/noise-recomposes; sink-only partially recomposes and recent-only
+  flashes, with ghosted/malformed woman hands/appearance. Partial retention is
+  not a usable operating point in this review.
+- Added only `--boundary-conditioned-ar-state`: `|` invokes the existing live
+  sink+recent2 `kv_flush`; `#` invokes existing `transition_no_sink` plus the
+  existing RoPE Cut. Cross-attention reset remains live in both cases. No
+  classifier, memory, routing, soft decay, RoPE method, or latent mechanism
+  was added.
+- Deterministic CPU tests prove normal `|` cache state equals live `kv_flush`
+  exactly and hard `#` equals `transition_no_sink` with RoPE Cut. With the flag
+  off, inference keeps the old live path.
+- Completed the registered mixed A1 | A2 # B1 | B2 matrix: two scenarios
+  (woman/greenhouse→pickup/desert; fox/autumn→locomotive/snow), seeds 101/202,
+  live vs always-reset vs boundary-conditioned: **12/12 exit-zero**,
+  48.556--56.905 s/run (615.081 s total). Peak direct-process VRAM is 22,964
+  MiB live/conditioned and 23,176 MiB always-reset. Ledger:
+  `outputs/mixed_boundary_state_lifetime_phase3c_20260812/runs.json`.
+- Per-frame decoded tensors show always-reset first differs from live at RGB
+  f34 in every case; boundary-conditioned first differs at f70 in every case.
+  This matches the first normal and hard boundaries, respectively; the
+  conditioned arm is bit-identical to live through f69.
+
+### HUMAN VISUAL REVIEW
+
+- At A1→A2 `|`, live and boundary-conditioned preserve the same stable
+  woman/greenhouse and fox/forest transitions. Always-reset exhibits the known
+  noisy recomposition instead.
+- At A2→B1 `#`, live carries old visual content into a pickup/desert or
+  locomotive/snow composite. Boundary-conditioned removes that carry-over and
+  reaches the requested B scene after the common first-block dissolve.
+- At B1→B2 `|`, boundary-conditioned keeps the B vehicle/locomotive and B
+  scene stable, while always-reset again flashes/recomposes. Evidence: three
+  arm synchronized videos, temporal sheets, and summary in
+  `outputs/mixed_boundary_state_lifetime_phase3c_20260812/comparison/`.
+
+### INTERPRETATION
+
+- Full live state is the best tested same-scene continuity condition; complete
+  state removal is the best tested hard semantic-cut condition. Partial
+  retention is an unstable compromise, not a candidate policy.
+- The integrated result is a **positive controlled demonstration** that an
+  explicit `|`/`#` label can choose between two already-validated live paths.
+  It is not an automatic classifier, a general semantic-boundary policy, a
+  sink-causality proof, or a novelty claim. Stop here: no further component
+  sweeps or additional mechanism is supported.
+
 ## 2026-08-09: Subject-latent cache-write-mask ablation (one seed)
 
 - This is the requested cache-state-only ablation. `persistent_cache_erode1`

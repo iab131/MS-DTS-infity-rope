@@ -192,6 +192,8 @@ parser.add_argument("--memory-local-retention", choices=["sink_only", "sink+1", 
                     help="Local cache retained at policy-managed scene transitions.")
 parser.add_argument("--scene-local-rope-epoch", action=argparse.BooleanOptionalAction, default=False,
                     help="Opt-in hard-cut no-sink self-attention temporal epoch experiment.")
+parser.add_argument("--boundary-conditioned-ar-state", action="store_true",
+                    help="At | keep live state; at # use the verified no-old-state reset.")
 parser.add_argument("--memory-decay", action=argparse.BooleanOptionalAction, default=True,
                     help="Apply fixed beta decay to retained non-sink local K/V at policy transitions.")
 parser.add_argument("--memory-decay-beta", type=float, default=0.3,
@@ -270,6 +272,8 @@ if args.memory_fixed_grid_denoising_steps == "clean_only" and not args.memory_fi
     parser.error("clean_only requires --memory-fixed-grid-clean-pass")
 if args.scene_local_rope_epoch and not args.attention_memory_policy:
     parser.error("--scene-local-rope-epoch requires --attention-memory-policy")
+if args.boundary_conditioned_ar_state and args.attention_memory_policy:
+    parser.error("--boundary-conditioned-ar-state is separate from --attention-memory-policy")
 
 if args.attention_memory_policy:
     if args.noncontiguous_kv:
@@ -349,7 +353,10 @@ if args.attention_memory_policy:
         fixed_grid_config["clean_pass"] = args.memory_fixed_grid_clean_pass
         memory_policy_config["fixed_grid"] = fixed_grid_config
 else:
-    memory_policy_config = None
+    memory_policy_config = (
+        {"boundary_conditioned_ar_state": True,
+         "log_path": args.memory_policy_log or os.path.join(args.output_folder, "boundary_conditioned_ar_state.jsonl")}
+        if args.boundary_conditioned_ar_state else None)
 
 try:
     clean_latent_snapshot_blocks = {

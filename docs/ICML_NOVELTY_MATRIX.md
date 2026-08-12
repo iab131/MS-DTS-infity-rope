@@ -1,6 +1,6 @@
 # ICML Novelty Collision Matrix
 
-**Status (2026-08-11):** a prior-art guard, not a novelty assertion. “Scene
+**Status (2026-08-12):** a prior-art guard, not a novelty assertion. “Scene
 Epoch” and “Scene-Time Field” are internal hypothesis labels only. No claim is
 permitted until a live Infinity-RoPE intervention, multi-pair/seed evidence,
 and a full paper-level literature review establish a distinct contribution.
@@ -39,12 +39,12 @@ and a full paper-level literature review establish a distinct contribution.
    Anchor Forcing includes a distillation component. Any future claim needs an
    exact training/inference comparison and matched backbone constraints.
 
-**Current evidence boundary:** user manual review and Phase 3B supersede the
-earlier “8/8 retained-sink” wording. The factorial finds recent state alone
-can contaminate hard cuts, while either sink or recent state alone supports
-same-scene continuity; removing both is cleanest for hard cuts and catastrophic
-for same-scene action changes. This motivates a boundary-conditioned
-state-lifetime *question*, not a method claim: the listed work already overlaps
-substantially with cache ownership, forgetting, prompt switching, and
-boundaries. It remains insufficient for an ICML novelty claim or
-implementation decision.
+**Current evidence boundary:** user manual review supersedes the weaker
+Phase-3B claim that either partial factor is a usable continuity solution.
+Full retained state is best in the reviewed same-scene cases; full removal is
+best at hard cuts; partial retention flashes/resets or remains contaminated.
+The Phase-3C annotated `|`/`#` switch is a positive four-case integrated
+demonstration of choosing existing live paths, not a new cache-ownership or
+boundary-classification method. The listed work still overlaps substantially
+with cache ownership, forgetting, prompt switching, and boundaries. This is
+insufficient for an ICML novelty claim or any automatic-policy claim.

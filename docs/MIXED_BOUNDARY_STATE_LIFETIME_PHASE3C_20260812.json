@@ -1,0 +1,39 @@
+{
+  "benchmark_id": "mixed_boundary_state_lifetime_phase3c_20260812",
+  "status": "executed_20260812",
+  "purpose": "Minimal integrated test: retain live AR state at normal action boundaries and reset it only at explicit hard cuts.",
+  "seeds": [101, 202],
+  "duration_seconds_per_scene": 2.25,
+  "pairs": [
+    {
+      "id": "greenhouse_woman_to_desert_pickup",
+      "prompt_path": "docs/mixed_boundary_state_lifetime_phase3c_prompts/greenhouse_woman_to_desert_pickup.txt",
+      "segments": [
+        "A woman with a short black bob featuring one bright white streak on the left, a small red star mark under her left eye, and a green jacket with a large yellow circular chest patch, in a glass greenhouse with rows of plants, cinematic medium shot, slowly turns her head to look left.",
+        "The same woman with the same short black bob featuring one bright white streak on the left, the same red star mark, and the same green jacket, in the same glass greenhouse with the same rows of plants, cinematic medium shot, raises her right hand and waves once.",
+        "A bright blue vintage pickup truck alone on a dry desert road with tan mountains, no people, no driver visible, cinematic wide shot, drives slowly from left to right.",
+        "The same bright blue vintage pickup truck alone on the same dry desert road with the same tan mountains, no people, no driver visible, cinematic wide shot, slows down and comes to a stop."
+      ]
+    },
+    {
+      "id": "autumn_fox_to_snowy_locomotive",
+      "prompt_path": "docs/mixed_boundary_state_lifetime_phase3c_prompts/autumn_fox_to_snowy_locomotive.txt",
+      "segments": [
+        "A red fox in a sunlit autumn forest with golden leaves, cinematic medium shot, trots slowly toward the camera.",
+        "The same red fox in the same sunlit autumn forest with the same golden leaves, cinematic medium shot, pauses and looks over its shoulder.",
+        "A black steam locomotive alone on a snowy mountain viaduct at dawn, no people or passengers visible, cinematic wide shot, travels steadily from left to right.",
+        "The same black steam locomotive alone on the same snowy mountain viaduct at dawn, no people or passengers visible, cinematic wide shot, slows while steam billows upward."
+      ]
+    }
+  ],
+  "arms": [
+    {"id": "live_kv_flush", "mechanism": "Live sink plus two recent frames at every boundary.", "attention_memory_policy": false},
+    {"id": "always_reset", "mechanism": "Verified transition_no_sink at every prompt boundary.", "attention_memory_policy": true, "local_retention": "transition_no_sink"},
+    {"id": "boundary_conditioned", "mechanism": "Live state at |; verified transition_no_sink at #.", "attention_memory_policy": false, "boundary_conditioned_ar_state": true}
+  ],
+  "matched_settings": {
+    "config_path": "configs/self_forcing_dmd.yaml", "checkpoint_path": "/home/sigasia2026/models/baselines/Self-Forcing/checkpoints/self_forcing_dmd.pt", "use_ema": true, "num_samples": 1, "save_with_index": true, "output_index": 0,
+    "memory_retrieval": false, "memory_decay": false, "memory_archive": false, "memory_consolidation": false, "memory_transition_auto_retrieval": false, "memory_crossattn_reset": true, "memory_context_mode": "prepend", "memory_k": 2, "memory_descriptor_layers": "0,1,5,14,16", "memory_injection_layers": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29", "save_clean_latent_blocks": [3, 4, 7, 10, 11, 12], "save_raw_decoded": true, "output_root": "outputs/mixed_boundary_state_lifetime_phase3c_20260812"
+  },
+  "review_fields": ["normal_a_identity_continuity", "normal_a_scene_continuity", "normal_a_action_change", "normal_a_artifacts", "hard_cut_old_subject_background_leakage", "hard_cut_new_scene_adherence", "hard_cut_transition_stability", "normal_b_identity_continuity", "normal_b_scene_continuity", "normal_b_action_adherence", "normal_b_artifacts"]
+}

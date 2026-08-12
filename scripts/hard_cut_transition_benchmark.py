@@ -19,6 +19,7 @@ def load_manifest(path):
     phase2b_arms = {"transition_no_sink", "transition_no_sink_scene_local_rope_epoch"}
     phase3a_arms = {"live_kv_flush", "transition_no_sink"}
     phase3b_arms = {"live_kv_flush", "sink_only", "recent_only_no_sink", "transition_no_sink"}
+    phase3c_arms = {"live_kv_flush", "always_reset", "boundary_conditioned"}
     if manifest.get("benchmark_id") == "hard_cut_transition_phase0_20260810":
         if len(manifest.get("pairs", [])) != 4 or len(manifest.get("seeds", [])) != 2 or \
                 {arm["id"] for arm in manifest.get("arms", [])} != phase0_arms:
@@ -38,10 +39,16 @@ def load_manifest(path):
         if len(manifest.get("pairs", [])) != 2 or len(manifest.get("seeds", [])) != 2 or \
                 {arm["id"] for arm in manifest.get("arms", [])} != phase3b_arms:
             raise ValueError("Phase-3B requires two pairs, two seeds, and the four retention arms")
+    elif manifest.get("benchmark_id") == "mixed_boundary_state_lifetime_phase3c_20260812":
+        if len(manifest.get("pairs", [])) != 2 or len(manifest.get("seeds", [])) != 2 or \
+                {arm["id"] for arm in manifest.get("arms", [])} != phase3c_arms:
+            raise ValueError("Phase-3C requires two mixed-boundary scenarios, two seeds, and three arms")
+        if any(len(pair.get("segments", [])) != 4 for pair in manifest["pairs"]):
+            raise ValueError("Phase-3C requires A1 | A2 # B1 | B2 segments")
     else:
         raise ValueError("unsupported hard-cut benchmark manifest")
-    if any("#" in pair["a"] or "|" in pair["a"] or "#" in pair["b"] or "|" in pair["b"]
-           for pair in manifest["pairs"]):
+    prompts = (segment for pair in manifest["pairs"] for segment in pair.get("segments", [pair.get("a", ""), pair.get("b", "")]))
+    if any("#" in prompt or "|" in prompt for prompt in prompts):
         raise ValueError("pair prompts must not include scheduling syntax")
     return manifest
 
@@ -50,8 +57,15 @@ def _command(manifest, pair, seed, arm):
     settings = manifest["matched_settings"]
     output_root = arm.get("reuse_output_root", settings["output_root"])
     output = f'{output_root}/{pair["id"]}/seed_{seed}/{arm["id"]}'
-    cut_marker = "#" if manifest.get("uses_hard_cut", True) else ""
-    prompt = f'{pair["a"]}[{manifest["duration_seconds_per_scene"]}s{cut_marker}] | {pair["b"]}[{manifest["duration_seconds_per_scene"]}s]'
+    if "segments" in pair:
+        duration = manifest["duration_seconds_per_scene"]
+        prompt = (f'{pair["segments"][0]}[{duration}s] | '
+                  f'{pair["segments"][1]}[{duration}s#] | '
+                  f'{pair["segments"][2]}[{duration}s] | '
+                  f'{pair["segments"][3]}[{duration}s]')
+    else:
+        cut_marker = "#" if manifest.get("uses_hard_cut", True) else ""
+        prompt = f'{pair["a"]}[{manifest["duration_seconds_per_scene"]}s{cut_marker}] | {pair["b"]}[{manifest["duration_seconds_per_scene"]}s]'
     command = [
         "python", "inference.py", "--config_path", settings["config_path"],
         "--checkpoint_path", settings["checkpoint_path"],
@@ -87,6 +101,8 @@ def _command(manifest, pair, seed, arm):
                        else "--no-memory-crossattn-reset")
         if arm.get("scene_local_rope_epoch", False):
             command.append("--scene-local-rope-epoch")
+    if arm.get("boundary_conditioned_ar_state", False):
+        command.append("--boundary-conditioned-ar-state")
     return prompt, output, command
 
 
@@ -97,11 +113,13 @@ def build_run_rows(manifest):
         for seed in manifest["seeds"]:
             for arm in manifest["arms"]:
                 prompt, output, command = _command(manifest, pair, seed, arm)
+                transitions = [4, 7, 10] if "segments" in pair else [4]
                 rows.append({
                     "run_id": f'{pair["id"]}__seed{seed}__{arm["id"]}',
                     "pair_id": pair["id"], "seed": seed, "arm_id": arm["id"],
                     "prompt": prompt, "output_folder": output, "command": command,
-                    "first_b_block": 4, "first_b_raw_frame": 33,
+                    "first_b_block": transitions[0], "first_b_raw_frame": 33,
+                    "transition_blocks": transitions,
                     "status": "planned_not_run", "review_fields": manifest["review_fields"],
                 } | ({"reuse_ledger": arm["reuse_ledger"]} if "reuse_ledger" in arm else {}))
     return rows

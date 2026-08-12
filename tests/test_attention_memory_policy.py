@@ -11,8 +11,8 @@ from unittest.mock import patch
 import torch
 
 from pipeline.causal_inference import (
-    apply_memory_transition, capture_clean_memory_block, memory_context_order,
-    fixed_grid_denoising_schedule, fixed_grid_memory_active, pack_fixed_grid_selective_memory,
+    apply_boundary_conditioned_transition, apply_memory_transition, capture_clean_memory_block, memory_context_order,
+    fixed_grid_denoising_schedule, fixed_grid_memory_active, live_kv_flush, pack_fixed_grid_selective_memory,
     capture_subject_latent_memory, transplant_subject_latent_memory,
     latent_patch_clean_cache_input, latent_patch_cache_write_mask,
     record_transition_sink,
@@ -507,6 +507,48 @@ class AttentionMemoryPolicyTest(unittest.TestCase):
              "rope_temporal_positions": [1, 2, 45, 46, 47], "total_frames": 5,
              "total_tokens": 5},
         )
+
+    def test_boundary_conditioned_normal_boundary_is_exact_live_kv_flush(self):
+        def cache():
+            return {"k": torch.arange(6.).view(1, 6, 1, 1),
+                    "v": torch.arange(10., 16.).view(1, 6, 1, 1),
+                    "local_end_index": torch.tensor([6]), "scene_cut": True}
+
+        live, conditioned = cache(), cache()
+        live_cross, conditioned_cross = {"is_init": True}, {"is_init": True}
+        live_kv_flush([live], [live_cross], frame_tokens=1, device=torch.device("cpu"), scene_cut=False)
+        event = apply_boundary_conditioned_transition(
+            [conditioned], [conditioned_cross], frame_tokens=1, scene_cut=False,
+            device=torch.device("cpu"))
+
+        torch.testing.assert_close(conditioned["k"], live["k"])
+        torch.testing.assert_close(conditioned["v"], live["v"])
+        self.assertEqual(conditioned["local_end_index"].item(), live["local_end_index"].item())
+        self.assertEqual(conditioned["scene_cut"], live["scene_cut"])
+        self.assertEqual(conditioned_cross, live_cross)
+        self.assertEqual(event["transition_kind"], "live_kv_flush")
+
+    def test_boundary_conditioned_hard_boundary_is_exact_no_sink_rope_cut_transition(self):
+        def cache():
+            return {"k": torch.arange(6.).view(1, 6, 1, 1),
+                    "v": torch.arange(10., 16.).view(1, 6, 1, 1),
+                    "local_end_index": torch.tensor([6]), "scene_cut": False}
+
+        direct, conditioned = cache(), cache()
+        direct_cross, conditioned_cross = {"is_init": True}, {"is_init": True}
+        direct_event = apply_memory_transition(
+            [direct], [direct_cross], 1, "transition_no_sink", False, 0.3, True,
+            torch.device("cpu"), True)
+        event = apply_boundary_conditioned_transition(
+            [conditioned], [conditioned_cross], frame_tokens=1, scene_cut=True,
+            device=torch.device("cpu"))
+
+        torch.testing.assert_close(conditioned["k"], direct["k"])
+        torch.testing.assert_close(conditioned["v"], direct["v"])
+        self.assertEqual(conditioned["local_end_index"].item(), direct["local_end_index"].item())
+        self.assertEqual(conditioned["scene_cut"], direct["scene_cut"])
+        self.assertEqual(conditioned_cross, direct_cross)
+        self.assertEqual(event["retention"], direct_event["retention"])
 
     def test_transition_context_reports_the_new_scene_sink_frame_id(self):
         caches = [{}, {}]

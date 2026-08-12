@@ -1353,3 +1353,49 @@ records an observation.
   implement or validate, a boundary-conditioned lifetime policy. It does not
   isolate sink causality because no-sink removes sink and recent state together.
   Stop after this result; no Phase 3B or policy/classifier work is added.
+
+## E20260812-BOUNDARY-CONDITIONED-AR-STATE (executed; 2 scenarios × 2 seeds × 3 arms)
+
+- **Manual-review correction:** user review supersedes the Phase-3B statement
+  that sink-only/recent-only are usable continuity solutions. Fish→train has
+  old fish/aquarium rocks in live and sink-only; recent-only is reduced but
+  blurry/flashing; no-sink is clean/stable. Girl→pickup is greenhouse-free
+  only with no-sink. At same-scene boundaries, live is best, no-sink causes
+  catastrophic rainbow/noise recomposition, and both partial arms reset/flash
+  (including malformed/ghosted woman hands). The supported conclusion is full
+  state retention for continuity, full removal for hard cuts, and no useful
+  partial-retention operating point in this review.
+- **Method/scope:** minimal `--boundary-conditioned-ar-state`, no new model
+  mechanism. Normal `|` calls live `kv_flush` exactly: old transformed sink +
+  two latest local frames, normal RoPE, and live cross-attention reset. Hard
+  `#` calls verified `transition_no_sink`: zero old self-attention K/V plus
+  existing RoPE Cut and normal new-state clean-pass establishment. No
+  classifier, memory/retrieval, routing, soft decay, new RoPE, Scene-Time, or
+  latent intervention.
+- **Preflight:** deterministic tests prove `|` is cache-state identical to
+  live `kv_flush`, `#` is identical to `transition_no_sink` with RoPE Cut, and
+  flag-off inference remains live. Policy JSONL confirms block 4/10 live
+  sink+recent2 contexts (6 frames/9,360 tokens) and block-7 hard current-only
+  context (3 frames/4,680 tokens, RoPE Cut `[45,46,47]`).
+- **Execution:** mixed A1 | A2 # B1 | B2 sequences: woman greenhouse action
+  continuity then pickup desert action continuity; fox autumn action
+  continuity then locomotive snow action continuity. Seeds 101/202; live,
+  always-reset, boundary-conditioned: **12/12 exit-zero**. Exact commands,
+  prompts, runtime (48.556--56.905 s/run; 615.081 s total), PID-scoped peak
+  VRAM (22,964 MiB live/conditioned; 23,176 MiB always-reset), and outputs:
+  `outputs/mixed_boundary_state_lifetime_phase3c_20260812/runs.json`.
+- **Numerical activation:** always-reset diverges from live at f34 in all four
+  cases; conditioned is live-identical through f69 and first differs at f70,
+  the first decoded RGB frame after the hard boundary. This proves the
+  conditional switch is inactive at A1→A2 and active at A2→B1.
+- **Human result:** conditioned retains live-quality same-scene transitions at
+  each `|`; at `#`, it removes live’s woman/greenhouse or fox/forest composite
+  and reaches a clean pickup/desert or locomotive/snow scene after the common
+  dissolve. Always-reset reproduces normal-boundary noise/recomposition at
+  both `|` transitions. Evidence: synchronized videos/sheets and summary in
+  `outputs/mixed_boundary_state_lifetime_phase3c_20260812/comparison/`.
+- **Decision:** **positive integrated demonstration, not a novelty claim.** An
+  explicit boundary annotation can select the best tested existing AR-state
+  lifetime for these four cases. It does not validate automatic boundary
+  classification, a general policy, sink causality, or a new Scene-Time
+  mechanism. Stop after this evaluation.

@@ -2,7 +2,7 @@
 
 import unittest
 
-from scripts.create_hard_cut_comparisons import arms_for_manifest, transition_frame_indices
+from scripts.create_hard_cut_comparisons import arms_for_manifest, mixed_boundary_frame_indices, transition_frame_indices
 
 
 class HardCutComparisonTest(unittest.TestCase):
@@ -18,6 +18,12 @@ class HardCutComparisonTest(unittest.TestCase):
             arms_for_manifest({"arms": [{"id": "transition_no_sink"},
                                          {"id": "transition_no_sink_scene_local_rope_epoch"}]}),
             ("transition_no_sink", "transition_no_sink_scene_local_rope_epoch"),
+        )
+
+    def test_mixed_boundary_samples_cover_all_three_boundaries(self):
+        self.assertEqual(
+            mixed_boundary_frame_indices(141),
+            [24, 31, 32, 35, 43, 60, 67, 68, 71, 79, 96, 103, 104, 107, 115],
         )
 
 

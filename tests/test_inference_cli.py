@@ -35,6 +35,7 @@ class InferenceCliTest(unittest.TestCase):
         self.assertIn("--memory-fixed-grid-denoising-steps", result.stdout)
         self.assertIn("--memory-fixed-grid-clean-pass", result.stdout)
         self.assertIn("--scene-local-rope-epoch", result.stdout)
+        self.assertIn("--boundary-conditioned-ar-state", result.stdout)
 
     def test_fixed_grid_alpha_rejects_values_outside_the_interpolation_range(self):
         root = Path(__file__).resolve().parents[1]
