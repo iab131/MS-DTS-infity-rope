@@ -1,0 +1,129 @@
+{
+  "boundary": "normal_no_rope_cut",
+  "cases": [
+    {
+      "pair_id": "greenhouse_woman_turn_to_wave",
+      "seed": 101,
+      "shape": [
+        1,
+        69,
+        3,
+        480,
+        832
+      ],
+      "pre_boundary_frames_1_32_max_abs": 0.0,
+      "first_differing_rgb_frame": 34,
+      "blocks": {
+        "B1_frames_33_35": {
+          "max_abs": 1.0,
+          "mean_abs": 0.15637849271297455
+        },
+        "B2_frames_36_38": {
+          "max_abs": 1.0,
+          "mean_abs": 0.33299291133880615
+        },
+        "B3_frames_39_41": {
+          "max_abs": 1.0,
+          "mean_abs": 0.30578747391700745
+        },
+        "later_B_frames_42_69": {
+          "max_abs": 1.0,
+          "mean_abs": 0.3130158483982086
+        }
+      }
+    },
+    {
+      "pair_id": "greenhouse_woman_turn_to_wave",
+      "seed": 202,
+      "shape": [
+        1,
+        69,
+        3,
+        480,
+        832
+      ],
+      "pre_boundary_frames_1_32_max_abs": 0.0,
+      "first_differing_rgb_frame": 34,
+      "blocks": {
+        "B1_frames_33_35": {
+          "max_abs": 1.0,
+          "mean_abs": 0.14928382635116577
+        },
+        "B2_frames_36_38": {
+          "max_abs": 1.0,
+          "mean_abs": 0.3200807571411133
+        },
+        "B3_frames_39_41": {
+          "max_abs": 1.0,
+          "mean_abs": 0.29516565799713135
+        },
+        "later_B_frames_42_69": {
+          "max_abs": 1.0,
+          "mean_abs": 0.3019302785396576
+        }
+      }
+    },
+    {
+      "pair_id": "desert_pickup_drive_to_stop",
+      "seed": 101,
+      "shape": [
+        1,
+        69,
+        3,
+        480,
+        832
+      ],
+      "pre_boundary_frames_1_32_max_abs": 0.0,
+      "first_differing_rgb_frame": 34,
+      "blocks": {
+        "B1_frames_33_35": {
+          "max_abs": 1.0,
+          "mean_abs": 0.16418354213237762
+        },
+        "B2_frames_36_38": {
+          "max_abs": 1.0,
+          "mean_abs": 0.3349868059158325
+        },
+        "B3_frames_39_41": {
+          "max_abs": 1.0,
+          "mean_abs": 0.30478039383888245
+        },
+        "later_B_frames_42_69": {
+          "max_abs": 1.0,
+          "mean_abs": 0.3190963566303253
+        }
+      }
+    },
+    {
+      "pair_id": "desert_pickup_drive_to_stop",
+      "seed": 202,
+      "shape": [
+        1,
+        69,
+        3,
+        480,
+        832
+      ],
+      "pre_boundary_frames_1_32_max_abs": 0.0,
+      "first_differing_rgb_frame": 34,
+      "blocks": {
+        "B1_frames_33_35": {
+          "max_abs": 1.0,
+          "mean_abs": 0.16103525459766388
+        },
+        "B2_frames_36_38": {
+          "max_abs": 1.0,
+          "mean_abs": 0.33157745003700256
+        },
+        "B3_frames_39_41": {
+          "max_abs": 1.0,
+          "mean_abs": 0.3049497902393341
+        },
+        "later_B_frames_42_69": {
+          "max_abs": 1.0,
+          "mean_abs": 0.29946157336235046
+        }
+      }
+    }
+  ]
+}

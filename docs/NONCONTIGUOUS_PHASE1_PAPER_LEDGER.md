@@ -1283,3 +1283,41 @@ records an observation.
   evidence for this simple RoPE-origin branch, not evidence against every
   possible scene-local AR-state design. Stop here: no Scene-Time Field, new
   cache ownership mechanism, memory/routing/steering, or Phase 3 was added.
+
+## E20260811-SAME-SCENE-ACTION-STATE-RETENTION (executed; 2 pairs × 2 seeds)
+
+- **Question/scope:** test the opposite condition of Phase 1 without adding a
+  mechanism: does retained live AR state help when a normal `|` prompt boundary
+  changes only action while subject, scene, and style should continue? Arms
+  are live `kv_flush` versus existing policy `transition_no_sink`. There is no
+  `#`, RoPE Cut, scene-local epoch, memory retrieval, routing, steering, soft
+  decay, or new lifecycle implementation.
+- **Live audit:** policy transition already fires at a normal boundary. Its
+  `transition_no_sink` event is `scene_cut=false`, excludes the old sink and
+  all local self-attention state, and starts B with current-only frames 9--11
+  at normal temporal positions `[0,1,2]`. Cross-attention reset is matched to
+  live `kv_flush`. This is verified in all four policy JSONL logs.
+- **Execution:** greenhouse woman turns→waves and desert pickup drives→stops,
+  seeds 101/202: **8/8 exit-zero** runs, 42.432--48.105 s/run; peak direct
+  process VRAM 22,964 MiB live / 23,176 MiB no-sink. Exact commands, prompt,
+  seed, output, and status are in
+  `outputs/same_scene_action_transition_phase3a_20260811/runs.json`.
+- **Validity/raw evidence:** all four A portions visibly contain their
+  requested woman/greenhouse or pickup/desert scene. They are bit-identical
+  across arms. Each case first diverges at RGB frame 34 (f33 exact); raw
+  timing and block summaries are in
+  `outputs/same_scene_action_transition_phase3a_20260811/comparison/raw_divergence.json`.
+- **Human result:** retained live state preserves a coherent woman, greenhouse,
+  and B wave in both greenhouse seeds, and a coherent pickup/desert scene in
+  both pickup seeds. Normal-boundary no-sink suffers severe colored
+  noise/recomposition beginning at f34 in **4/4**, losing continuity and
+  making later action/motion assessment impossible. The drive→stop instruction
+  remains a qualitative short-window review rather than an action metric.
+  Evidence: synchronized two-arm sheets/videos and summary under
+  `outputs/same_scene_action_transition_phase3a_20260811/comparison/`.
+- **Decision:** **POSITIVE TRADEOFF.** Retained state has clear practical value
+  for same-scene action continuity in this matrix, whereas Phase 1 shows that
+  retained old state harms semantic hard cuts. This motivates, but does not
+  implement or validate, a boundary-conditioned lifetime policy. It does not
+  isolate sink causality because no-sink removes sink and recent state together.
+  Stop after this result; no Phase 3B or policy/classifier work is added.

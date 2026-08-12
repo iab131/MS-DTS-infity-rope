@@ -239,3 +239,44 @@ distinct from live `transition_no_sink`, but is not behaviorally useful in
 this small controlled matrix. Do not promote local RoPE-origin reset to an
 independent contribution or build Scene-Time around it. This does not rule out
 all scene-local state designs; it closes this isolated coordinate-only branch.
+
+## Phase 3A: same-scene action boundary (executed)
+
+This is the complementary experiment to the hard-cut matrix. It does **not**
+revive Scene-Time or add a new policy. The live `transition_no_sink` policy
+already applies at every `|` boundary; when the boundary has no `#`, it clears
+old self-attention state with `scene_cut=False`, so normal RoPE behavior is
+retained. The policy log confirms B's first context is only current frames
+9--11 at normal positions `[0,1,2]`; no RoPE Cut or epoch flag was active.
+
+The matched matrix compares live `kv_flush` (sink + two recent frames) against
+this normal-boundary `transition_no_sink` intervention for greenhouse woman
+turn→wave and desert pickup drive→stop, at seeds 101/202. All **8/8** GPU runs
+completed (42.432--48.105 s/run; 22,964 MiB live and 23,176 MiB no-sink peak
+VRAM). Exact commands and outputs are in
+`outputs/same_scene_action_transition_phase3a_20260811/runs.json`.
+
+**Observed:** both requested A scenes are visibly present before the boundary
+in every case (recognizable woman/greenhouse and pickup/desert). A RGB tensors
+are exactly equal across arms; every pair first differs at RGB frame 34, with
+frame 33 equal. The no-sink policy logs independently confirm zero retained
+non-sink frames, excluded old sink, `scene_cut=false`, and no local epoch.
+
+**Human visual review:** live retention preserves subject/entity appearance,
+environment, and coherent later motion in all 4 pair×seed cases. The woman
+performs the requested wave, and the pickup remains a stable same-scene B
+vehicle; the short generated window makes drive→stop adherence a qualitative,
+not measured, judgment. In contrast, no-sink produces a boundary-adjacent
+noise/recomposition collapse from frame 34 onward in all four cases: identity,
+scene continuity, usable action evidence, and later stability are lost. This
+is much stronger than the brief hard-cut dissolve, and no meaningful action
+comparison remains after collapse.
+
+**Decision — POSITIVE TRADEOFF:** within this tested regime, retained AR state
+is valuable for same-scene action continuity (4/4), while Phase 1 found old
+sink retention harmful for semantic hard cuts (8/8). This supports a
+*boundary-conditioned AR-state lifetime effect* as empirical motivation only;
+it is not a new boundary-aware policy, causal mechanism proof, or novelty
+claim. The catastrophic normal-boundary no-sink result may reflect removal of
+state the rollout requires, not a uniquely semantic role for the sink. Stop
+after Phase 3A: no classifier, soft decay, routing, memory, or Phase 3B.

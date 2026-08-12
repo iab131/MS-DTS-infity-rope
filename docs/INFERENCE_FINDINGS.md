@@ -789,6 +789,49 @@ change; no cache, routing, memory, or prompt-control mechanism should change.
   Do not build a Scene-Time contribution around this coordinate-only rule or
   infer that scene-local time is beneficial. No Phase 3 is authorized here.
 
+## 2026-08-11: Phase 3A same-scene action boundary (8 GPU runs)
+
+### OBSERVED
+
+- Audited the live policy path before execution: `transition_no_sink` already
+  applies at a normal `|` boundary. With no `#`, it sets `local_end_index=0`
+  and excludes old self-attention state while leaving `scene_cut=false`; no
+  RoPE Cut or scene-local epoch is activated. The four no-sink policy logs
+  record exactly that state and B's `[0,1,2]` normal positions.
+- Completed greenhouse woman turn→wave and desert pickup drive→stop at seeds
+  101/202, live `kv_flush` versus normal-boundary `transition_no_sink`: **8/8
+  completed**, 42.432--48.105 s/run. Peak direct-process VRAM is 22,964 MiB
+  live and 23,176 MiB policy. Ledger:
+  `outputs/same_scene_action_transition_phase3a_20260811/runs.json`.
+- Both requested A scenes are present in each case before B, making continuity
+  review valid. A is bit-identical across arms; raw decoded tensors first
+  diverge at RGB frame 34 in all four cases (frame 33 exact). Divergence data:
+  `outputs/same_scene_action_transition_phase3a_20260811/comparison/raw_divergence.json`.
+
+### HUMAN VISUAL REVIEW
+
+- Live retention preserves woman appearance and greenhouse continuity in both
+  seeds, with a readable B wave. It also preserves pickup/desert appearance
+  and scene composition in both seeds. The short B window makes the requested
+  drive→stop action only qualitatively reviewable, but the vehicle is stable.
+- Normal-boundary no-sink fails in **4/4**: immediately after the equal first
+  B RGB frame, severe colored-noise/recomposition overtakes the woman and
+  pickup scenes. It loses identity, background continuity, useful action
+  evidence, motion continuity, and later-block stability. This is not a
+  hard-cut style clean reset or a mild dissolve.
+- Synchronized two-arm videos, sheets, and a four-case summary are under
+  `outputs/same_scene_action_transition_phase3a_20260811/comparison/`.
+
+### INTERPRETATION
+
+- **POSITIVE TRADEOFF:** retained live AR state is necessary for usable
+  same-scene continuity in this small 4-case matrix, whereas Phase 1 shows
+  retained old sink/state produces stale source-scene composites at semantic
+  hard cuts. This is evidence for boundary-conditioned state lifetime, not yet
+  evidence for a new policy or a claim that the sink alone is causal: normal
+  no-sink removes both the old sink and recent local state and may violate an
+  AR-state requirement. No Phase 3B is implemented or proposed automatically.
+
 ## 2026-08-09: Subject-latent cache-write-mask ablation (one seed)
 
 - This is the requested cache-state-only ablation. `persistent_cache_erode1`

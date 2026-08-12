@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and enumerate, but never execute, the Phase-0 hard-cut matrix."""
+"""Validate and run the registered hard-cut and same-scene transition matrices."""
 
 import argparse
 import json
@@ -17,6 +17,7 @@ def load_manifest(path):
         manifest = json.load(handle)
     phase0_arms = {"live_kv_flush", "sink_plus1", "sink_only", "transition_no_sink"}
     phase2b_arms = {"transition_no_sink", "transition_no_sink_scene_local_rope_epoch"}
+    phase3a_arms = {"live_kv_flush", "transition_no_sink"}
     if manifest.get("benchmark_id") == "hard_cut_transition_phase0_20260810":
         if len(manifest.get("pairs", [])) != 4 or len(manifest.get("seeds", [])) != 2 or \
                 {arm["id"] for arm in manifest.get("arms", [])} != phase0_arms:
@@ -25,6 +26,11 @@ def load_manifest(path):
         if len(manifest.get("pairs", [])) != 2 or len(manifest.get("seeds", [])) != 2 or \
                 {arm["id"] for arm in manifest.get("arms", [])} != phase2b_arms:
             raise ValueError("Phase-2B benchmark requires two pairs, two seeds, and two no-sink arms")
+    elif manifest.get("benchmark_id") == "same_scene_action_transition_phase3a_20260811":
+        if len(manifest.get("pairs", [])) != 2 or len(manifest.get("seeds", [])) != 2 or \
+                {arm["id"] for arm in manifest.get("arms", [])} != phase3a_arms or \
+                manifest.get("uses_hard_cut", True):
+            raise ValueError("Phase-3A requires two pairs, two seeds, live/no-sink arms, and normal boundaries")
     else:
         raise ValueError("unsupported hard-cut benchmark manifest")
     if any("#" in pair["a"] or "|" in pair["a"] or "#" in pair["b"] or "|" in pair["b"]
@@ -36,7 +42,8 @@ def load_manifest(path):
 def _command(manifest, pair, seed, arm):
     settings = manifest["matched_settings"]
     output = f'{settings["output_root"]}/{pair["id"]}/seed_{seed}/{arm["id"]}'
-    prompt = f'{pair["a"]}[{manifest["duration_seconds_per_scene"]}s#] | {pair["b"]}[{manifest["duration_seconds_per_scene"]}s]'
+    cut_marker = "#" if manifest.get("uses_hard_cut", True) else ""
+    prompt = f'{pair["a"]}[{manifest["duration_seconds_per_scene"]}s{cut_marker}] | {pair["b"]}[{manifest["duration_seconds_per_scene"]}s]'
     command = [
         "python", "inference.py", "--config_path", settings["config_path"],
         "--checkpoint_path", settings["checkpoint_path"],

@@ -1,0 +1,65 @@
+{
+  "benchmark_id": "same_scene_action_transition_phase3a_20260811",
+  "status": "executed_20260811",
+  "purpose": "Test whether retained AR state helps same-scene action continuity at a normal prompt boundary.",
+  "uses_hard_cut": false,
+  "seeds": [101, 202],
+  "duration_seconds_per_scene": 2.25,
+  "pairs": [
+    {
+      "id": "greenhouse_woman_turn_to_wave",
+      "prompt_path": "docs/same_scene_action_phase3a_prompts/greenhouse_woman_turn_to_wave.txt",
+      "a": "A woman with a short black bob featuring one bright white streak on the left, a small red star mark under her left eye, and a green jacket with a large yellow circular chest patch, standing in the same glass greenhouse with rows of plants, cinematic medium shot, slowly turns her head to look left.",
+      "b": "The same woman with the same short black bob featuring one bright white streak on the left, the same red star mark under her left eye, and the same green jacket with a large yellow circular chest patch, in the same glass greenhouse with the same rows of plants, cinematic medium shot, raises her right hand and waves once."
+    },
+    {
+      "id": "desert_pickup_drive_to_stop",
+      "prompt_path": "docs/same_scene_action_phase3a_prompts/desert_pickup_drive_to_stop.txt",
+      "a": "A bright blue vintage pickup truck alone on the same dry desert road with tan mountains in the background, no people, no driver visible, cinematic wide shot, slowly drives from left to right.",
+      "b": "The same bright blue vintage pickup truck alone on the same dry desert road with the same tan mountains in the background, no people, no driver visible, cinematic wide shot, slows down and comes to a stop."
+    }
+  ],
+  "arms": [
+    {
+      "id": "live_kv_flush",
+      "mechanism": "Live Infinity-RoPE normal-boundary kv_flush: retained physical sink plus two recent frames; no RoPE Cut.",
+      "attention_memory_policy": false
+    },
+    {
+      "id": "transition_no_sink",
+      "mechanism": "Normal-boundary opt-in transition policy: no accessible old self-attention state in first B block; no RoPE Cut.",
+      "attention_memory_policy": true,
+      "local_retention": "transition_no_sink"
+    }
+  ],
+  "matched_settings": {
+    "config_path": "configs/self_forcing_dmd.yaml",
+    "checkpoint_path": "/home/sigasia2026/models/baselines/Self-Forcing/checkpoints/self_forcing_dmd.pt",
+    "use_ema": true,
+    "num_samples": 1,
+    "save_with_index": true,
+    "output_index": 0,
+    "memory_retrieval": false,
+    "memory_decay": false,
+    "memory_archive": false,
+    "memory_consolidation": false,
+    "memory_transition_auto_retrieval": false,
+    "memory_crossattn_reset": true,
+    "memory_context_mode": "prepend",
+    "memory_k": 2,
+    "memory_descriptor_layers": "0,1,5,14,16",
+    "memory_injection_layers": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29",
+    "save_clean_latent_blocks": [3, 4, 5],
+    "save_raw_decoded": true,
+    "output_root": "outputs/same_scene_action_transition_phase3a_20260811"
+  },
+  "review_fields": [
+    "subject_identity_appearance_continuity",
+    "background_scene_continuity",
+    "new_action_prompt_adherence",
+    "sudden_scene_reset_recomposition",
+    "boundary_ghost_dissolve",
+    "motion_continuity",
+    "later_block_stability"
+  ]
+}

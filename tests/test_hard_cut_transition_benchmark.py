@@ -67,6 +67,23 @@ class HardCutTransitionBenchmarkTest(unittest.TestCase):
         self.assertIn("--scene-local-rope-epoch", epoch["command"])
         self.assertNotIn("--scene-local-rope-epoch", control["command"])
 
+    def test_phase3a_normal_boundary_manifest_uses_no_rope_cut_marker(self):
+        manifest = load_manifest(
+            Path(__file__).resolve().parents[1] /
+            "docs/SAME_SCENE_ACTION_TRANSITION_PHASE3A_20260811.json")
+        rows = build_run_rows(manifest)
+
+        self.assertEqual(len(rows), 8)
+        self.assertEqual({row["arm_id"] for row in rows},
+                         {"live_kv_flush", "transition_no_sink"})
+        self.assertTrue(all("[2.25s#]" not in row["prompt"] for row in rows))
+        self.assertTrue(all("[2.25s] |" in row["prompt"] for row in rows))
+        live = next(row for row in rows if row["arm_id"] == "live_kv_flush")
+        reset = next(row for row in rows if row["arm_id"] == "transition_no_sink")
+        self.assertNotIn("--attention-memory-policy", live["command"])
+        self.assertEqual(reset["command"][reset["command"].index("--memory-local-retention") + 1],
+                         "transition_no_sink")
+
     def test_execution_keeps_a_sampled_peak_after_the_process_exits(self):
         row = build_run_rows(load_manifest(
             Path(__file__).resolve().parents[1] / "docs/HARD_CUT_BENCHMARK_PHASE0_20260810.json"))[0]

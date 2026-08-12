@@ -1,6 +1,6 @@
 # ICML Novelty Collision Matrix
 
-**Status (2026-08-10):** a prior-art guard, not a novelty assertion. “Scene
+**Status (2026-08-11):** a prior-art guard, not a novelty assertion. “Scene
 Epoch” and “Scene-Time Field” are internal hypothesis labels only. No claim is
 permitted until a live Infinity-RoPE intervention, multi-pair/seed evidence,
 and a full paper-level literature review establish a distinct contribution.
@@ -39,6 +39,10 @@ and a full paper-level literature review establish a distinct contribution.
    Anchor Forcing includes a distillation component. Any future claim needs an
    exact training/inference comparison and matched backbone constraints.
 
-**Phase-0 decision:** existing evidence is sufficient to justify the planned
-32-run *basic-effect replication* only. It is insufficient for a Scene-Epoch
-method claim, an ICML novelty claim, or a Phase-1 implementation decision.
+**Current evidence boundary:** Phase 1 establishes an 8/8 retained-sink
+stale-scene effect at hard cuts; Phase 3A establishes a 4/4 same-scene
+continuity failure when both sink and recent state are removed at a normal
+boundary. This motivates a boundary-conditioned state-lifetime *question*,
+not a method claim: the listed work already overlaps substantially with cache
+ownership, forgetting, prompt switching, and boundaries. It remains
+insufficient for an ICML novelty claim or implementation decision.
