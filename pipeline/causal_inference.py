@@ -8,7 +8,7 @@ from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
 from pipeline.memory_store import MemoryStore
 from pipeline.fixed_grid_memory_masks import FixedGridMemoryMasks
 from pipeline.content_routing import MemoryPolicyEventLogger, retrieval_allowed, route_memory
-from wan.modules.causal_model import memory_context_layout, memory_context_rope_positions
+from wan.modules.causal_model import memory_context_layout, memory_context_rope_positions, recent_only_key_positions
 
 from demo_utils.memory import gpu, get_cuda_free_memory_gb, DynamicSwapInstaller, move_model_to_device_with_memory_preservation
 
@@ -17,8 +17,9 @@ def apply_memory_transition(kv_caches, crossattn_caches, frame_tokens, retention
                             decay, decay_beta, scene_cut, device, cross_attention_reset=True,
                             scene_local_rope_epoch=False, current_start_frame=None):
     """Apply an opt-in scene-boundary local policy."""
-    persistent_sink_excluded = retention == "transition_no_sink"
-    retained = {"sink_only": 0, "sink+1": 1, "sink+2": 2, "transition_no_sink": 0}.get(retention)
+    persistent_sink_excluded = retention in {"transition_no_sink", "recent_only_no_sink"}
+    retained = {"sink_only": 0, "sink+1": 1, "sink+2": 2,
+                "recent_only_no_sink": 2, "transition_no_sink": 0}.get(retention)
     if retained is None:
         raise ValueError(f"unsupported memory local retention: {retention}")
     if not 0.0 <= decay_beta <= 1.0:
@@ -32,7 +33,8 @@ def apply_memory_transition(kv_caches, crossattn_caches, frame_tokens, retention
         available = max(0, local_end // frame_tokens - 1)
         keep = min(retained, available)
         actual_retained = keep
-        sink_end, retained_end = frame_tokens, (1 + keep) * frame_tokens
+        sink_end = 0 if retention == "recent_only_no_sink" else frame_tokens
+        retained_end = sink_end + keep * frame_tokens
         if keep:
             source_start = local_end - keep * frame_tokens
             for name in ("k", "v"):
@@ -40,7 +42,10 @@ def apply_memory_transition(kv_caches, crossattn_caches, frame_tokens, retention
                 if decay:
                     cache[name][:, sink_end:retained_end].mul_(decay_beta)
         cache["local_end_index"] = torch.tensor(
-            [0 if persistent_sink_excluded else retained_end], dtype=torch.long, device=device)
+            [retained_end if retention == "recent_only_no_sink" else
+             (0 if persistent_sink_excluded else retained_end)], dtype=torch.long, device=device)
+        cache["recent_only_no_sink"] = retention == "recent_only_no_sink"
+        cache.pop("recent_only_no_sink_finalize", None)
         cache["scene_cut"] = scene_cut
         cache["scene_local_rope_epoch"] = epoch_active
         if epoch_active:
@@ -65,17 +70,20 @@ def apply_memory_transition(kv_caches, crossattn_caches, frame_tokens, retention
 def transition_attention_context(current_start_frame, current_num_frames, retention, scene_cut, frame_tokens=1,
                                  sink_frame_id=0, scene_local_rope_epoch=False):
     """Describe the actual first-block context after an opt-in transition policy."""
-    retained = {"sink_only": 0, "sink+1": 1, "sink+2": 2, "transition_no_sink": 0}.get(retention)
+    retained = {"sink_only": 0, "sink+1": 1, "sink+2": 2,
+                "recent_only_no_sink": 2, "transition_no_sink": 0}.get(retention)
     if retained is None:
         raise ValueError(f"unsupported memory local retention: {retention}")
-    ordering = ([] if retention == "transition_no_sink" else [f"sink:{sink_frame_id}"]) + \
+    ordering = ([] if retention in {"transition_no_sink", "recent_only_no_sink"} else [f"sink:{sink_frame_id}"]) + \
         [f"local:{frame_id}" for frame_id in range(current_start_frame - retained, current_start_frame)] + \
         [f"current:{frame_id}" for frame_id in range(current_start_frame, current_start_frame + current_num_frames)]
     current_positions = list(range(current_num_frames)) if scene_local_rope_epoch else \
         (list(range(45, 45 + current_num_frames)) if scene_cut else \
         list(range(len(ordering) - current_num_frames, len(ordering)))
         )
-    positions = list(range(len(ordering) - current_num_frames)) + current_positions
+    positions = (recent_only_key_positions(len(ordering), current_num_frames, scene_cut).tolist()
+                 if retention == "recent_only_no_sink" else
+                 list(range(len(ordering) - current_num_frames)) + current_positions)
     return {
         "ordering": ordering,
         "rope_temporal_positions": positions,
@@ -86,7 +94,7 @@ def transition_attention_context(current_start_frame, current_num_frames, retent
 
 def record_transition_sink(kv_caches, current_start_frame, retention):
     """Promote the first clean new-scene frame after a no-old-context transition."""
-    if retention != "transition_no_sink":
+    if retention not in {"transition_no_sink", "recent_only_no_sink"}:
         return None
     for cache in kv_caches:
         cache["persistent_sink_frame_id"] = current_start_frame
@@ -1010,6 +1018,9 @@ class CausalInferencePipeline(torch.nn.Module):
                 clean_selective_memory = selective_memory if fixed_grid_memory_active(
                     fixed_grid_config.get("denoising_steps", "all"),
                     fixed_grid_config.get("clean_pass", True), clean_pass=True) else None
+            if memory_enabled and memory_policy["local_retention"] == "recent_only_no_sink":
+                for cache in self.kv_cache1:
+                    cache["recent_only_no_sink_finalize"] = True
             self.generator(
                 noisy_image_or_video=clean_cache_denoised_pred,
                 conditional_dict=conditional_dict,

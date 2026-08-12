@@ -44,13 +44,15 @@ implementing any Shot-Time Field analogue.
 
 ### Interpretation, not a result claim
 
-The replicated core effect is now narrower and stronger: a retained sink is
-linked to stale previous-scene/background retention (8/8 cases), while
-`transition_no_sink` gives the cleanest new-scene establishment (8/8). The
-matrix gives 0/8 unambiguous sustained recent-KV-only entity reductions. This
-motivates treating a semantic cut as an explicit state/time boundary rather
-than claiming monotonic recent-KV entity retention or trying to recover
-identity from contextualized historical representations.
+The replicated core effect is now narrower: retained previous-scene AR state
+causes hard-cut contamination in the tested matrix, while
+`transition_no_sink` gives the most consistently clean new-scene
+establishment. The matrix gives 0/8 unambiguous sustained recent-KV-only
+*entity* reductions. This motivates testing state lifetime at semantic
+boundaries rather than claiming monotonic entity retention or trying to
+recover identity from contextualized historical representations. The earlier
+8/8 sink-specific wording is explicitly superseded below by user manual review
+and the Phase-3B factorial.
 
 ## Live transition audit (code authoritative on 2026-08-10)
 
@@ -134,15 +136,10 @@ Artifacts are eight videos, eight sheets, and an all-case summary under
 
 ### Phase-1 result and Phase-2 gate
 
-**Observed:** every retained-sink arm preserves old scene/background semantics
-into later B blocks in all 8 pair×seed cases; `transition_no_sink` has the
-cleanest B scene in all 8. **Human review:** all arms briefly dissolve at the
-boundary, but only retained-sink arms stabilize into an old/new composite.
-**Interpretation:** this supports stale previous-scene AR state as a
-reproducible hard-cut failure mode. It does *not* establish a clean monotonic
-recent-KV-only entity effect: reducing recent retention gave 0/8 unambiguous
-sustained entity-leakage reductions, and sink-only still retained aquarium fish
-and all four source environments.
+**Superseded Codex review:** this earlier text attributed all 8/8 retained-arm
+contamination to the sink. The user’s later manual review found sink-only clean
+for fish→train and astronaut→fox. Treat the retained-sink-specific statement
+as obsolete; the controlled factorial below separates sink from recent state.
 
 The smallest justified next test is **not run**: `transition_no_sink` versus
 that same reset plus a scene-local temporal/RoPE epoch, for greenhouse→pickup
@@ -274,9 +271,60 @@ comparison remains after collapse.
 
 **Decision — POSITIVE TRADEOFF:** within this tested regime, retained AR state
 is valuable for same-scene action continuity (4/4), while Phase 1 found old
-sink retention harmful for semantic hard cuts (8/8). This supports a
+  retained previous-scene state harmful for semantic hard cuts. This supports a
 *boundary-conditioned AR-state lifetime effect* as empirical motivation only;
 it is not a new boundary-aware policy, causal mechanism proof, or novelty
 claim. The catastrophic normal-boundary no-sink result may reflect removal of
 state the rollout requires, not a uniquely semantic role for the sink. Stop
-after Phase 3A: no classifier, soft decay, routing, memory, or Phase 3B.
+  after Phase 3A: no classifier, soft decay, routing, memory, or Phase 3B.
+
+## Phase 3B: sink × recent-local-state factorial (executed)
+
+### User manual review supersession of Phase 1
+
+This is a separate human review record, not a silent edit of the earlier Codex
+review. The user found: fish→train has live/sink+1 composites but clean
+sink-only and no-sink; girl→pickup has no-sink as the only clearly clean
+desert; chef→boat has no-sink clean while retained arms preserve chef or form
+composites; astronaut→fox has clean sink-only and no-sink while stronger
+retention is worse. Thus the durable Phase-1 claim is retained
+previous-scene **AR state** contamination and complete no-old-state reset as
+the most consistently clean intervention—not universal sink causality.
+
+### Minimal intervention and execution
+
+`recent_only_no_sink` is the sole new opt-in mode. At the transition it copies
+the two latest raw non-sink frames into the compact prefix, excludes the old
+transformed sink, and uses their live-compaction temporal treatment
+(`{1,2,45,46,47}` at a hard cut; `{1,2,3,4,5}` normally). At the clean pass it
+replaces that temporary prefix with the first B block’s normal new sink/cache.
+Cross-attention reset, prompt schedule, RoPE Cut, DMD schedule, capacity,
+weights, seed, and all memory features remain unchanged.
+
+The exact-provenance harness reused 12 Phase-1 hard-cut controls and ran only
+four new recent-only cells; it reused 8 Phase-3A same-scene controls and ran
+eight new sink-only/recent-only cells. All **12/12** fresh GPU runs completed
+(hard 44.524--48.594 s; same-scene 44.453--45.889 s). Ledgers and synchronized
+four-arm comparisons are in
+`outputs/hard_cut_state_retention_factorial_phase3b_20260811/` and
+`outputs/same_scene_state_retention_factorial_phase3b_20260811/`.
+
+### Human visual review and factorial outcome
+
+| Boundary | Sink + recent2 | Sink only | Recent2 only | Neither |
+| --- | --- | --- | --- | --- |
+| Hard cut | Source/B composite in the reviewed greenhouse and aquarium cases | Clean train in fish→train, but greenhouse/girl contamination remains in girl→pickup | Source/B composite in all four pair×seed cases | Most consistently clean B scene |
+| Same-scene action | Usable continuity | Usable continuity in all four cases | Usable continuity in all four cases | Catastrophic colored-noise/recomposition collapse in all four cases |
+
+**Answers in this matrix:** (1) sink is not necessary for hard-cut
+contamination; (2) two recent raw frames alone are sufficient for hard-cut
+contamination in these four cells; (3) sink alone is sufficient for usable
+same-scene continuity here; (4) recent frames alone are also sufficient here;
+(5) continuity does not require their combination. These are controlled visual
+results, not semantic metrics or a causal claim beyond the tested state groups.
+
+**Decision:** complete state removal cleanly establishes a new semantic scene,
+but is unsafe at same-scene action boundaries. The data support a
+boundary-conditioned state-lifetime *effect* and reject universal
+sink-specific causality. Stop after Phase 3B; no automatic policy, classifier,
+memory, routing, decay, or additional phase is implemented.

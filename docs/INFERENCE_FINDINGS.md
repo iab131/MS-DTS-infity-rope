@@ -701,9 +701,10 @@ are in `outputs/hard_cut_transition_phase1_20260810/comparison/`.
   earlier woman→car claim as a clean monotonic recent-KV/entity effect; most
   source subjects vanish after the boundary blend in all arms, while aquarium
   fish persist even with sink-only.
-- **Sink effect:** retaining the old sink is sufficient for sustained old
-  scene/background semantics in **8/8 cases**. This is the reproducible basic
-  effect in this matrix.
+- **Superseded by user manual review / Phase 3B:** do not treat this earlier
+  8/8 sink-specific assertion as current. Sink-only is clean for fish→train
+  and astronaut→fox under the user review; the later factorial isolates recent
+  state as another sufficient hard-cut contamination source.
 - **Clean cut:** `transition_no_sink` is the cleanest hard semantic cut in
   **8/8 cases**, with no reviewed later-block counterexample where it harms B
   quality relative to the retained composite. All arms have a brief f33--f36
@@ -824,13 +825,56 @@ change; no cache, routing, memory, or prompt-control mechanism should change.
 
 ### INTERPRETATION
 
-- **POSITIVE TRADEOFF:** retained live AR state is necessary for usable
-  same-scene continuity in this small 4-case matrix, whereas Phase 1 shows
-  retained old sink/state produces stale source-scene composites at semantic
-  hard cuts. This is evidence for boundary-conditioned state lifetime, not yet
-  evidence for a new policy or a claim that the sink alone is causal: normal
-  no-sink removes both the old sink and recent local state and may violate an
-  AR-state requirement. No Phase 3B is implemented or proposed automatically.
+- **Superseded by Phase 3B:** this initial normal no-sink comparison shows
+  complete state removal is unsafe for same-scene continuity, but does not say
+  that the sink itself is necessary. The later factorial finds sink-only and
+  recent-only each usable in the tested window.
+
+## 2026-08-11: Phase 3B sink × recent-local-state factorial (12 new GPU runs)
+
+### OBSERVED
+
+- **User manual-review supersession:** Phase-1’s earlier Codex review is not
+  discarded, but its claim that retained sink causes stale scene semantics in
+  8/8 is superseded. The user finds sink-only clean for fish→train and
+  astronaut→fox, while no-sink remains the most consistently clean hard-cut
+  arm. The defensible claim is retained previous-scene AR-state contamination,
+  not universal sink causality.
+- Added only `recent_only_no_sink`: it excludes the old transformed sink,
+  retains two latest old raw local frames, uses compact live-compatible
+  positions `[1,2,45,46,47]` at hard cuts or `[1,2,3,4,5]` normally, then
+  writes the B clean-pass state as the normal new sink/cache. Policy logs
+  verify these exact contexts, two retained frames, excluded sink, and matched
+  cross-attention reset.
+- Hard cuts: 12 exact-provenance controls reused and 4 fresh recent-only runs
+  completed (44.524--48.594 s). Same-scene: 8 controls reused and 8 fresh
+  sink-only/recent-only runs completed (44.453--45.889 s). Ledgers:
+  `outputs/hard_cut_state_retention_factorial_phase3b_20260811/runs.json` and
+  `outputs/same_scene_state_retention_factorial_phase3b_20260811/runs.json`.
+
+### HUMAN VISUAL REVIEW
+
+- **Hard cuts:** recent-only yields source/B composites in all four reviewed
+  greenhouse→pickup and fish→train pair×seed cells, despite no old transformed
+  sink. Sink-only is clean for fish→train but remains contaminated for
+  greenhouse→pickup. Neither is the most consistently clean B scene.
+- **Same-scene:** live, sink-only, and recent-only all retain usable woman /
+  greenhouse and pickup / desert continuity in 4/4 cases. Neither repeats the
+  severe colored-noise/recomposition collapse observed in Phase 3A’s no-sink
+  arm. Action assessment remains qualitative in the short pickup window.
+- Four-arm sheets/videos are under each Phase-3B `comparison/` directory.
+
+### INTERPRETATION
+
+- Sink is **not necessary** for hard-cut contamination; recent frames alone
+  are sufficient in these cells. Sink alone is not universally sufficient for
+  contamination. For same-scene continuity, either sink alone or recent state
+  alone is sufficient here; their combination is not required. Complete state
+  removal is the only consistently clean hard-cut intervention and the only
+  catastrophic same-scene intervention.
+- This is evidence for a boundary-conditioned AR-state lifetime effect, not an
+  automatic policy, sink-only mechanism, novelty claim, or general causal law.
+  Stop after Phase 3B.
 
 ## 2026-08-09: Subject-latent cache-write-mask ablation (one seed)
 

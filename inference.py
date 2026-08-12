@@ -188,7 +188,7 @@ parser.add_argument("--memory-retrieval-lifetime", choices=["pulse_1", "pulse_2"
                     help="Manual retrieval duration from the first selected block; pulse_1 preserves the oracle default.")
 parser.add_argument("--memory-transition-auto-retrieval", action=argparse.BooleanOptionalAction, default=False,
                     help="Allow automatic descriptor routing on the first block after a scene transition.")
-parser.add_argument("--memory-local-retention", choices=["sink_only", "sink+1", "sink+2", "transition_no_sink"], default="sink_only",
+parser.add_argument("--memory-local-retention", choices=["sink_only", "sink+1", "sink+2", "recent_only_no_sink", "transition_no_sink"], default="sink_only",
                     help="Local cache retained at policy-managed scene transitions.")
 parser.add_argument("--scene-local-rope-epoch", action=argparse.BooleanOptionalAction, default=False,
                     help="Opt-in hard-cut no-sink self-attention temporal epoch experiment.")

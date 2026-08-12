@@ -66,6 +66,19 @@ def scene_local_key_positions(scene_local_current_start, current_frames, context
     ])
 
 
+def recent_only_key_positions(context_frames, current_frames, scene_cut, device=None):
+    """Keep compact raw local phases while omitting the physical sink slot."""
+    if current_frames <= 0 or context_frames < current_frames:
+        raise ValueError("recent-only context must include all current frames")
+    retained = context_frames - current_frames
+    if scene_cut:
+        return torch.cat([
+            torch.arange(1, retained + 1, dtype=torch.long, device=device),
+            torch.arange(45, 45 + current_frames, dtype=torch.long, device=device),
+        ])
+    return torch.arange(1, context_frames + 1, dtype=torch.long, device=device)
+
+
 def sparse_historical_rope(key, grid_sizes, freqs, original_token_indices, temporal_slots):
     """RoPE sparse historical keys using their original row-major H/W coordinates."""
     if key.ndim != 4:
@@ -510,6 +523,7 @@ class CausalWanSelfAttention(nn.Module):
                 # ------------------------------------------------------------ #
                 scene_cut = kv_cache.get("scene_cut", False)
                 scene_local_epoch = bool(kv_cache.get("scene_local_rope_epoch", False))
+                recent_only_no_sink = bool(kv_cache.get("recent_only_no_sink", False))
                 relative_start_frame = max_attention_frames-num_new_frames
                 if scene_local_epoch:
                     relative_start_frame = current_start_frame - kv_cache["scene_local_rope_epoch_start_frame"]
@@ -519,12 +533,20 @@ class CausalWanSelfAttention(nn.Module):
                         k_for_rope, grid_sizes_full, freqs,
                         temporal_positions=scene_local_key_positions(
                             relative_start_frame, num_new_frames, grid_sizes_full[0][0].item(), q.device)).type_as(v)
+                elif recent_only_no_sink:
+                    roped_query = block_relativistic_rope(
+                        q, grid_sizes, freqs, start_frame=relative_start_frame, scene_cut=scene_cut).type_as(v)
+                    roped_key = block_relativistic_rope(
+                        k_for_rope, grid_sizes_full, freqs,
+                        temporal_positions=recent_only_key_positions(
+                            grid_sizes_full[0][0].item(), num_new_frames, scene_cut, q.device)).type_as(v)
                 else:
                     roped_query = block_relativistic_rope(
                         q, grid_sizes, freqs, start_frame=relative_start_frame, scene_cut=scene_cut).type_as(v)
                     roped_key = block_relativistic_rope(
                         k_for_rope, grid_sizes_full, freqs, start_frame=0, scene_cut=scene_cut).type_as(v)
-                roped_key[:, :frame_seqlen] = k_for_rope[:, :frame_seqlen]
+                if not recent_only_no_sink:
+                    roped_key[:, :frame_seqlen] = k_for_rope[:, :frame_seqlen]
                 # ------------------------------------------------------------ #
             else: # first 21 frame happens here
                 # Assign new keys/values directly up to current_end
@@ -539,6 +561,7 @@ class CausalWanSelfAttention(nn.Module):
                 # ------------------------------------------------------------ #
                 scene_cut = kv_cache.get("scene_cut", False)
                 scene_local_epoch = bool(kv_cache.get("scene_local_rope_epoch", False))
+                recent_only_no_sink = bool(kv_cache.get("recent_only_no_sink", False))
                 relative_start_frame = current_start_frame if current_start_frame < max_attention_frames else max_attention_frames - num_new_frames
                 if scene_local_epoch:
                     relative_start_frame = current_start_frame - kv_cache["scene_local_rope_epoch_start_frame"]
@@ -548,6 +571,13 @@ class CausalWanSelfAttention(nn.Module):
                         k_for_rope, grid_sizes_full, freqs,
                         temporal_positions=scene_local_key_positions(
                             relative_start_frame, num_new_frames, grid_sizes_full[0][0].item(), q.device)).type_as(v)
+                elif recent_only_no_sink:
+                    roped_query = block_relativistic_rope(
+                        q, grid_sizes, freqs, start_frame=relative_start_frame, scene_cut=scene_cut).type_as(v)
+                    roped_key = block_relativistic_rope(
+                        k_for_rope, grid_sizes_full, freqs,
+                        temporal_positions=recent_only_key_positions(
+                            grid_sizes_full[0][0].item(), num_new_frames, scene_cut, q.device)).type_as(v)
                 else:
                     roped_query = block_relativistic_rope(
                         q, grid_sizes, freqs, start_frame=relative_start_frame, scene_cut=scene_cut).type_as(v)
@@ -556,7 +586,7 @@ class CausalWanSelfAttention(nn.Module):
                 # ------------------------------------------------------------ #
                 if local_start_index == 0:
                     kv_cache["k"][:, :frame_seqlen] = roped_key[:, :frame_seqlen]
-                else:
+                elif not recent_only_no_sink:
                     roped_key[:, :frame_seqlen] = k_for_rope[:, :frame_seqlen]
                     
             local_value = kv_cache["v"][:, max(0, local_end_index - self.max_attention_size):local_end_index]
@@ -600,6 +630,18 @@ class CausalWanSelfAttention(nn.Module):
             else:
                 x = attention(roped_query, roped_key, value)
      
+            if kv_cache.pop("recent_only_no_sink_finalize", False):
+                current_key = kv_cache["k"][:, local_start_index:local_end_index].clone()
+                current_value = kv_cache["v"][:, local_start_index:local_end_index].clone()
+                sink_grid = grid_sizes.clone()
+                sink_grid[0][0] = 1
+                new_sink = block_relativistic_rope(
+                    current_key[:, :frame_seqlen], sink_grid, freqs, start_frame=0).type_as(v)
+                kv_cache["k"][:, :num_new_tokens] = current_key
+                kv_cache["v"][:, :num_new_tokens] = current_value
+                kv_cache["k"][:, :frame_seqlen] = new_sink
+                local_end_index = num_new_tokens
+                kv_cache["recent_only_no_sink"] = False
             kv_cache["global_end_index"].fill_(current_end)
             kv_cache["local_end_index"].fill_(local_end_index)
 

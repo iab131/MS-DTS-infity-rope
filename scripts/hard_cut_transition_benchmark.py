@@ -18,6 +18,7 @@ def load_manifest(path):
     phase0_arms = {"live_kv_flush", "sink_plus1", "sink_only", "transition_no_sink"}
     phase2b_arms = {"transition_no_sink", "transition_no_sink_scene_local_rope_epoch"}
     phase3a_arms = {"live_kv_flush", "transition_no_sink"}
+    phase3b_arms = {"live_kv_flush", "sink_only", "recent_only_no_sink", "transition_no_sink"}
     if manifest.get("benchmark_id") == "hard_cut_transition_phase0_20260810":
         if len(manifest.get("pairs", [])) != 4 or len(manifest.get("seeds", [])) != 2 or \
                 {arm["id"] for arm in manifest.get("arms", [])} != phase0_arms:
@@ -31,6 +32,12 @@ def load_manifest(path):
                 {arm["id"] for arm in manifest.get("arms", [])} != phase3a_arms or \
                 manifest.get("uses_hard_cut", True):
             raise ValueError("Phase-3A requires two pairs, two seeds, live/no-sink arms, and normal boundaries")
+    elif manifest.get("benchmark_id") in {
+            "hard_cut_state_retention_factorial_phase3b_20260811",
+            "same_scene_state_retention_factorial_phase3b_20260811"}:
+        if len(manifest.get("pairs", [])) != 2 or len(manifest.get("seeds", [])) != 2 or \
+                {arm["id"] for arm in manifest.get("arms", [])} != phase3b_arms:
+            raise ValueError("Phase-3B requires two pairs, two seeds, and the four retention arms")
     else:
         raise ValueError("unsupported hard-cut benchmark manifest")
     if any("#" in pair["a"] or "|" in pair["a"] or "#" in pair["b"] or "|" in pair["b"]
@@ -41,7 +48,8 @@ def load_manifest(path):
 
 def _command(manifest, pair, seed, arm):
     settings = manifest["matched_settings"]
-    output = f'{settings["output_root"]}/{pair["id"]}/seed_{seed}/{arm["id"]}'
+    output_root = arm.get("reuse_output_root", settings["output_root"])
+    output = f'{output_root}/{pair["id"]}/seed_{seed}/{arm["id"]}'
     cut_marker = "#" if manifest.get("uses_hard_cut", True) else ""
     prompt = f'{pair["a"]}[{manifest["duration_seconds_per_scene"]}s{cut_marker}] | {pair["b"]}[{manifest["duration_seconds_per_scene"]}s]'
     command = [
@@ -95,7 +103,7 @@ def build_run_rows(manifest):
                     "prompt": prompt, "output_folder": output, "command": command,
                     "first_b_block": 4, "first_b_raw_frame": 33,
                     "status": "planned_not_run", "review_fields": manifest["review_fields"],
-                })
+                } | ({"reuse_ledger": arm["reuse_ledger"]} if "reuse_ledger" in arm else {}))
     return rows
 
 
@@ -119,6 +127,26 @@ def _gpu_memory_for_pid(pid):
 def execute_rows(rows):
     """Run planned rows serially and record runtime, direct-process VRAM, and outputs."""
     for row in rows:
+        if "reuse_ledger" in row:
+            ledger_path = ROOT / row["reuse_ledger"]
+            prior = json.loads(ledger_path.read_text(encoding="utf-8"))
+            prior_row = next((candidate for candidate in prior["runs"]
+                              if candidate["run_id"] == row["run_id"]), None)
+            if prior_row is None or prior_row.get("status") != "completed" or \
+                    prior_row.get("command") != row["command"]:
+                raise ValueError(f"reuse provenance mismatch for {row['run_id']}")
+            output_folder = ROOT / row["output_folder"]
+            if not (output_folder / "0_raw_decoded_before_mp4.pt").is_file() or \
+                    not (output_folder / "0-0_ema.mp4").is_file():
+                raise FileNotFoundError(f"reused artifact incomplete: {output_folder}")
+            row.update({
+                "status": "reused_exact_provenance", "returncode": prior_row.get("returncode"),
+                "runtime_seconds": prior_row.get("runtime_seconds"),
+                "peak_vram_mib": prior_row.get("peak_vram_mib"),
+                "output_metadata": prior_row.get("output_metadata"),
+                "reused_from_ledger": row["reuse_ledger"],
+            })
+            continue
         started = time.monotonic()
         process = subprocess.Popen(row["command"], cwd=ROOT)
         peak_vram_mib = 0

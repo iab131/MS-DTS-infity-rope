@@ -84,6 +84,23 @@ class HardCutTransitionBenchmarkTest(unittest.TestCase):
         self.assertEqual(reset["command"][reset["command"].index("--memory-local-retention") + 1],
                          "transition_no_sink")
 
+    def test_phase3b_factorials_expand_four_arms_and_mark_exact_reuse(self):
+        root = Path(__file__).resolve().parents[1]
+        hard = load_manifest(root / "docs/HARD_CUT_STATE_RETENTION_FACTORIAL_PHASE3B_20260811.json")
+        normal = load_manifest(root / "docs/SAME_SCENE_STATE_RETENTION_FACTORIAL_PHASE3B_20260811.json")
+        hard_rows, normal_rows = build_run_rows(hard), build_run_rows(normal)
+
+        self.assertEqual(len(hard_rows), 16)
+        self.assertEqual(len(normal_rows), 16)
+        for rows in (hard_rows, normal_rows):
+            self.assertEqual({row["arm_id"] for row in rows}, {
+                "live_kv_flush", "sink_only", "recent_only_no_sink", "transition_no_sink"})
+            self.assertEqual(sum("reuse_ledger" in row for row in rows),
+                             12 if rows is hard_rows else 8)
+        recent = next(row for row in hard_rows if row["arm_id"] == "recent_only_no_sink")
+        self.assertEqual(recent["command"][recent["command"].index("--memory-local-retention") + 1],
+                         "recent_only_no_sink")
+
     def test_execution_keeps_a_sampled_peak_after_the_process_exits(self):
         row = build_run_rows(load_manifest(
             Path(__file__).resolve().parents[1] / "docs/HARD_CUT_BENCHMARK_PHASE0_20260810.json"))[0]

@@ -1212,14 +1212,11 @@ records an observation.
   `outputs/hard_cut_transition_phase1_20260810/comparison/`. The review fields
   were B prompt adherence, source subject/entity leakage, source
   background/scene leakage, cut cleanliness, and obvious artifacts.
-- **Result:** old scene/background semantics persist with every retained sink
-  in 8/8 cases (greenhouse, aquarium/fish, kitchen, and observatory). The
-  `transition_no_sink` arm is the cleanest B scene in 8/8 cases after the
-  common first-block dissolve. Reducing recent non-sink retention yielded 0/8
-  unambiguous sustained source-entity reductions; therefore this replication
-  supports stale AR scene state/sink leakage but not a general isolated
-  recent-KV entity claim. These are non-blinded qualitative findings, not
-  automated semantic metrics.
+- **Superseded human review:** the user later found sink-only clean for
+  fish→train and astronaut→fox, so this prior “every retained sink in 8/8”
+  sentence is not current. See E20260811 Phase-3B for the controlled sink ×
+  recent-state separation. The retained previous-scene AR-state hard-cut
+  effect and no-sink’s consistently clean result remain the supported summary.
 - **Decision:** the effect justifies a small future *comparison* of
   `transition_no_sink` against the same reset plus a scene-local temporal/RoPE
   epoch (greenhouse→pickup and aquarium→locomotive, seeds 101/202, 8 runs),
@@ -1283,6 +1280,41 @@ records an observation.
   evidence for this simple RoPE-origin branch, not evidence against every
   possible scene-local AR-state design. Stop here: no Scene-Time Field, new
   cache ownership mechanism, memory/routing/steering, or Phase 3 was added.
+
+## E20260811-SINK-RECENT-STATE-FACTORIAL (executed; 12 new GPU runs)
+
+- **Manual-review correction:** this record explicitly supersedes the earlier
+  sink-causality reading of the Phase-1 Codex review. User review finds
+  fish→train live/sink+1 composite but sink-only/no-sink clean; girl→pickup
+  only no-sink clearly clean; chef→boat no-sink clean; astronaut→fox sink-only
+  and no-sink clean. The appropriate Phase-1 claim is retained prior AR state
+  contamination, not 8/8 universal sink leakage.
+- **New arm:** `recent_only_no_sink` is the minimum state factor. It moves the
+  two newest raw old non-sink frames into the accessible prefix, excludes the
+  transformed old sink, gives raw K live-compatible compact positions, and at
+  the clean pass replaces the temporary prefix with a normal B sink/cache. No
+  RoPE method, memory, routing, decay, classifier, or other policy change was
+  added. CPU tests cover raw retention, sink exclusion, RoPE treatment, and
+  clean-pass new-sink establishment.
+- **Reuse/execution:** command-identical provenance reused Phase-1 live,
+  sink-only, and no-sink controls (12 hard-cut rows); four new hard-cut
+  recent-only rows completed. It reused Phase-3A live/no-sink controls (8
+  rows); eight new same-scene sink-only/recent-only rows completed. All twelve
+  new GPU rows exit zero. Ledgers are
+  `outputs/hard_cut_state_retention_factorial_phase3b_20260811/runs.json` and
+  `outputs/same_scene_state_retention_factorial_phase3b_20260811/runs.json`.
+- **Hard-cut result:** recent-only produces source/B composites for both
+  greenhouse→pickup and fish→train seeds despite no old sink. Sink-only is
+  clean for fish→train, but not greenhouse→pickup. Thus sink is neither
+  necessary nor universally sufficient; recent state alone is sufficient for
+  hard-cut contamination in the tested cells. Neither remains the most
+  consistently clean intervention.
+- **Same-scene result:** live, sink-only, and recent-only are usable for all
+  greenhouse and pickup action-boundary seeds; neither is catastrophic in all
+  four, as in Phase 3A. Thus either factor alone is sufficient for usable
+  continuity in this matched window; their combination is not required.
+- **Decision:** boundary-conditioned state lifetime is an observed tradeoff,
+  not an implemented automatic policy or novelty claim. Stop after Phase 3B.
 
 ## E20260811-SAME-SCENE-ACTION-STATE-RETENTION (executed; 2 pairs × 2 seeds)
 

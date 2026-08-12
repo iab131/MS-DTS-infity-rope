@@ -62,10 +62,11 @@ def _vstack(images):
     return canvas
 
 
-def _load_case(root, pair_id, seed, arms=ARMS):
+def _load_case(root, pair_id, seed, arms=ARMS, arm_roots=None):
     videos = {}
     for arm in arms:
-        path = root / pair_id / f"seed_{seed}" / arm / "0_raw_decoded_before_mp4.pt"
+        arm_root = root if arm_roots is None else arm_roots.get(arm, root)
+        path = arm_root / pair_id / f"seed_{seed}" / arm / "0_raw_decoded_before_mp4.pt"
         if not path.is_file():
             raise FileNotFoundError(path)
         video = torch.load(path, map_location="cpu", weights_only=True)
@@ -105,11 +106,13 @@ def create_comparisons(root, manifest_path, output):
     """Generate eight case videos/sheets plus a single all-case summary sheet."""
     manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
     arms = arms_for_manifest(manifest)
+    arm_roots = {arm["id"]: ROOT / arm["reuse_output_root"]
+                 for arm in manifest["arms"] if "reuse_output_root" in arm}
     output.mkdir(parents=True, exist_ok=True)
     summaries = []
     for pair in manifest["pairs"]:
         for seed in manifest["seeds"]:
-            videos = _load_case(root, pair["id"], seed, arms)
+            videos = _load_case(root, pair["id"], seed, arms, arm_roots)
             stem = f'{pair["id"]}_seed_{seed}_{len(arms)}_arm'
             _case_sheet(videos, pair["id"], seed, arms).save(output / f"{stem}_temporal_sheet.png")
             _case_video(videos, pair["id"], seed, output / f"{stem}_transition.mp4", arms)

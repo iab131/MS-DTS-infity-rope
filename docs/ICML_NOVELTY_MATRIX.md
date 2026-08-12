@@ -39,10 +39,12 @@ and a full paper-level literature review establish a distinct contribution.
    Anchor Forcing includes a distillation component. Any future claim needs an
    exact training/inference comparison and matched backbone constraints.
 
-**Current evidence boundary:** Phase 1 establishes an 8/8 retained-sink
-stale-scene effect at hard cuts; Phase 3A establishes a 4/4 same-scene
-continuity failure when both sink and recent state are removed at a normal
-boundary. This motivates a boundary-conditioned state-lifetime *question*,
-not a method claim: the listed work already overlaps substantially with cache
-ownership, forgetting, prompt switching, and boundaries. It remains
-insufficient for an ICML novelty claim or implementation decision.
+**Current evidence boundary:** user manual review and Phase 3B supersede the
+earlier “8/8 retained-sink” wording. The factorial finds recent state alone
+can contaminate hard cuts, while either sink or recent state alone supports
+same-scene continuity; removing both is cleanest for hard cuts and catastrophic
+for same-scene action changes. This motivates a boundary-conditioned
+state-lifetime *question*, not a method claim: the listed work already overlaps
+substantially with cache ownership, forgetting, prompt switching, and
+boundaries. It remains insufficient for an ICML novelty claim or
+implementation decision.

@@ -10,6 +10,7 @@ from pipeline.causal_inference import apply_memory_transition
 from wan.modules.causal_model import (
     CausalWanSelfAttention,
     block_relativistic_rope,
+    recent_only_key_positions,
     scene_local_key_positions,
 )
 from wan.modules.model import rope_params
@@ -128,6 +129,36 @@ class SceneLocalRopeEpochTest(unittest.TestCase):
 
         torch.testing.assert_close(explicit_false, absent)
         torch.testing.assert_close(false_cache["k"], absent_cache["k"])
+
+    def test_recent_only_no_sink_uses_raw_recent_keys_then_establishes_new_sink(self):
+        old, current = torch.randn(1, 2, 12), torch.randn(1, 3, 12)
+        module = CausalWanSelfAttention(dim=12, num_heads=1, local_attn_size=6, sink_size=1, qk_norm=False)
+        for linear in (module.q, module.k, module.v, module.o):
+            linear.weight.data.copy_(torch.eye(12))
+            linear.bias.data.zero_()
+        cache = {
+            "k": torch.zeros(1, 6, 1, 12), "v": torch.zeros(1, 6, 1, 12),
+            "global_end_index": torch.tensor([9]), "local_end_index": torch.tensor([2]),
+            "scene_cut": True, "recent_only_no_sink": True,
+            "recent_only_no_sink_finalize": True,
+        }
+        cache["k"][:, :2] = old.view(1, 2, 1, 12)
+        cache["v"][:, :2] = old.view(1, 2, 1, 12)
+        seen = []
+        with patch("wan.modules.causal_model.attention", lambda q, k, v: seen.append(k.detach().clone()) or torch.zeros_like(q)):
+            module(current, torch.tensor([3]), torch.tensor([[3, 1, 1]]), freqs(), None,
+                   kv_cache=cache, current_start=9)
+
+        expected_context = block_relativistic_rope(
+            torch.cat([old, current], dim=1).view(1, 5, 1, 12), torch.tensor([[5, 1, 1]]),
+            freqs(), temporal_positions=recent_only_key_positions(5, 3, True))
+        torch.testing.assert_close(seen[0], expected_context)
+        expected_sink = block_relativistic_rope(
+            current[:, :1].view(1, 1, 1, 12), torch.tensor([[1, 1, 1]]), freqs(), start_frame=0)
+        torch.testing.assert_close(cache["k"][:, :1], expected_sink)
+        torch.testing.assert_close(cache["k"][:, 1:3], current[:, 1:].view(1, 2, 1, 12))
+        self.assertEqual(cache["local_end_index"].item(), 3)
+        self.assertFalse(cache["recent_only_no_sink"])
 
 
 if __name__ == "__main__":

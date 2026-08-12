@@ -483,6 +483,31 @@ class AttentionMemoryPolicyTest(unittest.TestCase):
              "rope_temporal_positions": [45, 46, 47], "total_frames": 3, "total_tokens": 3},
         )
 
+    def test_recent_only_no_sink_retains_two_raw_frames_without_the_sink(self):
+        cache = {
+            "k": torch.tensor([[[[10.]], [[20.]], [[30.]], [[40.]], [[50.]], [[60.]]]]),
+            "v": torch.tensor([[[[110.]], [[120.]], [[130.]], [[140.]], [[150.]], [[160.]]]]),
+            "local_end_index": torch.tensor([6]), "scene_cut": False,
+        }
+        cross = {"is_init": True}
+
+        event = apply_memory_transition(
+            [cache], [cross], frame_tokens=1, retention="recent_only_no_sink", decay=False,
+            decay_beta=0.3, scene_cut=True, device=torch.device("cpu"))
+
+        self.assertEqual(cache["k"].flatten().tolist()[:2], [50.0, 60.0])
+        self.assertEqual(cache["v"].flatten().tolist()[:2], [150.0, 160.0])
+        self.assertEqual(cache["local_end_index"].item(), 2)
+        self.assertTrue(cache["recent_only_no_sink"])
+        self.assertTrue(event["persistent_sink_excluded"])
+        self.assertEqual(
+            transition_attention_context(current_start_frame=9, current_num_frames=3,
+                                         retention="recent_only_no_sink", scene_cut=True),
+            {"ordering": ["local:7", "local:8", "current:9", "current:10", "current:11"],
+             "rope_temporal_positions": [1, 2, 45, 46, 47], "total_frames": 5,
+             "total_tokens": 5},
+        )
+
     def test_transition_context_reports_the_new_scene_sink_frame_id(self):
         caches = [{}, {}]
         self.assertEqual(
