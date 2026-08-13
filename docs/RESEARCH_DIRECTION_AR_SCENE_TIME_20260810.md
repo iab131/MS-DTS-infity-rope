@@ -401,3 +401,24 @@ requested, and no-old-state reset where a semantic cut is requested. This is
 not an automatic semantic-boundary method, general policy claim, causal proof
 of a particular cache component, or novelty claim. No Phase 3D/classifier or
 additional mechanism is authorized by this result.
+
+## Phase 3C personal visual-review supersession (2026-08-12)
+
+This append-only personal review supersedes any stronger Codex-only qualitative
+wording above. At normal `|` boundaries, live Infinity-RoPE is clean/stable and
+boundary-conditioned is clean/stable, as it should be because it preserves the
+live path. `always_reset` later collapses into rainbow/noise during A2/B2.
+
+At hard `#`, visual establishment still takes roughly five RGB frames. Do not
+describe Phase 3C as an instantaneous cut, or as showing clear hard-cut visual
+superiority over live in every reviewed mixed-boundary case. The strongest
+hard-cut-cleanup evidence remains the dedicated Phase-1 and Phase-3B matrices.
+
+The correct Phase-3C status is **integrated feasibility/compatibility evidence**:
+one explicit boundary annotation can retain the native live path where
+continuity is requested and select the separately validated no-old-state path
+where a hard cut is requested. It is not a new visual hard-cut result by itself.
+
+The mechanism is frozen at `e556855` pending the novelty gate in
+`docs/BOUNDARY_CONDITIONED_AR_STATE_NOVELTY_GATE_20260812.md` and the
+primary-source audit in `docs/PHASE4_FULL_PAPER_NOVELTY_AUDIT_20260812.md`.

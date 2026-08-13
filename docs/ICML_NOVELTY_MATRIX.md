@@ -48,3 +48,22 @@ demonstration of choosing existing live paths, not a new cache-ownership or
 boundary-classification method. The listed work still overlaps substantially
 with cache ownership, forgetting, prompt switching, and boundaries. This is
 insufficient for an ICML novelty claim or any automatic-policy claim.
+
+## 2026-08-12 novelty-gate supersession
+
+The Phase-3C mixed-boundary review is **integrated feasibility/compatibility
+evidence**, not a universal hard-cut visual win: hard `#` establishment still
+takes roughly five RGB frames, and the strong cleanup evidence remains the
+dedicated Phase-1/3B matrices. At normal `|`, live and boundary-conditioned are
+clean/stable; always-reset later rainbow/noise-recomposes.
+
+The full primary-source audit finds that Echo-Forcing already exposes explicit
+smooth/hard transition types, while Grounded Forcing has smooth prompt
+inheritance and a scene-transition local-memory reset. Neither audited source
+was found to specify the exact frozen rule of preserving native rolling state at
+normal action boundaries while making **all** previous native self-attention
+state inaccessible at hard boundaries and then establishing it from the first
+new block. This is a narrow distinction, not a first-claim basis. Current
+status: **candidate research contribution; not yet a novelty claim**;
+`PROMISING BUT NEEDS MECHANISM REFRAMING`. See
+`docs/PHASE4_FULL_PAPER_NOVELTY_AUDIT_20260812.md`.

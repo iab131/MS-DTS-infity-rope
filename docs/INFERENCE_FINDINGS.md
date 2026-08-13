@@ -931,6 +931,31 @@ change; no cache, routing, memory, or prompt-control mechanism should change.
   sink-causality proof, or a novelty claim. Stop here: no further component
   sweeps or additional mechanism is supported.
 
+## 2026-08-12: Phase 3C personal visual-review supersession
+
+### HUMAN VISUAL REVIEW — USER SUPERSESSION
+
+- This append-only user review supersedes any stronger Codex-only Phase-3C
+  qualitative wording. At normal `|` boundaries, live Infinity-RoPE is
+  clean/stable; boundary-conditioned is clean/stable and should preserve live
+  behavior; always-reset later collapses into rainbow/noise during A2/B2.
+- At hard `#`, the new scene still takes roughly five RGB frames to establish.
+  Phase 3C does **not** demonstrate an instantaneous cut, nor clear hard-cut
+  visual superiority over live in every mixed case. The dedicated Phase-1/3B
+  matrices remain the primary hard-cut-cleanup evidence.
+
+### INTERPRETATION
+
+- Phase 3C is integrated feasibility/compatibility evidence only: the explicit
+  label can preserve live behavior at a continuity boundary while selecting the
+  previously validated no-old-state path at a hard boundary. It is not an
+  additional standalone hard-cut-quality claim.
+- Mechanism is frozen at `e556855`. The next action is a strict primary-source
+  novelty gate, recorded in
+  `docs/BOUNDARY_CONDITIONED_AR_STATE_NOVELTY_GATE_20260812.md` and
+  `docs/PHASE4_FULL_PAPER_NOVELTY_AUDIT_20260812.md`; no new method or GPU work
+  is authorized.
+
 ## 2026-08-09: Subject-latent cache-write-mask ablation (one seed)
 
 - This is the requested cache-state-only ablation. `persistent_cache_erode1`
