@@ -263,3 +263,31 @@ type-aware baselines. Predefine human review for continuity, old-scene leakage,
 new-scene adherence, first stable new-scene frame, and artifacts. The critical
 ablation is the retained old sink at `#`; it directly tests the only narrow
 distinction that currently survives. Do not run this automatically.
+
+## 8. Narrow object-level reframe (supersedes only the candidate framing)
+
+The broad verdict in §7 is preserved: a generic transition-type-aware cache
+policy collides with Echo-Forcing, Grounded Forcing, and Infinity-RoPE. The
+surviving candidate is instead **Native AR State Invalidation / Rebinding**:
+at a continuation label preserve the live native rolling self-attention K/V;
+at a semantic discontinuity label make every previous-scene native K/V entry
+inaccessible to the first new causal block; let that block's normal clean pass
+establish fresh native state; then resume ordinary AR.
+
+The strict object-level audit is in
+`docs/NATIVE_AR_STATE_REBINDING_MECHANISM_SPEC_20260812.md`. It is deliberately
+not a claim about an auxiliary/global memory: Grounded Forcing retains GCM,
+ShotStream retains global cache, Echo-Forcing retains managed anchors/history,
+and Infinity-RoPE retains a sink after its native Cut. No audited source states
+the strict zero-old-native-state rule, but this absence is not a claim of
+firstness.
+
+### Revised candidate verdict
+
+`MECHANISM CLAIM SURVIVES — READY FOR GENERALIZATION BENCHMARK`
+
+This is a conditional research decision, not an award of novelty. The sole
+recommended next step is the preregistered frozen-mechanism generalization
+matrix in `docs/PHASE5_GENERALIZATION_BENCHMARK_PLAN_20260812.md`; it must
+demonstrate the opposing-utility result beyond the existing cases or the claim
+reverts to `PROMISING BUT NEEDS MECHANISM REFRAMING`.

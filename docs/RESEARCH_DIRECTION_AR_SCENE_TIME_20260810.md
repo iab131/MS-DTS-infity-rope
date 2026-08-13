@@ -422,3 +422,35 @@ where a hard cut is requested. It is not a new visual hard-cut result by itself.
 The mechanism is frozen at `e556855` pending the novelty gate in
 `docs/BOUNDARY_CONDITIONED_AR_STATE_NOVELTY_GATE_20260812.md` and the
 primary-source audit in `docs/PHASE4_FULL_PAPER_NOVELTY_AUDIT_20260812.md`.
+
+## Post-novelty-gate reframe: Native AR State Invalidation / Rebinding
+
+The mechanism remains frozen. We no longer frame the candidate as a novel
+boundary-aware cache policy: Echo-Forcing, Grounded Forcing, and Infinity-RoPE
+already cover broad transition-aware handling. The narrower hypothesis is that
+the *native rolling self-attention state* has a validity domain: it is valid
+and necessary for explicit continuity `|`, but invalid for an explicit semantic
+discontinuity `#`.
+
+**Observed:** dedicated hard-cut matrices found complete no-old-native-state
+reset to be the most consistently clean tested arm; same-scene matrices found
+complete removal catastrophic and partial retention unstable; the local-RoPE
+epoch was numerically active but visually neutral. Phase 3C is compatibility
+evidence only: continuation preserves live behavior, hard invalidation composes
+with the same rollout, and hard establishment still takes roughly five RGB
+frames.
+
+**Interpretation:** these are opposing-utility results for one frozen backbone,
+not an assignment of causal semantics to one cache component, a universal
+policy, or evidence for a classifier/auxiliary memory mechanism.
+
+**Candidate claim:** at `#`, expose zero previous-scene *native* self-attention
+K/V to the first new causal block, then let its normal clean pass rebind fresh
+native state; at `|`, leave the native live path exactly unchanged. The complete
+specification and object-level prior-work comparison are in
+`docs/NATIVE_AR_STATE_REBINDING_MECHANISM_SPEC_20260812.md`.
+
+The current decision is **MECHANISM CLAIM SURVIVES — READY FOR GENERALIZATION
+BENCHMARK**, contingent on the preregistered plan in
+`docs/PHASE5_GENERALIZATION_BENCHMARK_PLAN_20260812.md`. No GPU work, new
+mechanism, or Phase 5 execution is authorized by this record.
