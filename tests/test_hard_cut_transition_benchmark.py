@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+from pipeline.causal_inference import CausalInferencePipeline
 from scripts.hard_cut_transition_benchmark import (
     _gpu_memory_for_pid, build_run_rows, execute_rows, load_manifest,
 )
@@ -116,6 +117,53 @@ class HardCutTransitionBenchmarkTest(unittest.TestCase):
         self.assertIn("[2.25s] |", conditioned["prompt"])
         self.assertIn("[2.25s#] |", conditioned["prompt"])
         self.assertEqual(conditioned["transition_blocks"], [4, 7, 10])
+
+    def test_phase5_checkpoint_is_a_fixed_63_cell_six_segment_matrix(self):
+        manifest = load_manifest(
+            Path(__file__).resolve().parents[1] /
+            "docs/PHASE5_GENERALIZATION_CHECKPOINT_20260813.json")
+        rows = build_run_rows(manifest)
+
+        self.assertEqual(len(manifest["categories"]), 7)
+        self.assertEqual(len(manifest["pairs"]), 7)
+        self.assertEqual(manifest["seeds"], [101, 202, 303])
+        self.assertEqual(len(rows), 63)
+        self.assertEqual({row["arm_id"] for row in rows}, {
+            "live_infinity_rope", "always_reset", "native_state_rebinding"})
+        self.assertTrue(all(row["transition_blocks"] == [5, 9, 13, 17, 21]
+                            for row in rows))
+        self.assertTrue(all(row["transition_raw_frames"] == [49, 97, 145, 193, 241]
+                            for row in rows))
+
+    def test_phase5_arm_commands_preserve_or_invalidate_native_state_only_at_expected_boundaries(self):
+        manifest = load_manifest(
+            Path(__file__).resolve().parents[1] /
+            "docs/PHASE5_GENERALIZATION_CHECKPOINT_20260813.json")
+        rows = {row["arm_id"]: row for row in build_run_rows(manifest)
+                if row["pair_id"] == "human_to_object" and row["seed"] == 101}
+
+        self.assertNotIn("--attention-memory-policy", rows["live_infinity_rope"]["command"])
+        reset = rows["always_reset"]["command"]
+        self.assertEqual(reset[reset.index("--memory-local-retention") + 1], "transition_no_sink")
+        self.assertIn("--boundary-conditioned-ar-state", rows["native_state_rebinding"]["command"])
+        self.assertNotIn("--attention-memory-policy", rows["native_state_rebinding"]["command"])
+        for row in rows.values():
+            self.assertIn("[3.0s] |", row["prompt"])
+            self.assertEqual(row["prompt"].count("[3.0s#]"), 2)
+
+    def test_phase5_prompts_parse_to_six_four_block_scenes_with_only_hard_cuts_after_a2_b2(self):
+        manifest = load_manifest(
+            Path(__file__).resolve().parents[1] /
+            "docs/PHASE5_GENERALIZATION_CHECKPOINT_20260813.json")
+        parser_owner = SimpleNamespace(default_fps=16, num_frame_per_block=3,
+                                       default_blocks_per_scene=14)
+
+        for pair in manifest["pairs"]:
+            prompt = (Path(__file__).resolve().parents[1] / pair["prompt_path"]).read_text(encoding="utf-8")
+            scenes, blocks, cuts = CausalInferencePipeline._parse_scene_durations(parser_owner, prompt)
+            self.assertEqual(len(scenes), 6)
+            self.assertEqual(blocks, [4] * 6)
+            self.assertEqual(cuts, [False, True, False, True, False, False])
 
     def test_execution_keeps_a_sampled_peak_after_the_process_exits(self):
         row = build_run_rows(load_manifest(

@@ -20,6 +20,7 @@ def load_manifest(path):
     phase3a_arms = {"live_kv_flush", "transition_no_sink"}
     phase3b_arms = {"live_kv_flush", "sink_only", "recent_only_no_sink", "transition_no_sink"}
     phase3c_arms = {"live_kv_flush", "always_reset", "boundary_conditioned"}
+    phase5_arms = {"live_infinity_rope", "always_reset", "native_state_rebinding"}
     if manifest.get("benchmark_id") == "hard_cut_transition_phase0_20260810":
         if len(manifest.get("pairs", [])) != 4 or len(manifest.get("seeds", [])) != 2 or \
                 {arm["id"] for arm in manifest.get("arms", [])} != phase0_arms:
@@ -45,6 +46,21 @@ def load_manifest(path):
             raise ValueError("Phase-3C requires two mixed-boundary scenarios, two seeds, and three arms")
         if any(len(pair.get("segments", [])) != 4 for pair in manifest["pairs"]):
             raise ValueError("Phase-3C requires A1 | A2 # B1 | B2 segments")
+    elif manifest.get("benchmark_id") == "phase5_generalization_checkpoint_20260813":
+        if len(manifest.get("categories", [])) != 7 or len(manifest.get("pairs", [])) != 7 or \
+                manifest.get("seeds") != [101, 202, 303] or \
+                {arm["id"] for arm in manifest.get("arms", [])} != phase5_arms:
+            raise ValueError("Phase-5 checkpoint requires seven categories, seven storyboards, three fixed seeds, and three main arms")
+        for pair in manifest["pairs"]:
+            if len(pair.get("segments", [])) != 6 or pair.get("boundary_after") != ["|", "#", "|", "#", "|"]:
+                raise ValueError("Phase-5 requires A1 | A2 # B1 | B2 # C1 | C2")
+            if pair.get("transition_blocks") != [5, 9, 13, 17, 21] or \
+                    pair.get("transition_raw_frames") != [49, 97, 145, 193, 241]:
+                raise ValueError("Phase-5 schedule must use four blocks per 3.0-second scene")
+            rendered = _render_segments(pair, manifest["duration_seconds_per_scene"])
+            prompt_path = ROOT / pair["prompt_path"]
+            if not prompt_path.is_file() or prompt_path.read_text(encoding="utf-8").strip() != rendered:
+                raise ValueError(f"Phase-5 prompt file mismatch: {prompt_path}")
     else:
         raise ValueError("unsupported hard-cut benchmark manifest")
     prompts = (segment for pair in manifest["pairs"] for segment in pair.get("segments", [pair.get("a", ""), pair.get("b", "")]))
@@ -53,16 +69,25 @@ def load_manifest(path):
     return manifest
 
 
+def _render_segments(pair, duration):
+    boundaries = pair.get("boundary_after")
+    if boundaries is None:
+        boundaries = ["|", "#", "|"]
+    if len(boundaries) != len(pair["segments"]) - 1:
+        raise ValueError("segment boundary count must be one less than segment count")
+    rendered = []
+    for index, segment in enumerate(pair["segments"]):
+        marker = "#" if index < len(boundaries) and boundaries[index] == "#" else ""
+        rendered.append(f"{segment}[{duration}s{marker}]")
+    return " | ".join(rendered)
+
+
 def _command(manifest, pair, seed, arm):
     settings = manifest["matched_settings"]
     output_root = arm.get("reuse_output_root", settings["output_root"])
     output = f'{output_root}/{pair["id"]}/seed_{seed}/{arm["id"]}'
     if "segments" in pair:
-        duration = manifest["duration_seconds_per_scene"]
-        prompt = (f'{pair["segments"][0]}[{duration}s] | '
-                  f'{pair["segments"][1]}[{duration}s#] | '
-                  f'{pair["segments"][2]}[{duration}s] | '
-                  f'{pair["segments"][3]}[{duration}s]')
+        prompt = _render_segments(pair, manifest["duration_seconds_per_scene"])
     else:
         cut_marker = "#" if manifest.get("uses_hard_cut", True) else ""
         prompt = f'{pair["a"]}[{manifest["duration_seconds_per_scene"]}s{cut_marker}] | {pair["b"]}[{manifest["duration_seconds_per_scene"]}s]'
@@ -113,13 +138,15 @@ def build_run_rows(manifest):
         for seed in manifest["seeds"]:
             for arm in manifest["arms"]:
                 prompt, output, command = _command(manifest, pair, seed, arm)
-                transitions = [4, 7, 10] if "segments" in pair else [4]
+                transitions = pair.get("transition_blocks", [4, 7, 10] if "segments" in pair else [4])
                 rows.append({
                     "run_id": f'{pair["id"]}__seed{seed}__{arm["id"]}',
                     "pair_id": pair["id"], "seed": seed, "arm_id": arm["id"],
                     "prompt": prompt, "output_folder": output, "command": command,
-                    "first_b_block": transitions[0], "first_b_raw_frame": 33,
-                    "transition_blocks": transitions,
+                "first_b_block": transitions[0], "first_b_raw_frame":
+                    pair.get("transition_raw_frames", [33])[0],
+                "transition_blocks": transitions,
+                "transition_raw_frames": pair.get("transition_raw_frames", [33]),
                     "status": "planned_not_run", "review_fields": manifest["review_fields"],
                 } | ({"reuse_ledger": arm["reuse_ledger"]} if "reuse_ledger" in arm else {}))
     return rows

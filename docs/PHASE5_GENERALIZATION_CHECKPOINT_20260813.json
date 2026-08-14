@@ -1,0 +1,55 @@
+{
+  "benchmark_id": "phase5_generalization_checkpoint_20260813",
+  "status": "cpu_validated_checkpoint_planned",
+  "purpose": "Preregistered 63-cell generalization checkpoint for frozen Native AR State Invalidation / Rebinding; no mechanism search.",
+  "categories": [
+    "human_to_object",
+    "animal_to_vehicle",
+    "indoor_to_outdoor",
+    "visually_similar_semantic_change",
+    "visually_dissimilar_semantic_change",
+    "same_subject_action_transition",
+    "same_object_motion_transition"
+  ],
+  "seeds": [101, 202, 303],
+  "duration_seconds_per_scene": 3.0,
+  "pairs": [
+    {"id": "human_to_object", "category": "human_to_object", "prompt_path": "docs/phase5_generalization_checkpoint_20260813_prompts/human_to_object.txt", "boundary_after": ["|", "#", "|", "#", "|"], "transition_blocks": [5, 9, 13, 17, 21], "transition_raw_frames": [49, 97, 145, 193, 241], "segments": ["A young woman in a saffron coat stands in a bright glass art studio, cinematic medium shot, slowly turns toward the window.", "The same young woman in the same saffron coat in the same bright glass art studio, cinematic medium shot, raises one hand and waves once.", "A red vintage typewriter alone on a walnut desk in a quiet book-lined study, cinematic close shot, its keys tap steadily with no people visible.", "The same red vintage typewriter alone on the same walnut desk in the same book-lined study, cinematic close shot, its carriage slides to the left with no people visible.", "A white sailboat alone crosses a calm turquoise sea beneath a clear sky, cinematic aerial wide shot, gliding from left to right.", "The same white sailboat alone on the same calm turquoise sea, cinematic aerial wide shot, turns gently toward the horizon."]},
+    {"id": "animal_to_vehicle", "category": "animal_to_vehicle", "prompt_path": "docs/phase5_generalization_checkpoint_20260813_prompts/animal_to_vehicle.txt", "boundary_after": ["|", "#", "|", "#", "|"], "transition_blocks": [5, 9, 13, 17, 21], "transition_raw_frames": [49, 97, 145, 193, 241], "segments": ["A golden retriever runs through a sunlit autumn park with orange leaves, cinematic medium tracking shot.", "The same golden retriever in the same sunlit autumn park, cinematic medium tracking shot, slows down and looks over its shoulder.", "A bright blue freight train alone crosses a snowy mountain viaduct at dawn, no people or passengers visible, cinematic wide shot.", "The same bright blue freight train alone on the same snowy mountain viaduct, cinematic wide shot, slows as white steam rises.", "A black-and-white lighthouse stands alone on a rocky Atlantic coast under gray clouds, cinematic wide shot, ocean waves roll below.", "The same black-and-white lighthouse on the same rocky Atlantic coast, cinematic wide shot, a beacon rotates slowly as waves continue."]},
+    {"id": "indoor_to_outdoor", "category": "indoor_to_outdoor", "prompt_path": "docs/phase5_generalization_checkpoint_20260813_prompts/indoor_to_outdoor.txt", "boundary_after": ["|", "#", "|", "#", "|"], "transition_blocks": [5, 9, 13, 17, 21], "transition_raw_frames": [49, 97, 145, 193, 241], "segments": ["A chef in a white coat cooks in a warm copper kitchen with hanging pans, cinematic medium shot, stirring a pot.", "The same chef in the same warm copper kitchen, cinematic medium shot, places vegetables carefully onto a plate.", "A red off-road jeep alone drives across a sunlit desert valley with tan mesas, no people or driver visible, cinematic wide shot.", "The same red off-road jeep alone in the same sunlit desert valley, cinematic wide shot, slows beside a tall mesa.", "A small wooden cabin stands alone in a snowy pine forest at blue hour, cinematic wide shot, smoke rises from its chimney.", "The same small wooden cabin in the same snowy pine forest, cinematic wide shot, warm window light flickers while snow falls."]},
+    {"id": "visually_similar_semantic_change", "category": "visually_similar_semantic_change", "prompt_path": "docs/phase5_generalization_checkpoint_20260813_prompts/visually_similar_semantic_change.txt", "boundary_after": ["|", "#", "|", "#", "|"], "transition_blocks": [5, 9, 13, 17, 21], "transition_raw_frames": [49, 97, 145, 193, 241], "segments": ["A yellow taxi drives through a rainy nighttime city street with blue reflections and storefront lights, cinematic tracking shot.", "The same yellow taxi on the same rainy nighttime city street, cinematic tracking shot, turns slowly at an intersection.", "A yellow electric tram travels through a rainy nighttime urban rail corridor with blue reflections and station lights, no cars or people visible, cinematic tracking shot.", "The same yellow electric tram on the same rainy nighttime urban rail corridor, cinematic tracking shot, glides past a lit platform with no people visible.", "A silver delivery bicycle alone rolls through a rainy nighttime riverside promenade with blue reflections and lamplight, no people visible, cinematic tracking shot.", "The same silver delivery bicycle alone on the same rainy nighttime riverside promenade, cinematic tracking shot, coasts gently beside the water with no people visible."]},
+    {"id": "visually_dissimilar_semantic_change", "category": "visually_dissimilar_semantic_change", "prompt_path": "docs/phase5_generalization_checkpoint_20260813_prompts/visually_dissimilar_semantic_change.txt", "boundary_after": ["|", "#", "|", "#", "|"], "transition_blocks": [5, 9, 13, 17, 21], "transition_raw_frames": [49, 97, 145, 193, 241], "segments": ["Luminous tropical fish swim through a deep blue coral reef aquarium with bubbles and blue glass walls, cinematic close shot.", "The same luminous tropical fish in the same deep blue coral reef aquarium, cinematic close shot, circle slowly around coral.", "A black volcanic cone erupts alone under a red-orange sunset sky, cinematic extreme wide shot, lava glows down its slopes with no people visible.", "The same black volcanic cone under the same red-orange sunset sky, cinematic extreme wide shot, a plume rises while lava continues to glow with no people visible.", "A white observatory dome stands alone on a moonlike gray plain beneath a star-filled black sky, cinematic wide shot.", "The same white observatory dome on the same moonlike gray plain, cinematic wide shot, its roof opens slowly beneath the stars."]},
+    {"id": "same_subject_action_transition", "category": "same_subject_action_transition", "prompt_path": "docs/phase5_generalization_checkpoint_20260813_prompts/same_subject_action_transition.txt", "boundary_after": ["|", "#", "|", "#", "|"], "transition_blocks": [5, 9, 13, 17, 21], "transition_raw_frames": [49, 97, 145, 193, 241], "segments": ["A woman with a long black braid and a cobalt-blue jacket stands in a misty vineyard at sunrise, cinematic medium shot, looking down the rows.", "The same woman with the same long black braid and cobalt-blue jacket in the same misty vineyard at sunrise, cinematic medium shot, raises a basket of grapes.", "A red fox runs through a golden autumn forest with orange leaves, cinematic medium tracking shot, no people visible.", "The same red fox in the same golden autumn forest, cinematic medium tracking shot, pauses and looks toward the camera with no people visible.", "A black steam locomotive travels alone over a snowy stone bridge at dawn, cinematic wide shot, no people or passengers visible.", "The same black steam locomotive on the same snowy stone bridge at dawn, cinematic wide shot, slows as steam billows upward with no people visible."]},
+    {"id": "same_object_motion_transition", "category": "same_object_motion_transition", "prompt_path": "docs/phase5_generalization_checkpoint_20260813_prompts/same_object_motion_transition.txt", "boundary_after": ["|", "#", "|", "#", "|"], "transition_blocks": [5, 9, 13, 17, 21], "transition_raw_frames": [49, 97, 145, 193, 241], "segments": ["A bright blue pickup truck alone drives along a dry desert road with tan mountains, cinematic wide tracking shot, no people or driver visible.", "The same bright blue pickup truck alone on the same dry desert road, cinematic wide tracking shot, slows and turns gently toward the camera with no people or driver visible.", "A small white fishing boat alone crosses a dark green ocean beneath a cloudy sky, cinematic aerial wide shot, no people visible.", "The same small white fishing boat alone on the same dark green ocean, cinematic aerial wide shot, changes direction as waves roll behind it with no people visible.", "A silver cable car alone travels over a snowy alpine valley at dawn, cinematic wide shot, no passengers visible.", "The same silver cable car alone over the same snowy alpine valley, cinematic wide shot, slows near a mountain station with no passengers visible."]}
+  ],
+  "arms": [
+    {"id": "live_infinity_rope", "mechanism": "Unmodified live KV Flush at every boundary; RoPE Cut remains active at #.", "attention_memory_policy": false},
+    {"id": "always_reset", "mechanism": "Verified transition_no_sink at every boundary; existing RoPE Cut remains active at #.", "attention_memory_policy": true, "local_retention": "transition_no_sink"},
+    {"id": "native_state_rebinding", "mechanism": "Exact live path at |; verified transition_no_sink at # followed by ordinary clean-pass state establishment.", "attention_memory_policy": false, "boundary_conditioned_ar_state": true}
+  ],
+  "matched_settings": {
+    "config_path": "configs/self_forcing_dmd.yaml",
+    "checkpoint_path": "/home/sigasia2026/models/baselines/Self-Forcing/checkpoints/self_forcing_dmd.pt",
+    "use_ema": true,
+    "num_samples": 1,
+    "save_with_index": true,
+    "output_index": 0,
+    "memory_retrieval": false,
+    "memory_decay": false,
+    "memory_archive": false,
+    "memory_consolidation": false,
+    "memory_transition_auto_retrieval": false,
+    "memory_crossattn_reset": true,
+    "memory_context_mode": "prepend",
+    "memory_k": 2,
+    "memory_descriptor_layers": "0,1,5,14,16",
+    "memory_injection_layers": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29",
+    "save_clean_latent_blocks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
+    "save_raw_decoded": true,
+    "output_root": "outputs/phase5_generalization_checkpoint_20260813"
+  },
+  "review_fields": {
+    "continuity": ["identity_entity_consistency", "background_consistency", "action_motion_adherence", "temporal_flicker", "motion_continuity", "collapse_failure"],
+    "hard_cut": ["previous_scene_semantic_leakage", "new_scene_prompt_adherence", "transition_latency_rgb_frames", "flicker_artifact_severity", "later_scene_stability"]
+  }
+}
