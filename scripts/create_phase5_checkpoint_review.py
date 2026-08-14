@@ -12,7 +12,10 @@ import numpy as np
 from PIL import Image
 import torch
 
-from scripts.create_hard_cut_comparisons import _hstack, _label, _rgb_frame, _vstack
+try:
+    from scripts.create_hard_cut_comparisons import _hstack, _label, _rgb_frame, _vstack
+except ModuleNotFoundError:  # Direct `python scripts/...` execution.
+    from create_hard_cut_comparisons import _hstack, _label, _rgb_frame, _vstack
 
 
 ROOT = Path(__file__).resolve().parents[1]

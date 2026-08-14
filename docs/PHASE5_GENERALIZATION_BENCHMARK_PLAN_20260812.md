@@ -89,3 +89,24 @@ Report counterexamples, failed generations, reviewers' `uncertain` entries,
 and all raw outputs. If any criterion fails, report the failed criterion rather
 than selecting a new policy. No Phase 5 result authorizes a learned boundary
 classifier, soft decay, retrieval, or a further mechanism search.
+
+## Checkpoint execution record — 2026-08-14
+
+The preregistered **63-cell checkpoint** (one storyboard per category, seeds
+101/202/303, three main arms) completed without a GPU-run failure. This does
+not execute the remaining 75 planned ceiling cells or the partial-retention
+subset. The frozen inference mechanism was unchanged; runner commit was
+`eb85a7df609165ac30d8593bb78130144984d27e` and the frozen mechanism remains
+`e556855`.
+
+Mechanical correction: the pre-run raw-frame schedule incorrectly assumed
+`[49,97,145,193,241]`. The existing independent-first-frame rollout produces
+285 RGB frames and recorded divergences establish the actual boundaries as
+`[46,94,142,190,238]`. This corrects manifest/review metadata only; prompts,
+commands, seed, duration, model, cache behavior, and generated outputs were
+not changed or rerun.
+
+Blinded human scores are required before the benchmark's semantic endpoints or
+success criteria can be evaluated. See
+`docs/PHASE5_CHECKPOINT_RESULTS_20260813.md` for the completed-run ledger and
+review-package locations.

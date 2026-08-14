@@ -993,3 +993,20 @@ change; no cache, routing, memory, or prompt-control mechanism should change.
   `c8de4ddb0fbbe029cbea3cb9e8daf97e565d86f31e59bfb313f81cafec1ad18b`,
   erode1 policy `df79e14978f5de9bed7ad78daf7fdba7166bd556c03c398c1735c2e667f5aa5d`,
   erode2 policy `a964aa012b0e9d7f7c2c63860dfd23918499500fbd3abcae56ba056159e15fc1`.
+
+## Phase 5 checkpoint — mechanical completion only (2026-08-14)
+
+- The frozen Native AR State Invalidation/Rebinding 63-cell checkpoint completed
+  **63/63** exit-zero GPU runs: seven fixed categories, one six-segment
+  `A1 | A2 # B1 | B2 # C1 | C2` storyboard each, seeds 101/202/303, and arms
+  live, always-reset, and frozen policy. No inference behavior changed.
+- Mechanical provenance: total generation runtime 4,209.862 s; per-run range
+  61.638–77.878 s; direct-process peak VRAM 26,904 or 27,852 MiB; all raw and
+  MP4 SHA-256 hashes and commands are in
+  `outputs/phase5_generalization_checkpoint_20260813/runs.json`.
+- Actual RGB boundary frames are 46/94/142/190/238 (285 frames), not the
+  pre-run naïve 49-series; this arises from the existing independent-first-frame
+  rollout. The corrected schedule is metadata-only and no output was rerun.
+- No semantic conclusion is recorded: a private mapping, 21 anonymized videos,
+  105 strips, and a blank 315-row 1–5/uncertain review form were created. Human
+  review is pending; RGB divergence is provenance, not a quality metric.

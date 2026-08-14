@@ -1,4 +1,7 @@
 import unittest
+from pathlib import Path
+import subprocess
+import sys
 
 
 from scripts.create_phase5_checkpoint_review import (
@@ -7,11 +10,18 @@ from scripts.create_phase5_checkpoint_review import (
 
 
 class Phase5CheckpointReviewTest(unittest.TestCase):
-    def test_each_boundary_window_has_two_pre_and_three_later_blocks(self):
-        windows = phase5_boundary_windows(288, [49, 97, 145, 193, 241])
+    def test_review_script_runs_directly(self):
+        root = Path(__file__).resolve().parents[1]
+        result = subprocess.run([sys.executable, "scripts/create_phase5_checkpoint_review.py", "--help"],
+                                cwd=root, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Create anonymized", result.stdout)
 
-        self.assertEqual(windows[0], (46, 96))
-        self.assertEqual(windows[-1], (238, 288))
+    def test_each_boundary_window_has_two_pre_and_three_later_blocks(self):
+        windows = phase5_boundary_windows(285, [46, 94, 142, 190, 238])
+
+        self.assertEqual(windows[0], (43, 93))
+        self.assertEqual(windows[-1], (235, 285))
 
     def test_blinded_order_is_deterministic_but_hides_real_arm_names(self):
         order = blinded_arm_order("human_to_object", 101,
@@ -23,7 +33,7 @@ class Phase5CheckpointReviewTest(unittest.TestCase):
 
     def test_review_rows_are_blank_and_anonymous(self):
         manifest = {
-            "pairs": [{"id": "case", "transition_raw_frames": [49, 97],
+            "pairs": [{"id": "case", "transition_raw_frames": [46, 94],
                        "boundary_after": ["|", "#"]}],
             "seeds": [101],
             "arms": [{"id": "live_infinity_rope"}, {"id": "always_reset"},

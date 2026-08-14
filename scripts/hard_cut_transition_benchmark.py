@@ -58,7 +58,7 @@ def load_manifest(path):
             if len(pair.get("segments", [])) != 6 or pair.get("boundary_after") != ["|", "#", "|", "#", "|"]:
                 raise ValueError("Phase-5 requires A1 | A2 # B1 | B2 # C1 | C2")
             if pair.get("transition_blocks") != [5, 9, 13, 17, 21] or \
-                    pair.get("transition_raw_frames") != [49, 97, 145, 193, 241]:
+                    pair.get("transition_raw_frames") != [46, 94, 142, 190, 238]:
                 raise ValueError("Phase-5 schedule must use four blocks per 3.0-second scene")
             rendered = _render_segments(pair, manifest["duration_seconds_per_scene"])
             prompt_path = ROOT / pair["prompt_path"]

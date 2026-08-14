@@ -134,7 +134,7 @@ class HardCutTransitionBenchmarkTest(unittest.TestCase):
             "live_infinity_rope", "always_reset", "native_state_rebinding"})
         self.assertTrue(all(row["transition_blocks"] == [5, 9, 13, 17, 21]
                             for row in rows))
-        self.assertTrue(all(row["transition_raw_frames"] == [49, 97, 145, 193, 241]
+        self.assertTrue(all(row["transition_raw_frames"] == [46, 94, 142, 190, 238]
                             for row in rows))
 
     def test_phase5_arm_commands_preserve_or_invalidate_native_state_only_at_expected_boundaries(self):
