@@ -3,12 +3,14 @@
 
 import unittest
 from pathlib import Path
+import tempfile
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from pipeline.causal_inference import CausalInferencePipeline
+import torch
 from scripts.hard_cut_transition_benchmark import (
-    _gpu_memory_for_pid, build_run_rows, execute_rows, load_manifest,
+    _gpu_memory_for_pid, annotate_artifacts, build_run_rows, execute_rows, load_manifest,
 )
 
 
@@ -177,6 +179,29 @@ class HardCutTransitionBenchmarkTest(unittest.TestCase):
             result = execute_rows([row])
 
         self.assertEqual(result[0]["peak_vram_mib"], 123)
+
+    def test_artifact_annotation_records_hashes_commit_and_first_rgb_divergence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            baseline = torch.zeros(1, 3, 3, 1, 1)
+            candidate = baseline.clone()
+            candidate[:, 1] = 1
+            rows = []
+            for arm, video in (("live_infinity_rope", baseline), ("always_reset", candidate)):
+                output = root / arm
+                output.mkdir()
+                torch.save(video, output / "0_raw_decoded_before_mp4.pt")
+                (output / "0-0_ema.mp4").write_bytes(b"test")
+                rows.append({"pair_id": "case", "seed": 101, "arm_id": arm,
+                             "status": "completed", "output_folder": arm})
+
+            annotate_artifacts(rows, root=root, git_commit="commit-test")
+
+        self.assertEqual(rows[0]["git_commit"], "commit-test")
+        self.assertEqual(rows[0]["raw_first_divergence_from_live_rgb_frame"], None)
+        self.assertEqual(rows[1]["raw_first_divergence_from_live_rgb_frame"], 2)
+        self.assertEqual(len(rows[1]["raw_output_sha256"]), 64)
+        self.assertEqual(len(rows[1]["mp4_sha256"]), 64)
 
 
 if __name__ == "__main__":

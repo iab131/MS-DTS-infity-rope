@@ -2,10 +2,13 @@
 """Validate and run the registered hard-cut and same-scene transition matrices."""
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import subprocess
 import time
+
+import torch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -214,6 +217,47 @@ def execute_rows(rows):
     return rows
 
 
+def _sha256(path):
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def annotate_artifacts(rows, root=ROOT, git_commit=None):
+    """Attach mechanical provenance and live-reference RGB divergence to completed rows."""
+    if git_commit is None:
+        result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root,
+                                capture_output=True, text=True, check=True)
+        git_commit = result.stdout.strip()
+    by_case = {}
+    for row in rows:
+        if row.get("status") not in {"completed", "reused_exact_provenance"}:
+            continue
+        output = Path(root) / row["output_folder"]
+        raw, mp4 = output / "0_raw_decoded_before_mp4.pt", output / "0-0_ema.mp4"
+        if not raw.is_file() or not mp4.is_file():
+            raise FileNotFoundError(f"missing completed artifacts under {output}")
+        row.update({"git_commit": git_commit, "raw_output_sha256": _sha256(raw),
+                    "mp4_sha256": _sha256(mp4)})
+        by_case.setdefault((row["pair_id"], row["seed"]), []).append((row, raw))
+    for case_rows in by_case.values():
+        reference = next((raw for row, raw in case_rows if row["arm_id"] in {
+            "live_kv_flush", "live_infinity_rope"}), None)
+        if reference is None:
+            raise ValueError("artifact divergence requires a live reference arm")
+        reference_video = torch.load(reference, map_location="cpu", weights_only=True)
+        for row, raw in case_rows:
+            video = torch.load(raw, map_location="cpu", weights_only=True)
+            if tuple(video.shape) != tuple(reference_video.shape):
+                raise ValueError(f"raw video shape mismatch for {row['run_id']}")
+            different = (video != reference_video).reshape(video.shape[0], video.shape[1], -1).any(dim=2).any(dim=0)
+            indices = different.nonzero(as_tuple=False).flatten().tolist()
+            row["raw_first_divergence_from_live_rgb_frame"] = None if not indices else indices[0] + 1
+    return rows
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path,
@@ -226,6 +270,7 @@ def main():
     rows = build_run_rows(load_manifest(args.manifest))
     if args.execute:
         rows = execute_rows(rows)
+        rows = annotate_artifacts(rows)
     payload = {"status": "completed" if args.execute else "planned_not_run",
                "run_count": len(rows), "runs": rows}
     if args.output:
