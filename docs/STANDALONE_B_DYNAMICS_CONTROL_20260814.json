@@ -1,0 +1,61 @@
+{
+  "benchmark_id": "standalone_b_dynamics_control_20260814",
+  "status": "completed_20260815_artifact_verified_visual_review_mixed",
+  "purpose": "Test whether the reported B1 train/boat dynamics abnormality appears without a preceding scene or boundary; this is not a mechanism experiment.",
+  "commit_policy": "Native-State Invalidation/Rebinding remains frozen at e556855; standalone runs use no experimental inference flag.",
+  "seeds": [101, 202],
+  "duration_seconds": 3.0,
+  "comparison": "Each standalone B1 is compared with the first 45 RGB frames of the corresponding B1 region after the A2#B1 boundary in the existing Phase-5 native_state_rebinding artifact. A fresh one-scene 12-latent rollout decodes to 45 RGB frames, whereas later three-second windows in the six-scene decoded tensor span 48 RGB frames because the global decode omits its three-frame offset only once.",
+  "cases": [
+    {
+      "id": "train_b1",
+      "phase5_pair_id": "animal_to_vehicle",
+      "prompt_path": "docs/standalone_b_dynamics_control_20260814_prompts/train_b1.txt",
+      "prompt": "A bright blue freight train alone crosses a snowy mountain viaduct at dawn, no people or passengers visible, cinematic wide shot.",
+      "phase5_reference_start_rgb_frame": 94,
+      "rebind_output_root": "outputs/phase5_generalization_checkpoint_20260813/animal_to_vehicle",
+      "review_focus": "B1-only result; train smoke-related dynamics are tested by the conditionally registered train_b2 control."
+    },
+    {
+      "id": "boat_b1",
+      "phase5_pair_id": "same_object_motion_transition",
+      "prompt_path": "docs/standalone_b_dynamics_control_20260814_prompts/boat_b1.txt",
+      "prompt": "A small white fishing boat alone crosses a dark green ocean beneath a cloudy sky, cinematic aerial wide shot, no people visible.",
+      "phase5_reference_start_rgb_frame": 94,
+      "rebind_output_root": "outputs/phase5_generalization_checkpoint_20260813/same_object_motion_transition",
+      "review_focus": "B1-only result; boat direction-change dynamics are tested by the conditionally registered boat_b2 control."
+    },
+    {
+      "id": "train_b2",
+      "phase5_pair_id": "animal_to_vehicle",
+      "prompt_path": "docs/standalone_b_dynamics_control_20260814_prompts/train_b2.txt",
+      "prompt": "The same bright blue freight train alone on the same snowy mountain viaduct, cinematic wide shot, slows as white steam rises.",
+      "phase5_reference_start_rgb_frame": 142,
+      "rebind_output_root": "outputs/phase5_generalization_checkpoint_20260813/animal_to_vehicle",
+      "review_focus": "Conditional exact-B2 standalone control triggered because smoke dynamics are not present in B1. The standalone prompt deliberately retains its original phase-5 wording, including 'same', as requested."
+    },
+    {
+      "id": "boat_b2",
+      "phase5_pair_id": "same_object_motion_transition",
+      "prompt_path": "docs/standalone_b_dynamics_control_20260814_prompts/boat_b2.txt",
+      "prompt": "The same small white fishing boat alone on the same dark green ocean, cinematic aerial wide shot, changes direction as waves roll behind it with no people visible.",
+      "phase5_reference_start_rgb_frame": 142,
+      "rebind_output_root": "outputs/phase5_generalization_checkpoint_20260813/same_object_motion_transition",
+      "review_focus": "Conditional exact-B2 standalone control triggered because direction-change dynamics are not present in B1. The standalone prompt deliberately retains its original phase-5 wording, including 'same', as requested."
+    }
+  ],
+  "matched_settings": {
+    "config_path": "configs/self_forcing_dmd.yaml",
+    "checkpoint_path": "/home/sigasia2026/models/baselines/Self-Forcing/checkpoints/self_forcing_dmd.pt",
+    "use_ema": true,
+    "num_samples": 1,
+    "save_with_index": true,
+    "output_index": 0,
+    "save_clean_latent_blocks": [1, 2, 3, 4],
+    "save_raw_decoded": true,
+    "output_root": "outputs/standalone_b_dynamics_control_20260814"
+  },
+  "arms": ["standalone_B1", "existing_native_state_rebinding_B1"],
+  "review_fields": ["old_scene_contamination", "motion_dynamics_quality", "new_artifacts_or_latency"],
+  "prohibited": ["boundary", "reset", "experimental inference flags", "prompt merging", "mechanism change"]
+}

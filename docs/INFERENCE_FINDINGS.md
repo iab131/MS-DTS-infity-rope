@@ -1128,3 +1128,43 @@ change; no cache, routing, memory, or prompt-control mechanism should change.
 - Stop this branch before implementation and GPU generation. This is a
   feasibility negative, not evidence about whether early old-state access
   would improve motion.
+
+## Standalone-B dynamics control — eight-run result (2026-08-15)
+
+### OBSERVED
+
+- The requested B1-only control completed for the exact Phase-5 bright-blue
+  freight-train and white-fishing-boat B1 prompts, seeds 101/202, with no
+  preceding scene, boundary, reset, or experimental inference flag. Each fresh
+  3.0-second rollout has 12 latent frames and 45 decoded RGB frames.
+- The B1-only prompts do not request the reported steam-rise or boat
+  direction-change behavior. Per the preregistered conditional instruction,
+  four exact-text B2-alone controls were therefore also run, using the original
+  B2 wording (including `same`) without merging prompts. All eight standalone
+  cells have raw tensors, MP4s, four clean-latent snapshots, hashes, and GPU
+  telemetry; see
+  `outputs/standalone_b_dynamics_control_20260814/runs.json`.
+- Each standalone output is compared with the first 45 RGB frames of the
+  matching Phase-5 `native_state_rebinding` segment: B1 frames 94--138 and B2
+  frames 142--186. The fresh one-scene decoder has the normal initial
+  three-RGB-frame offset, so this equal-length crop preserves the requested
+  3-second latent duration without inventing a warm-up block.
+- The synchronized sheets show the known B1 transition dissolve in the rebinding
+  reference at its first sampled frame, while the standalone output begins in
+  B directly. Beyond that transition frame, both arms visibly contain
+  recognizable train/boat scenes. The static sheets do not show a clear,
+  uniform standalone advantage in train, smoke, boat, or wave dynamics across
+  the two seeds.
+
+### INTERPRETATION
+
+- This is **mixed/inconclusive**, not evidence that Native-State Rebinding is
+  the cause of the reported dynamics abnormality. At minimum, the prompt/model
+  can produce nontrivial train, smoke, boat, and wave dynamics from fresh B-only
+  rollouts too; the current control does not isolate a uniform transition-only
+  degradation.
+- The remaining comparison endpoint is visual motion inspection of the eight
+  synchronized videos, not a numerical quality score. Do not develop a motion
+  mechanism or launch a follow-up automatically. If direct review finds a
+  decisive per-case difference, report that category/seed dependence before
+  proposing any isolated cause test.
