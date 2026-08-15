@@ -1,6 +1,6 @@
 {
   "benchmark_id": "fresh_scene_prime_offset_control_20260814",
-  "status": "cpu_validated_not_run",
+  "status": "executed_20260814_artifact_verified",
   "purpose": "Separate fresh B native-state priming from its unavoidable three-latent-frame causal offset.",
   "seeds": [101, 202],
   "duration_seconds_per_scene": 2.25,
@@ -30,5 +30,6 @@
   },
   "review_fields": ["old_scene_contamination", "motion_dynamics_quality", "new_artifacts_or_latency"],
   "rng_control": "The CUDA default-generator state is captured immediately before each hidden B prime and restored before visible B. Visible B keeps its preallocated noise slice; B and C therefore share visible initial/DMD noise and the same advanced native cursor.",
-  "invariants": ["visible output indexing and frame count unchanged", "no A native K/V readable by hidden or visible B", "offset_only has no hidden-prime native K/V readable by visible B", "offset_only and fresh_prime differ only in hidden B native-state availability"]
+  "invariants": ["visible output indexing and frame count unchanged", "no A native K/V readable by hidden or visible B", "offset_only has no hidden-prime native K/V readable by visible B", "offset_only and fresh_prime differ only in hidden B native-state availability"],
+  "execution_note": "All 12 raw tensors, MP4s, and policy logs were verified. The runner failed only during post-run reference-arm annotation; return codes, per-run runtime, and peak-VRAM telemetry are unavailable and are explicitly marked missing in outputs/fresh_scene_prime_offset_control_20260814/runs.json."
 }

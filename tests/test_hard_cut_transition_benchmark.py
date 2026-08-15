@@ -218,6 +218,24 @@ class HardCutTransitionBenchmarkTest(unittest.TestCase):
         self.assertEqual(rows[0]["raw_first_divergence_from_live_rgb_frame"], None)
         self.assertEqual(rows[1]["raw_first_divergence_from_live_rgb_frame"], 2)
         self.assertEqual(len(rows[1]["raw_output_sha256"]), 64)
+
+    def test_artifact_annotation_accepts_frozen_rebinding_as_the_declared_control(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            rows = []
+            for arm, value in (("frozen_rebinding", 0), ("offset_only", 1), ("fresh_prime", 1)):
+                output = root / arm
+                output.mkdir()
+                torch.save(torch.full((1, 3, 3, 1, 1), value),
+                           output / "0_raw_decoded_before_mp4.pt")
+                (output / "0-0_ema.mp4").write_bytes(b"test")
+                rows.append({"pair_id": "case", "seed": 101, "arm_id": arm,
+                             "status": "completed", "output_folder": arm})
+
+            annotate_artifacts(rows, root=root, git_commit="commit-test")
+
+        self.assertIsNone(rows[0]["raw_first_divergence_from_live_rgb_frame"])
+        self.assertEqual(rows[1]["raw_first_divergence_from_live_rgb_frame"], 1)
         self.assertEqual(len(rows[1]["mp4_sha256"]), 64)
 
 

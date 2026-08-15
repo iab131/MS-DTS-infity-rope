@@ -1060,3 +1060,38 @@ change; no cache, routing, memory, or prompt-control mechanism should change.
 - No GPU has been launched. The pending review asks only whether fresh native
   state improves motion without returning A semantics or creating new latency
   artifacts; it is not a claim of a new mechanism or novelty.
+
+## Fresh-scene-prime offset control — 12-run result (2026-08-14)
+
+### OBSERVED
+
+- The matched aquarium→locomotive and kitchen→sailboat matrix completed all
+  12 requested output cells (seeds 101/202; frozen rebinding, offset-only,
+  fresh-prime). Every cell has a raw decoded tensor, MP4, policy log, and
+  SHA-256 record. The serial runner failed only in its final reference-arm
+  annotation because it did not recognize `frozen_rebinding`; the recovered
+  ledger explicitly marks return codes, exact runtime, and per-run peak VRAM
+  as unavailable rather than fabricating them.
+- Output frame count is 69 in every arm/case, and RGB frames 1--33 are
+  bit-identical across all three arms. Both offset arms first differ from
+  frozen rebinding at RGB frame 34. Their policy logs record the same hidden
+  state start (9), visible state start (12), and restored CUDA generator;
+  offset-only alone records `prime_native_state_inaccessible=true` with no
+  cross-attention reset.
+- In all four reviewed temporal sheets, offset-only collapses into persistent
+  multicolored noise immediately after the hard boundary. Fresh-prime produces
+  recognizable later locomotives/sailboats without an obvious sampled
+  fish/aquarium or chef/kitchen reconstruction. Frozen rebinding also reaches
+  recognizable B scenes in these sparse samples.
+
+### INTERPRETATION
+
+- The offset-only control rules out interpreting any stable fresh-prime output
+  as a harmless consequence of advancing the native timeline alone: the same
+  cursor with inaccessible hidden native K/V is catastrophically unstable.
+- The current synchronized sheets do **not** establish a clear improvement in
+  train smoke/motion or boat dynamics over frozen rebinding. Direct-video human
+  review is still required for that narrow endpoint; no claim of dynamics
+  improvement, novelty, or a new method is supported.
+- Per the preregistered stop condition, stop this prime branch here. Do not
+  launch additional prime runs or a novelty audit automatically.

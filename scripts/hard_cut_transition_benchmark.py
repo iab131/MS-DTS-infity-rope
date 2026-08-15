@@ -251,7 +251,7 @@ def annotate_artifacts(rows, root=ROOT, git_commit=None):
         by_case.setdefault((row["pair_id"], row["seed"]), []).append((row, raw))
     for case_rows in by_case.values():
         reference = next((raw for row, raw in case_rows if row["arm_id"] in {
-            "live_kv_flush", "live_infinity_rope"}), None)
+            "live_kv_flush", "live_infinity_rope", "frozen_rebinding"}), None)
         if reference is None:
             raise ValueError("artifact divergence requires a live reference arm")
         reference_video = torch.load(reference, map_location="cpu", weights_only=True)
