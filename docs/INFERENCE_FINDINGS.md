@@ -1184,3 +1184,56 @@ change; no cache, routing, memory, or prompt-control mechanism should change.
   weirdness specifically to Native AR State Rebinding. Treat it as
   backbone/prompt/seed-dependent under the tested controls. The motion branch
   is closed: do not add another motion mechanism.
+
+## Phase 7 objective failure-mode evaluation (2026-08-15; existing Phase-5 outputs only)
+
+### OBSERVED
+
+- This analysis reads only the completed 63 Phase-5 raw decoded videos. It does
+  not change inference, generate video, download a model, or modify the frozen
+  `e556855` mechanism. The local DINO ViT-B/16 checkpoint strict-loads with no
+  key mismatch and supplies image/image visual-reference features. CLIP code is
+  installed but no local CLIP/OpenCLIP checkpoint exists, so no automatic
+  image/text prompt-adherence score is reported.
+- A locked DINO source-reference AUC uses the eight frames immediately before
+  each `#` and all next 48 frames. A separate local chromatic/temporal
+  disruption signal uses DINO frame distance, RGB step, colorfulness, and
+  high-frequency change around each `|`. These are failure-mode proxies, not
+  generic video-quality scores.
+- Against the 60 pre-existing explicitly scored user-review rows, source AUC
+  versus user score has Spearman rho -0.580 (24 hard-cut rows), and disruption
+  signal versus user score has rho -0.701 (36 continuity rows). This validates
+  expected direction on the scored subset only; it does not make feature
+  similarity semantic ground truth.
+- On 42 paired `#` boundaries, rebinding has lower source-reference AUC than
+  live in 40/42: 0.159 versus 0.523 mean, paired difference -0.364 with
+  bootstrap 95% CI [-0.449, -0.281]. The two reversals are both the second
+  visually-similar cut (seeds 202 and 303). The late-B1 target-stability latency
+  proxy is non-discriminative (means 31.07 vs 31.24 RGB frames) and is not used
+  as a transition-latency claim.
+- At 63 normal boundaries, the disruption signal is 2.340 for always-reset,
+  versus 0.778 live and 0.743 rebinding. The fixed high-discontinuity flag
+  (95th percentile of live+rebinding) identifies 63/63 always-reset windows,
+  versus 4/63 live and 3/63 rebinding. At the first `|` in every 21
+  storyboard×seed cases, rebinding's raw decoded frames remain bit-identical to live; later `|`
+  windows may legitimately differ after a preceding hard cut.
+
+### INTERPRETATION
+
+- The objective signals strengthen the narrow observed association: retaining
+  live native state across `#` is associated with sustained visual
+  source-context similarity, while unconditional removal at `|` is associated
+  with the known catastrophic recomposition signature. This supports, but does
+  not prove, the native-state validity interpretation.
+- Do not call DINO AUC semantic leakage without the user review, do not infer
+  prompt adherence or identity from it, and do not claim generic video-quality
+  improvement. Visually similar-cut reversals, one storyboard/category,
+  incomplete scored review, absent text evaluator, and non-discriminative
+  automatic latency remain material limitations.
+
+### PROPOSAL STATUS
+
+- `PAPER SIGNAL MIXED — CLAIM MUST NARROW`. If further work is approved, use a
+  broader fixed benchmark with blinded review and independently specified
+  semantic measurements; do not tune the mechanism or metrics from this
+  checkpoint.
