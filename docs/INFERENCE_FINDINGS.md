@@ -1095,3 +1095,36 @@ change; no cache, routing, memory, or prompt-control mechanism should change.
   improvement, novelty, or a new method is supported.
 - Per the preregistered stop condition, stop this prime branch here. Do not
   launch additional prime runs or a novelty audit automatically.
+
+## Early-native-handoff — feasibility stop (2026-08-14)
+
+### OBSERVED (code audit and deterministic CPU probe only; no GPU result)
+
+- The live four-call DMD execution order is `1000 -> 937.5 -> 833.3333 ->
+  625` (high noise to low noise). Every call for one visible latent block uses
+  the same `current_start`.
+- After the first B DMD call, each native self-attention cache has advanced
+  `global_end_index` and `local_end_index` by the three B latent frames. The
+  existing `transition_no_sink` operation intentionally clears only
+  `local_end_index`; it retains `global_end_index`.
+- A deterministic CPU probe applied that existing operation between DMD calls
+  while preserving the same B `current_start`. The next native attention call
+  computed a zero-length destination slice and failed with `RuntimeError` when
+  writing the three current B K/V tokens. This follows directly from
+  `local_end + current_end - global_end == 0` after the first call.
+- No existing operation can make A K/V inaccessible at that point while
+  retaining a valid same-block insertion cursor: resetting the global cursor
+  would be a new cursor-rewrite rule, while retaining/reinserting B K/V would
+  require a custom cache copy/writer. Both violate the preregistered
+  accessibility-only constraint. RoPE Cut, cross-attention behavior, output
+  indexing, and RNG were therefore not changed.
+
+### INTERPRETATION
+
+- Early native handoff is infeasible as a clean isolated intervention in the
+  current backbone. Native-state accessibility and same-block cache cursor
+  validity cannot be separated between existing DMD calls using only the live
+  reset operations.
+- Stop this branch before implementation and GPU generation. This is a
+  feasibility negative, not evidence about whether early old-state access
+  would improve motion.
