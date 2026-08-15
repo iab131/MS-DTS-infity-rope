@@ -110,3 +110,11 @@ Blinded human scores are required before the benchmark's semantic endpoints or
 success criteria can be evaluated. See
 `docs/PHASE5_CHECKPOINT_RESULTS_20260813.md` for the completed-run ledger and
 review-package locations.
+
+### Decoded review status — 2026-08-14
+
+The user authorized unblinding after entering a partially numerical,
+case-level review. The scored subset supports the continuity/hard-cut tradeoff,
+but visually similar cuts, motion artifacts, and live-success counterexamples
+make the checkpoint heterogeneous. The fixed decision is `CHECKPOINT MIXED —
+REVIEW BEFORE MORE GPU`; do not launch the ceiling matrix automatically.

@@ -60,3 +60,53 @@ is blinded score entry followed by descriptive checkpoint analysis, with no
 mechanism tuning. No remaining Phase 5 runs launch automatically.
 
 `CHECKPOINT MIXED — REVIEW BEFORE MORE GPU`
+
+## Decoded user blinded review — 2026-08-14
+
+The user authorized unblinding against the private map. This is explicitly a
+**user review**; it supersedes the former score-pending status. The copied form
+contains 60 explicit 1–5 rows (four fully scored case×seed reviews) and 63
+notes. Blank later entries are qualitative carry-forward notes as instructed by
+the user; they are not fabricated as additional numerical observations.
+
+### Explicit scored subset
+
+| Boundary | Live | Always reset | Native-state rebinding |
+| --- | ---: | ---: | ---: |
+| Continuity `|` (12 ratings/arm) | 2.75 | 1.00 | **3.67** |
+| Hard `#` (8 ratings/arm) | 1.25 | 3.00 | **3.88** |
+
+In the scored human→object seeds and animal→vehicle seed 101, always-reset was
+rainbow/noise at every continuity score (12/12 score 1); live had low hard-cut
+scores (8/8 at 1–2), with retained person/dog/background composites or no
+transition; and the frozen policy had no score below 3. These are small,
+user-provided ordinal observations, not validated automated metrics or the full
+preregistered endpoint.
+
+### Carried qualitative notes and counterexamples
+
+- The repeated pattern across later categories remains: always-reset produces
+  rainbow/noise at normal boundaries; live can retain the old object/background
+  through hard cuts; the frozen policy usually makes the requested scene swap.
+- **Visually similar semantic change:** the user noted that rebinding background
+  changed only weakly/slowly after the first `#`, while live retained the old
+  object at a later cut despite otherwise good background/camera motion.
+- **Same-subject action:** rebinding was described as good but slow/weird in one
+  seed; two later notes describe both live and rebinding as good/no remembered
+  background. Thus live is not uniformly bad at hard cuts.
+- **Same-object motion:** rebinding made the swap but motion was weird; live
+  retained the pickup truck; reset was noise. One reset cable-car result looked
+  train-like.
+
+### Interpretation and decision
+
+The user review supports the original opposing-utility observation in multiple
+discovery-external categories: unconditional reset is catastrophic for
+continuity, while live state can contaminate semantic cuts, and the frozen
+policy is often the only arm that retains continuity while permitting a swap.
+However, visually similar cuts, motion degradation, and live-success
+counterexamples are category-dependent limitations. The checkpoint is only one
+storyboard/category and has incomplete numerical rows, so it does not meet the
+full 138-run criteria or justify a paper-level generalization claim.
+
+`CHECKPOINT MIXED — REVIEW BEFORE MORE GPU`

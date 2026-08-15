@@ -1010,3 +1010,19 @@ change; no cache, routing, memory, or prompt-control mechanism should change.
 - No semantic conclusion is recorded: a private mapping, 21 anonymized videos,
   105 strips, and a blank 315-row 1–5/uncertain review form were created. Human
   review is pending; RGB divergence is provenance, not a quality metric.
+
+## Phase 5 checkpoint — decoded user review (2026-08-14)
+
+- With user authorization, the anonymous labels were mapped through the private
+  arm file. The explicit 60 ordinal rows give continuity means live 2.75,
+  always-reset 1.00, and rebinding 3.67; hard-cut means live 1.25,
+  always-reset 3.00, and rebinding 3.88. This is a small scored subset, not the
+  full checkpoint endpoint.
+- User notes repeat the expected failures—always-reset rainbow/noise at `|` and
+  live old-scene retention at hard cuts—but also identify visually similar-cut
+  weakness, slow/weird rebinding motion, and seeds where live hard cuts are
+  usable. Treat these as category-dependent counterexamples.
+- Conclusion: **CHECKPOINT MIXED — REVIEW BEFORE MORE GPU.** The frozen policy
+  remains worth a preregistered full evaluation only after the scoring protocol
+  is completed/normalized; no mechanism tuning or additional GPU run is
+  authorized by this record.
