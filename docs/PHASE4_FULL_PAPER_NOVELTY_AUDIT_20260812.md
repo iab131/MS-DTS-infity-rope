@@ -291,3 +291,19 @@ recommended next step is the preregistered frozen-mechanism generalization
 matrix in `docs/PHASE5_GENERALIZATION_BENCHMARK_PLAN_20260812.md`; it must
 demonstrate the opposing-utility result beyond the existing cases or the claim
 reverts to `PROMISING BUT NEEDS MECHANISM REFRAMING`.
+
+## 9. Phase 6 external-baseline feasibility update (2026-08-15)
+
+Echo-Forcing is the closest direct candidate: its official README names the
+same Wan2.1-T2V-1.3B and Self-Forcing DMD assets and supports explicit
+smooth/hard tags. It cannot presently be used for a fair direct GPU comparison
+because the official repository states that code was temporarily withdrawn on
+2026-07-24. Reimplementation would be an unofficial new method.
+
+Grounded Forcing remains conceptual because it requires two-stage training and
+retains GCM at multi-shot LTM reset. Anchor Forcing has code and weights but is
+a separately trained/distilled anchor-recache/RoPE system rather than the
+frozen native-state intervention on identical weights. Consequently, withhold
+the conditional 18-run Echo matrix until official source returns and a
+same-backbone/config audit passes. See
+[Phase 6 feasibility audit](PHASE6_EXTERNAL_BASELINE_FEASIBILITY_20260815.md).

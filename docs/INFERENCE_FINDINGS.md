@@ -1168,3 +1168,19 @@ change; no cache, routing, memory, or prompt-control mechanism should change.
   mechanism or launch a follow-up automatically. If direct review finds a
   decisive per-case difference, report that category/seed dependence before
   proposing any isolated cause test.
+
+## Motion-diagnosis branch — closed (2026-08-15)
+
+### OBSERVED
+
+- Fresh-scene prime did not show a clear motion improvement over frozen
+  rebinding; early-native handoff was infeasible without a prohibited cache
+  cursor rewrite or K/V repacking; and standalone exact-B controls did not show
+  a clear, uniform train/boat/smoke motion advantage over rebinding.
+
+### INTERPRETATION
+
+- Current evidence does **not** attribute the observed train/boat/smoke motion
+  weirdness specifically to Native AR State Rebinding. Treat it as
+  backbone/prompt/seed-dependent under the tested controls. The motion branch
+  is closed: do not add another motion mechanism.
