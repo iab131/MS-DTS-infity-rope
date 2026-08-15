@@ -153,6 +153,23 @@ class HardCutTransitionBenchmarkTest(unittest.TestCase):
             self.assertIn("[3.0s] |", row["prompt"])
             self.assertEqual(row["prompt"].count("[3.0s#]"), 2)
 
+    def test_fresh_scene_prime_offset_control_has_two_cases_two_seeds_and_three_native_state_arms(self):
+        manifest = load_manifest(
+            Path(__file__).resolve().parents[1] /
+            "docs/FRESH_SCENE_PRIME_OFFSET_CONTROL_20260814.json")
+        rows = {row["arm_id"]: row for row in build_run_rows(manifest)
+                if row["pair_id"] == "aquarium_to_locomotive" and row["seed"] == 101}
+
+        self.assertEqual(len(build_run_rows(manifest)), 12)
+        self.assertEqual(set(rows), {"frozen_rebinding", "offset_only", "fresh_prime"})
+        self.assertTrue(all(row["first_b_block"] == 4 for row in rows.values()))
+        self.assertIn("--boundary-conditioned-ar-state", rows["frozen_rebinding"]["command"])
+        self.assertNotIn("--fresh-scene-prime-mode", rows["frozen_rebinding"]["command"])
+        for arm, mode in (("offset_only", "offset_only"), ("fresh_prime", "fresh_prime")):
+            command = rows[arm]["command"]
+            self.assertEqual(command[command.index("--fresh-scene-prime-mode") + 1], mode)
+            self.assertIn("--boundary-conditioned-ar-state", command)
+
     def test_phase5_prompts_parse_to_six_four_block_scenes_with_only_hard_cuts_after_a2_b2(self):
         manifest = load_manifest(
             Path(__file__).resolve().parents[1] /

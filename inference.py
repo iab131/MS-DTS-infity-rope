@@ -194,6 +194,8 @@ parser.add_argument("--scene-local-rope-epoch", action=argparse.BooleanOptionalA
                     help="Opt-in hard-cut no-sink self-attention temporal epoch experiment.")
 parser.add_argument("--boundary-conditioned-ar-state", action="store_true",
                     help="At | keep live state; at # use the verified no-old-state reset.")
+parser.add_argument("--fresh-scene-prime-mode", choices=["offset_only", "fresh_prime"], default=None,
+                    help="Hard-cut-only fresh-scene prime control; requires boundary-conditioned AR state.")
 parser.add_argument("--memory-decay", action=argparse.BooleanOptionalAction, default=True,
                     help="Apply fixed beta decay to retained non-sink local K/V at policy transitions.")
 parser.add_argument("--memory-decay-beta", type=float, default=0.3,
@@ -274,6 +276,8 @@ if args.scene_local_rope_epoch and not args.attention_memory_policy:
     parser.error("--scene-local-rope-epoch requires --attention-memory-policy")
 if args.boundary_conditioned_ar_state and args.attention_memory_policy:
     parser.error("--boundary-conditioned-ar-state is separate from --attention-memory-policy")
+if args.fresh_scene_prime_mode and not args.boundary_conditioned_ar_state:
+    parser.error("--fresh-scene-prime-mode requires --boundary-conditioned-ar-state")
 
 if args.attention_memory_policy:
     if args.noncontiguous_kv:
@@ -355,6 +359,7 @@ if args.attention_memory_policy:
 else:
     memory_policy_config = (
         {"boundary_conditioned_ar_state": True,
+         "fresh_scene_prime_mode": args.fresh_scene_prime_mode,
          "log_path": args.memory_policy_log or os.path.join(args.output_folder, "boundary_conditioned_ar_state.jsonl")}
         if args.boundary_conditioned_ar_state else None)
 

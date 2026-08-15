@@ -11,7 +11,8 @@ from unittest.mock import patch
 import torch
 
 from pipeline.causal_inference import (
-    apply_boundary_conditioned_transition, apply_memory_transition, capture_clean_memory_block, memory_context_order,
+    apply_boundary_conditioned_transition, apply_memory_transition, clear_fresh_scene_prime_native_state,
+    capture_clean_memory_block, memory_context_order,
     fixed_grid_denoising_schedule, fixed_grid_memory_active, live_kv_flush, pack_fixed_grid_selective_memory,
     capture_subject_latent_memory, transplant_subject_latent_memory,
     latent_patch_clean_cache_input, latent_patch_cache_write_mask,
@@ -482,6 +483,25 @@ class AttentionMemoryPolicyTest(unittest.TestCase):
             {"ordering": ["current:9", "current:10", "current:11"],
              "rope_temporal_positions": [45, 46, 47], "total_frames": 3, "total_tokens": 3},
         )
+
+    def test_prime_reset_hides_prime_native_state_without_rewinding_cursor_or_cross_attention(self):
+        cache = {
+            "k": torch.tensor([[[[10.]], [[20.]], [[30.]], [[40.]], [[50.]], [[60.]]]]),
+            "v": torch.tensor([[[[110.]], [[120.]], [[130.]], [[140.]], [[150.]], [[160.]]]]),
+            "global_end_index": torch.tensor([9]), "local_end_index": torch.tensor([3]),
+            "scene_cut": True,
+        }
+        cross = {"is_init": True}
+
+        event = clear_fresh_scene_prime_native_state(
+            [cache], [cross], frame_tokens=1, device=torch.device("cpu"))
+
+        self.assertEqual(cache["local_end_index"].item(), 0)
+        self.assertEqual(cache["global_end_index"].item(), 9)
+        self.assertFalse(cache["scene_cut"])
+        self.assertTrue(cross["is_init"])
+        self.assertTrue(event["prime_native_state_inaccessible"])
+        self.assertFalse(event["cross_attention_reset"])
 
     def test_recent_only_no_sink_retains_two_raw_frames_without_the_sink(self):
         cache = {

@@ -1026,3 +1026,37 @@ change; no cache, routing, memory, or prompt-control mechanism should change.
   remains worth a preregistered full evaluation only after the scoring protocol
   is completed/normalized; no mechanism tuning or additional GPU run is
   authorized by this record.
+
+## Fresh-scene-prime offset control — CPU feasibility (2026-08-14)
+
+### OBSERVED (code audit and CPU tests only; no GPU result)
+
+- A normal hidden B block necessarily advances the native cache cursor by one
+  three-latent-frame block. Reusing the visible B cursor would overwrite the
+  hidden cache rather than leave it as causal history; `cache_start` is not
+  used by the self-attention cache path.
+- The existing `transition_no_sink` operation can be applied *after* that
+  hidden normal-path block with `cross_attention_reset=False`. It sets the
+  readable self-attention `local_end_index` to zero and clears `scene_cut`,
+  while retaining the advanced `global_end_index` and the B cross-attention
+  cache. Thus it supplies the required offset-only control without a custom
+  cache writer or a new RoPE rule.
+- The CUDA default-generator state is captured before the hidden block and
+  restored before visible B. Visible B retains its original preallocated noise
+  slice; offset-only and fresh-prime consequently share visible initial/DMD
+  noise and the same advanced native cursor. The hidden block is never written
+  to output, so visible output indexing and frame count remain unchanged.
+- The registered CPU-only matrix is two known motion-failure cases
+  (aquarium→locomotive and kitchen→sailboat), seeds 101/202, and frozen
+  rebinding / offset-only / fresh-prime: 12 runs. See
+  `docs/FRESH_SCENE_PRIME_OFFSET_CONTROL_20260814.json`.
+
+### INTERPRETATION
+
+- Offset-only versus fresh-prime isolates readable fresh-B native
+  self-attention state from the unavoidable ordinary timeline advance. It does
+  not separate the prime from B cross-attention cache, which is deliberately
+  matched between those two arms.
+- No GPU has been launched. The pending review asks only whether fresh native
+  state improves motion without returning A semantics or creating new latency
+  artifacts; it is not a claim of a new mechanism or novelty.

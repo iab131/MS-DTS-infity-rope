@@ -1,0 +1,34 @@
+{
+  "benchmark_id": "fresh_scene_prime_offset_control_20260814",
+  "status": "cpu_validated_not_run",
+  "purpose": "Separate fresh B native-state priming from its unavoidable three-latent-frame causal offset.",
+  "seeds": [101, 202],
+  "duration_seconds_per_scene": 2.25,
+  "pairs": [
+    {
+      "id": "aquarium_to_locomotive",
+      "prompt_path": "docs/hard_cut_benchmark_phase0_20260810_prompts/aquarium_to_locomotive.txt",
+      "a": "A school of luminous tropical fish swims through a coral reef aquarium with blue glass walls and bubbling water, cinematic close shot.",
+      "b": "A black steam locomotive travels alone across a snowy mountain viaduct at dawn, no people, no passengers visible, cinematic wide shot."
+    },
+    {
+      "id": "kitchen_to_sailboat",
+      "prompt_path": "docs/hard_cut_benchmark_phase0_20260810_prompts/kitchen_to_sailboat.txt",
+      "a": "A chef in a white coat flips vegetables in a copper kitchen filled with hanging pans and warm firelight, cinematic medium shot.",
+      "b": "A red sailing boat alone crosses rough dark ocean waves beneath a stormy sky, no people, no passengers visible, cinematic aerial wide shot."
+    }
+  ],
+  "arms": [
+    {"id": "frozen_rebinding", "mechanism": "Existing boundary-conditioned AR state: # uses transition_no_sink with RoPE Cut.", "attention_memory_policy": false, "boundary_conditioned_ar_state": true},
+    {"id": "offset_only", "mechanism": "Hidden B normal-path progression, then native-only transition_no_sink reset; visible B retains the advanced cursor and B cross-attention state but not hidden B self-attention K/V.", "attention_memory_policy": false, "boundary_conditioned_ar_state": true, "fresh_scene_prime_mode": "offset_only"},
+    {"id": "fresh_prime", "mechanism": "Hidden B normal-path progression retained as fresh native self-attention state before visible B.", "attention_memory_policy": false, "boundary_conditioned_ar_state": true, "fresh_scene_prime_mode": "fresh_prime"}
+  ],
+  "matched_settings": {
+    "config_path": "configs/self_forcing_dmd.yaml", "checkpoint_path": "/home/sigasia2026/models/baselines/Self-Forcing/checkpoints/self_forcing_dmd.pt", "use_ema": true, "num_samples": 1, "save_with_index": true, "output_index": 0,
+    "save_clean_latent_blocks": [3, 4, 5], "save_raw_decoded": true,
+    "output_root": "outputs/fresh_scene_prime_offset_control_20260814"
+  },
+  "review_fields": ["old_scene_contamination", "motion_dynamics_quality", "new_artifacts_or_latency"],
+  "rng_control": "The CUDA default-generator state is captured immediately before each hidden B prime and restored before visible B. Visible B keeps its preallocated noise slice; B and C therefore share visible initial/DMD noise and the same advanced native cursor.",
+  "invariants": ["visible output indexing and frame count unchanged", "no A native K/V readable by hidden or visible B", "offset_only has no hidden-prime native K/V readable by visible B", "offset_only and fresh_prime differ only in hidden B native-state availability"]
+}

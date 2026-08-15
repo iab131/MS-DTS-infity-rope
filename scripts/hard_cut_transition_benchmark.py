@@ -24,6 +24,7 @@ def load_manifest(path):
     phase3b_arms = {"live_kv_flush", "sink_only", "recent_only_no_sink", "transition_no_sink"}
     phase3c_arms = {"live_kv_flush", "always_reset", "boundary_conditioned"}
     phase5_arms = {"live_infinity_rope", "always_reset", "native_state_rebinding"}
+    fresh_prime_arms = {"frozen_rebinding", "offset_only", "fresh_prime"}
     if manifest.get("benchmark_id") == "hard_cut_transition_phase0_20260810":
         if len(manifest.get("pairs", [])) != 4 or len(manifest.get("seeds", [])) != 2 or \
                 {arm["id"] for arm in manifest.get("arms", [])} != phase0_arms:
@@ -64,6 +65,10 @@ def load_manifest(path):
             prompt_path = ROOT / pair["prompt_path"]
             if not prompt_path.is_file() or prompt_path.read_text(encoding="utf-8").strip() != rendered:
                 raise ValueError(f"Phase-5 prompt file mismatch: {prompt_path}")
+    elif manifest.get("benchmark_id") == "fresh_scene_prime_offset_control_20260814":
+        if len(manifest.get("pairs", [])) != 2 or manifest.get("seeds") != [101, 202] or \
+                {arm["id"] for arm in manifest.get("arms", [])} != fresh_prime_arms:
+            raise ValueError("fresh-scene prime control requires two cases, two seeds, and three arms")
     else:
         raise ValueError("unsupported hard-cut benchmark manifest")
     prompts = (segment for pair in manifest["pairs"] for segment in pair.get("segments", [pair.get("a", ""), pair.get("b", "")]))
@@ -131,6 +136,8 @@ def _command(manifest, pair, seed, arm):
             command.append("--scene-local-rope-epoch")
     if arm.get("boundary_conditioned_ar_state", False):
         command.append("--boundary-conditioned-ar-state")
+    if arm.get("fresh_scene_prime_mode"):
+        command.extend(["--fresh-scene-prime-mode", arm["fresh_scene_prime_mode"]])
     return prompt, output, command
 
 

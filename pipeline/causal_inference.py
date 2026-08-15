@@ -89,6 +89,14 @@ def apply_memory_transition(kv_caches, crossattn_caches, frame_tokens, retention
     }
 
 
+def clear_fresh_scene_prime_native_state(kv_caches, crossattn_caches, frame_tokens, device):
+    """Hide a completed hidden prime while retaining its ordinary cache cursor."""
+    event = apply_memory_transition(
+        kv_caches, crossattn_caches, frame_tokens, "transition_no_sink", False, 0.0,
+        False, device, cross_attention_reset=False)
+    return event | {"prime_native_state_inaccessible": True}
+
+
 def transition_attention_context(current_start_frame, current_num_frames, retention, scene_cut, frame_tokens=1,
                                  sink_frame_id=0, scene_local_rope_epoch=False):
     """Describe the actual first-block context after an opt-in transition policy."""
@@ -523,6 +531,11 @@ class CausalInferencePipeline(torch.nn.Module):
         memory_policy = memory_policy_config or {}
         memory_enabled = bool(memory_policy.get("enabled", False))
         boundary_conditioned_ar_state = bool(memory_policy.get("boundary_conditioned_ar_state", False))
+        fresh_scene_prime_mode = memory_policy.get("fresh_scene_prime_mode")
+        if fresh_scene_prime_mode not in {None, "offset_only", "fresh_prime"}:
+            raise ValueError("unsupported fresh-scene prime mode")
+        if fresh_scene_prime_mode and not boundary_conditioned_ar_state:
+            raise ValueError("fresh-scene prime requires boundary-conditioned AR state")
         if memory_enabled and noncontiguous_enabled:
             raise ValueError("attention-memory policy and Phase 1 non-contiguous KV are separate experiments")
         if memory_enabled and memory_policy["context_mode"] == "replace_recent" and memory_policy["k"] > 2:
@@ -722,9 +735,48 @@ class CausalInferencePipeline(torch.nn.Module):
                 "policy": "boundary_conditioned_ar_state",
                 "normal_boundary": "live_kv_flush_sink_plus_two",
                 "hard_boundary": "transition_no_sink_with_rope_cut",
+                "fresh_scene_prime_mode": fresh_scene_prime_mode,
                 "frame_tokens": self.frame_seq_length,
                 "num_transformer_layers": self.num_transformer_blocks,
             })
+        state_frame_offset = 0
+
+        def run_hidden_fresh_scene_prime(noisy_template, conditional_dict, state_start_frame):
+            """Run one unrendered B block via the ordinary DMD and clean-cache path."""
+            rng_state = torch.cuda.get_rng_state(noise.device)
+            try:
+                prime_input = torch.randn_like(noisy_template)
+                for index, current_timestep in enumerate(self.denoising_step_list):
+                    timestep = torch.ones(
+                        [batch_size, current_num_frames], device=noise.device,
+                        dtype=torch.int64) * current_timestep
+                    _, denoised_pred = self.generator(
+                        noisy_image_or_video=prime_input,
+                        conditional_dict=conditional_dict,
+                        timestep=timestep,
+                        kv_cache=self.kv_cache1,
+                        crossattn_cache=self.crossattn_cache,
+                        current_start=state_start_frame * self.frame_seq_length,
+                    )
+                    if index < len(self.denoising_step_list) - 1:
+                        next_timestep = self.denoising_step_list[index + 1]
+                        prime_input = self.scheduler.add_noise(
+                            denoised_pred.flatten(0, 1),
+                            torch.randn_like(denoised_pred.flatten(0, 1)),
+                            next_timestep * torch.ones(
+                                [batch_size * current_num_frames], device=noise.device, dtype=torch.long),
+                        ).unflatten(0, denoised_pred.shape[:2])
+                self.generator(
+                    noisy_image_or_video=denoised_pred,
+                    conditional_dict=conditional_dict,
+                    timestep=torch.ones_like(timestep) * self.args.context_noise,
+                    kv_cache=self.kv_cache1,
+                    crossattn_cache=self.crossattn_cache,
+                    current_start=state_start_frame * self.frame_seq_length,
+                )
+            finally:
+                torch.cuda.set_rng_state(rng_state, noise.device)
+
         for current_block_index, current_num_frames in enumerate(all_num_frames):
             if profile:
                 block_start.record()
@@ -950,6 +1002,33 @@ class CausalInferencePipeline(torch.nn.Module):
                         self.frame_seq_length)
             noisy_input = noise[
                 :, current_start_frame - num_input_frames:current_start_frame + current_num_frames - num_input_frames]
+            state_start_frame = current_start_frame + state_frame_offset
+            prime_native_state_retained = False
+            if fresh_scene_prime_mode and scene_cut_needed:
+                prime_state_start_frame = state_start_frame
+                run_hidden_fresh_scene_prime(noisy_input, conditional_dict, prime_state_start_frame)
+                state_frame_offset += current_num_frames
+                state_start_frame = current_start_frame + state_frame_offset
+                prime_native_state_retained = fresh_scene_prime_mode == "fresh_prime"
+                if prime_native_state_retained:
+                    record_transition_sink(self.kv_cache1, prime_state_start_frame, "transition_no_sink")
+                    for cache in self.kv_cache1:
+                        cache["scene_cut"] = False
+                    prime_reset = None
+                else:
+                    prime_reset = clear_fresh_scene_prime_native_state(
+                        self.kv_cache1, self.crossattn_cache, self.frame_seq_length, noise.device)
+                boundary_logger.write("fresh_scene_prime", {
+                    "block": current_block_number, "scene_id": scene_index,
+                    "mode": fresh_scene_prime_mode,
+                    "hidden_prime_output_written": False,
+                    "output_start_frame": current_start_frame,
+                    "prime_state_start_frame": prime_state_start_frame,
+                    "visible_state_start_frame": state_start_frame,
+                    "prime_native_state_accessible": prime_native_state_retained,
+                    "rng": "CUDA default generator restored before visible block",
+                    "offset_reset": prime_reset,
+                })
 
             # Step 3.1: Spatial denoising loop
             for index, current_timestep in enumerate(self.denoising_step_list):
@@ -973,7 +1052,7 @@ class CausalInferencePipeline(torch.nn.Module):
                         timestep=timestep,
                         kv_cache=self.kv_cache1,
                         crossattn_cache=self.crossattn_cache,
-                        current_start=current_start_frame * self.frame_seq_length,
+                        current_start=state_start_frame * self.frame_seq_length,
                         retrieved_kv=retrieved_kv,
                         memory_context_mode=memory_policy.get("context_mode", "replace_recent"),
                         selective_memory=denoising_selective_memory,
@@ -993,7 +1072,7 @@ class CausalInferencePipeline(torch.nn.Module):
                         timestep=timestep,
                         kv_cache=self.kv_cache1,
                         crossattn_cache=self.crossattn_cache,
-                        current_start=current_start_frame * self.frame_seq_length,
+                        current_start=state_start_frame * self.frame_seq_length,
                         retrieved_kv=retrieved_kv,
                         memory_context_mode=memory_policy.get("context_mode", "replace_recent"),
                         selective_memory=denoising_selective_memory,
@@ -1065,7 +1144,7 @@ class CausalInferencePipeline(torch.nn.Module):
                 timestep=context_timestep,
                 kv_cache=self.kv_cache1,
                 crossattn_cache=self.crossattn_cache,
-                current_start=current_start_frame * self.frame_seq_length,
+                current_start=state_start_frame * self.frame_seq_length,
                 retrieved_kv=retrieved_kv,
                 memory_context_mode=memory_policy.get("context_mode", "replace_recent"),
                 selective_memory=clean_selective_memory,
@@ -1077,8 +1156,9 @@ class CausalInferencePipeline(torch.nn.Module):
             if memory_enabled and is_transition_block:
                 record_transition_sink(
                     self.kv_cache1, current_start_frame, memory_policy["local_retention"])
-            elif boundary_conditioned_ar_state and is_transition_block and scene_cut_needed:
-                record_transition_sink(self.kv_cache1, current_start_frame, "transition_no_sink")
+            elif boundary_conditioned_ar_state and is_transition_block and scene_cut_needed and \
+                    not prime_native_state_retained:
+                record_transition_sink(self.kv_cache1, state_start_frame, "transition_no_sink")
 
             if noncontiguous_enabled and current_block_number in source_blocks:
                 captured_source_kv[current_block_number] = {
